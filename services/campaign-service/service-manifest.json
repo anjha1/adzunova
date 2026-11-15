@@ -1,0 +1,29 @@
+{
+  "name": "campaign-service",
+  "domain": "Campaign",
+  "architecture": "domain-driven-microservice",
+  "language": "typescript",
+  "port": 4106,
+  "data_ownership": {
+    "database": "campaign_db",
+    "owns_data": true,
+    "cross_service_database_access": false
+  },
+  "dependencies": [
+    "postgres",
+    "kafka"
+  ],
+  "publishes": [
+    "campaign.events.v1"
+  ],
+  "consumes": [
+    "organization.events.v1"
+  ],
+  "deployment": {
+    "independent": true
+  },
+  "slo_targets": {
+    "availability": "99.9%",
+    "p95_latency_ms": 300
+  }
+}

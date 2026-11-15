@@ -1,0 +1,30 @@
+{
+  "name": "organization-service",
+  "domain": "Organization",
+  "architecture": "domain-driven-microservice",
+  "language": "typescript",
+  "port": 4103,
+  "data_ownership": {
+    "database": "organization_db",
+    "owns_data": true,
+    "cross_service_database_access": false
+  },
+  "dependencies": [
+    "postgres",
+    "kafka"
+  ],
+  "publishes": [
+    "organization.events.v1"
+  ],
+  "consumes": [
+    "identity.events.v1",
+    "user.events.v1"
+  ],
+  "deployment": {
+    "independent": true
+  },
+  "slo_targets": {
+    "availability": "99.9%",
+    "p95_latency_ms": 300
+  }
+}

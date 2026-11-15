@@ -1,0 +1,26 @@
+openapi: 3.1.0
+info:
+  title: Adzunova Analytics Service API
+  version: 1.0.0
+  description: Validated event ingestion, deduplication and analytics writes
+servers:
+  - url: http://localhost:4119/api/v1
+paths:
+  /:
+    get:
+      summary: Service information
+      responses:
+        '200':
+          description: Service is available
+  /health/live:
+    get:
+      summary: Liveness probe
+      responses:
+        '200':
+          description: Process is alive
+  /health/ready:
+    get:
+      summary: Readiness probe
+      responses:
+        '200':
+          description: Required dependencies are ready

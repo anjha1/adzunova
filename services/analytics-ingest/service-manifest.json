@@ -1,0 +1,27 @@
+{
+  "name": "analytics-ingest",
+  "domain": "Analytics",
+  "architecture": "domain-driven-microservice",
+  "language": "typescript",
+  "port": 4119,
+  "data_ownership": {
+    "database": "analytics_db",
+    "owns_data": true,
+    "cross_service_database_access": false
+  },
+  "dependencies": [
+    "postgres",
+    "kafka"
+  ],
+  "publishes": [
+    "analytics.events.v1"
+  ],
+  "consumes": [],
+  "deployment": {
+    "independent": true
+  },
+  "slo_targets": {
+    "availability": "99.9%",
+    "p95_latency_ms": 300
+  }
+}

@@ -1,0 +1,32 @@
+{
+  "name": "discovery-service",
+  "domain": "Discovery",
+  "architecture": "domain-driven-microservice",
+  "language": "typescript",
+  "port": 4111,
+  "data_ownership": {
+    "database": "discovery_db",
+    "owns_data": true,
+    "cross_service_database_access": false
+  },
+  "dependencies": [
+    "postgres",
+    "opensearch",
+    "kafka"
+  ],
+  "publishes": [
+    "discovery.events.v1"
+  ],
+  "consumes": [
+    "creator.events.v1",
+    "campaign.events.v1",
+    "social-account.events.v1"
+  ],
+  "deployment": {
+    "independent": true
+  },
+  "slo_targets": {
+    "availability": "99.9%",
+    "p95_latency_ms": 300
+  }
+}

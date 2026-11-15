@@ -1,0 +1,31 @@
+{
+  "name": "booking-service",
+  "domain": "Booking",
+  "architecture": "domain-driven-microservice",
+  "language": "typescript",
+  "port": 4108,
+  "data_ownership": {
+    "database": "booking_db",
+    "owns_data": true,
+    "cross_service_database_access": false
+  },
+  "dependencies": [
+    "postgres",
+    "kafka",
+    "redis"
+  ],
+  "publishes": [
+    "booking.events.v1"
+  ],
+  "consumes": [
+    "offer.events.v1",
+    "campaign.events.v1"
+  ],
+  "deployment": {
+    "independent": true
+  },
+  "slo_targets": {
+    "availability": "99.9%",
+    "p95_latency_ms": 300
+  }
+}

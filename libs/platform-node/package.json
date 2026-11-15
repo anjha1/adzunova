@@ -1,0 +1,10 @@
+{
+  "name": "@adzunova/platform-node",
+  "version": "0.2.0",
+  "private": true,
+  "main": "dist/index.js",
+  "scripts": {
+    "build": "tsc -p tsconfig.json",
+    "typecheck": "tsc --noEmit"
+  }
+}

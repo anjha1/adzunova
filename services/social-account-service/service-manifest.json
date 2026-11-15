@@ -1,0 +1,29 @@
+{
+  "name": "social-account-service",
+  "domain": "Social Account",
+  "architecture": "domain-driven-microservice",
+  "language": "typescript",
+  "port": 4105,
+  "data_ownership": {
+    "database": "social_account_db",
+    "owns_data": true,
+    "cross_service_database_access": false
+  },
+  "dependencies": [
+    "postgres",
+    "kafka"
+  ],
+  "publishes": [
+    "social-account.events.v1"
+  ],
+  "consumes": [
+    "creator.events.v1"
+  ],
+  "deployment": {
+    "independent": true
+  },
+  "slo_targets": {
+    "availability": "99.9%",
+    "p95_latency_ms": 300
+  }
+}

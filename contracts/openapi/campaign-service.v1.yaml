@@ -1,0 +1,26 @@
+openapi: 3.1.0
+info:
+  title: Adzunova Campaign Service API
+  version: 1.0.0
+  description: Campaign creation, budgets, requirements and lifecycle
+servers:
+  - url: http://localhost:4106/api/v1
+paths:
+  /:
+    get:
+      summary: Service information
+      responses:
+        '200':
+          description: Service is available
+  /health/live:
+    get:
+      summary: Liveness probe
+      responses:
+        '200':
+          description: Process is alive
+  /health/ready:
+    get:
+      summary: Readiness probe
+      responses:
+        '200':
+          description: Required dependencies are ready

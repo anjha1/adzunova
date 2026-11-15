@@ -1,0 +1,29 @@
+{
+  "name": "contract-service",
+  "domain": "Contract",
+  "architecture": "domain-driven-microservice",
+  "language": "typescript",
+  "port": 4109,
+  "data_ownership": {
+    "database": "contract_db",
+    "owns_data": true,
+    "cross_service_database_access": false
+  },
+  "dependencies": [
+    "postgres",
+    "kafka"
+  ],
+  "publishes": [
+    "contract.events.v1"
+  ],
+  "consumes": [
+    "booking.events.v1"
+  ],
+  "deployment": {
+    "independent": true
+  },
+  "slo_targets": {
+    "availability": "99.9%",
+    "p95_latency_ms": 300
+  }
+}

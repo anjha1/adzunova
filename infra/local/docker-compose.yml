@@ -1,0 +1,74 @@
+name: adzunova
+services:
+  postgres:
+    image: postgres:16
+    environment:
+      POSTGRES_USER: adzunova
+      POSTGRES_PASSWORD: local_dev_only
+      POSTGRES_DB: postgres
+    ports: ["5432:5432"]
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+      - ./postgres/init:/docker-entrypoint-initdb.d:ro
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U adzunova"]
+      interval: 5s
+      timeout: 3s
+      retries: 20
+  ledger-postgres:
+    image: postgres:16
+    environment:
+      POSTGRES_USER: ledger_owner
+      POSTGRES_PASSWORD: local_ledger_only
+      POSTGRES_DB: ledger_db
+    ports: ["5433:5432"]
+    volumes: ["ledger_data:/var/lib/postgresql/data"]
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ledger_owner -d ledger_db"]
+      interval: 5s
+      timeout: 3s
+      retries: 20
+  redis:
+    image: redis:7-alpine
+    ports: ["6379:6379"]
+    volumes: ["redis_data:/data"]
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+  redpanda:
+    image: docker.redpanda.com/redpandadata/redpanda:v24.3.8
+    command: ["redpanda", "start", "--overprovisioned", "--smp=1", "--memory=1G", "--reserve-memory=0M", "--node-id=0", "--check=false", "--kafka-addr=PLAINTEXT://0.0.0.0:9092", "--advertise-kafka-addr=PLAINTEXT://localhost:9092"]
+    ports: ["9092:9092", "9644:9644"]
+    volumes: ["redpanda_data:/var/lib/redpanda/data"]
+    profiles: ["messaging", "full"]
+  opensearch:
+    image: opensearchproject/opensearch:2
+    environment:
+      discovery.type: single-node
+      DISABLE_SECURITY_PLUGIN: "true"
+      OPENSEARCH_JAVA_OPTS: "-Xms512m -Xmx512m"
+    ports: ["9200:9200"]
+    volumes: ["opensearch_data:/usr/share/opensearch/data"]
+    profiles: ["search", "full"]
+  minio:
+    image: minio/minio:latest
+    command: server /data --console-address ":9001"
+    environment:
+      MINIO_ROOT_USER: minioadmin
+      MINIO_ROOT_PASSWORD: local_minio_only
+    ports: ["9000:9000", "9001:9001"]
+    volumes: ["minio_data:/data"]
+    profiles: ["storage", "full"]
+  mailpit:
+    image: axllent/mailpit:latest
+    ports: ["1025:1025", "8025:8025"]
+    profiles: ["messaging", "full"]
+volumes:
+  postgres_data:
+  ledger_data:
+  redis_data:
+  redpanda_data:
+  opensearch_data:
+  minio_data:

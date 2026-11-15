@@ -1,0 +1,31 @@
+{
+  "name": "ai-service",
+  "domain": "Intelligence",
+  "architecture": "domain-driven-microservice",
+  "language": "python",
+  "port": 8000,
+  "data_ownership": {
+    "database": "ai_db",
+    "owns_data": true,
+    "cross_service_database_access": false
+  },
+  "dependencies": [
+    "postgres",
+    "kafka",
+    "opensearch"
+  ],
+  "publishes": [
+    "ai.events.v1"
+  ],
+  "consumes": [
+    "creator.events.v1",
+    "campaign.events.v1"
+  ],
+  "deployment": {
+    "independent": true
+  },
+  "slo_targets": {
+    "availability": "99.9%",
+    "p95_latency_ms": 300
+  }
+}

@@ -1,0 +1,58 @@
+asyncapi: 3.0.0
+info:
+  title: Adzunova Domain Event Contracts
+  version: 1.0.0
+  description: Versioned domain events published by independently owned services.
+defaultContentType: application/json
+servers:
+  local:
+    host: localhost:9092
+    protocol: kafka
+channels:
+  "ai.events.v1":
+    address: ai.events.v1
+  "analytics.events.v1":
+    address: analytics.events.v1
+  "booking.events.v1":
+    address: booking.events.v1
+  "campaign.events.v1":
+    address: campaign.events.v1
+  "communication.events.v1":
+    address: communication.events.v1
+  "content.events.v1":
+    address: content.events.v1
+  "contract.events.v1":
+    address: contract.events.v1
+  "creator.events.v1":
+    address: creator.events.v1
+  "discovery.events.v1":
+    address: discovery.events.v1
+  "fraud.events.v1":
+    address: fraud.events.v1
+  "identity.events.v1":
+    address: identity.events.v1
+  "notification.events.v1":
+    address: notification.events.v1
+  "offer.events.v1":
+    address: offer.events.v1
+  "organization.events.v1":
+    address: organization.events.v1
+  "payment.events.v1":
+    address: payment.events.v1
+  "realtime.events.v1":
+    address: realtime.events.v1
+  "review.events.v1":
+    address: review.events.v1
+  "social-account.events.v1":
+    address: social-account.events.v1
+  "user.events.v1":
+    address: user.events.v1
+  "worker.events.v1":
+    address: worker.events.v1
+components:
+  messages:
+    DomainEvent:
+      name: DomainEvent
+      contentType: application/json
+      payload:
+        $ref: './events/envelope.schema.json'

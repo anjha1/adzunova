@@ -1,0 +1,30 @@
+{
+  "name": "payment-ledger",
+  "domain": "Financial",
+  "architecture": "domain-driven-microservice",
+  "language": "typescript",
+  "port": 4110,
+  "data_ownership": {
+    "database": "ledger_db",
+    "owns_data": true,
+    "cross_service_database_access": false
+  },
+  "dependencies": [
+    "ledger-postgres",
+    "kafka"
+  ],
+  "publishes": [
+    "payment.events.v1"
+  ],
+  "consumes": [
+    "booking.events.v1",
+    "contract.events.v1"
+  ],
+  "deployment": {
+    "independent": true
+  },
+  "slo_targets": {
+    "availability": "99.9%",
+    "p95_latency_ms": 300
+  }
+}
