@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { identityRequest } from '@/lib/auth';
+import { getPublicOrigin } from '@/lib/config';
 
 const AUTH_COOKIE_NAME = process.env.AUTH_COOKIE_NAME || 'adzunova_session';
 
@@ -26,7 +27,8 @@ async function handleLogout(req: NextRequest) {
   let response: NextResponse;
 
   if (acceptsHtml || isFormPost || req.method === 'GET') {
-    response = NextResponse.redirect(new URL(redirectTarget, req.url));
+    const origin = getPublicOrigin(req);
+    response = NextResponse.redirect(new URL(redirectTarget, origin));
   } else {
     response = NextResponse.json({ success: true, message: 'Logged out' });
   }

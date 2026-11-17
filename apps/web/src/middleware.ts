@@ -23,25 +23,39 @@ function getValidSessionRole(sessionToken?: string): 'CREATOR' | 'BRAND' | null 
   }
 }
 
+function getPublicOrigin(req: NextRequest): string {
+  const forwardedHost = req.headers.get('x-forwarded-host');
+  const forwardedProto = req.headers.get('x-forwarded-proto') || 'https';
+  if (forwardedHost) {
+    return `${forwardedProto}://${forwardedHost}`;
+  }
+  const appUrl = process.env.NEXT_PUBLIC_APP_URL || process.env.APP_URL;
+  if (appUrl) {
+    return appUrl.replace(/\/$/, '');
+  }
+  return req.nextUrl.origin;
+}
+
 export function middleware(req: NextRequest) {
   const { pathname } = req.nextUrl;
   const sessionToken = req.cookies.get(AUTH_COOKIE_NAME)?.value;
   const activeRole = getValidSessionRole(sessionToken);
+  const origin = getPublicOrigin(req);
 
   // 1. Homepage Redirect when already logged in
   if (pathname === '/') {
     if (activeRole === 'CREATOR') {
-      return NextResponse.redirect(new URL('/creator/dashboard', req.url));
+      return NextResponse.redirect(new URL('/creator/dashboard', origin));
     }
     if (activeRole === 'BRAND') {
-      return NextResponse.redirect(new URL('/brand/dashboard', req.url));
+      return NextResponse.redirect(new URL('/brand/dashboard', origin));
     }
   }
 
   // 2. Creator Route Protection
   if (pathname.startsWith('/creator/')) {
     if (!sessionToken) {
-      const url = new URL('/auth/creator/sign-in', req.url);
+      const url = new URL('/auth/creator/sign-in', origin);
       url.searchParams.set('redirect', pathname);
       return NextResponse.redirect(url);
     }
@@ -50,7 +64,7 @@ export function middleware(req: NextRequest) {
   // 3. Brand Route Protection
   if (pathname.startsWith('/brand/')) {
     if (!sessionToken) {
-      const url = new URL('/auth/brand/sign-in', req.url);
+      const url = new URL('/auth/brand/sign-in', origin);
       url.searchParams.set('redirect', pathname);
       return NextResponse.redirect(url);
     }
@@ -62,7 +76,7 @@ export function middleware(req: NextRequest) {
     pathname.startsWith('/auth/creator/sign-up')
   ) {
     if (activeRole === 'CREATOR') {
-      return NextResponse.redirect(new URL('/creator/dashboard', req.url));
+      return NextResponse.redirect(new URL('/creator/dashboard', origin));
     }
   }
 
@@ -71,7 +85,7 @@ export function middleware(req: NextRequest) {
     pathname.startsWith('/auth/brand/sign-up')
   ) {
     if (activeRole === 'BRAND') {
-      return NextResponse.redirect(new URL('/brand/dashboard', req.url));
+      return NextResponse.redirect(new URL('/brand/dashboard', origin));
     }
   }
 
