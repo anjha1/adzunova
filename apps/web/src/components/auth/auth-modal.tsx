@@ -22,20 +22,17 @@ export function AuthModal() {
 
   function handleGoogleAuth() {
     setStatus('loading');
-    // TODO: Wire up OAuth provider when backend identity service is active
-    setTimeout(() => {
-      setStatus('success');
-    }, 600);
+    window.location.href = `/api/auth/google?role=${role === 'brand' ? 'BRAND' : 'CREATOR'}`;
   }
 
   function handleEmailAuth(e: React.FormEvent) {
     e.preventDefault();
     if (!email) return;
     setStatus('loading');
-    // TODO: Wire up Magic Link or OTP when identity service is connected
-    setTimeout(() => {
-      setStatus('success');
-    }, 600);
+    const targetPath = role === 'brand'
+      ? (mode === 'signup' ? '/auth/brand/sign-up' : '/auth/brand/sign-in')
+      : (mode === 'signup' ? '/auth/creator/sign-up' : '/auth/creator/sign-in');
+    window.location.href = `${targetPath}?email=${encodeURIComponent(email)}`;
   }
 
   return (

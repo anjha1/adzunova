@@ -1,8 +1,8 @@
 'use client';
 
 import React from 'react';
+import Link from 'next/link';
 import dynamic from 'next/dynamic';
-import { useAuthModal } from '@/components/auth/auth-modal-context';
 
 // Dynamically import 3D scene (client-only, no SSR)
 const HeroNetworkScene = dynamic(
@@ -42,8 +42,6 @@ function ArrowRightIcon() {
 }
 
 export function V2Hero() {
-  const { openAuth } = useAuthModal();
-
   return (
     <section className="relative overflow-hidden pt-8 pb-10 desk:pt-12 desk:pb-16 border-b border-[var(--color-border)]">
       {/* Background ambient gradient glow */}
@@ -78,23 +76,21 @@ export function V2Hero() {
 
             {/* CTAs: Real buttons with primary gradient and outlined secondary */}
             <div className="flex flex-col sm:flex-row items-center gap-3 w-full sm:w-auto mb-6">
-              <button
-                type="button"
-                onClick={() => openAuth({ role: 'creator', mode: 'signup' })}
+              <Link
+                href="/auth/creator/sign-in"
                 className="group w-full sm:w-auto inline-flex items-center justify-center h-13 px-8 rounded-xl bg-indigo-600 hover:bg-indigo-700 bg-gradient-to-r from-indigo-600 to-violet-600 text-white font-bold text-base shadow-xl shadow-indigo-500/25 hover:shadow-indigo-500/40 hover:opacity-95 active:scale-[0.98] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-indigo-500 transition-all cursor-pointer"
               >
                 <span>I&apos;m a Creator</span>
                 <ArrowRightIcon />
-              </button>
+              </Link>
 
-              <button
-                type="button"
-                onClick={() => openAuth({ role: 'brand', mode: 'signup' })}
+              <Link
+                href="/auth/brand/sign-in"
                 className="group w-full sm:w-auto inline-flex items-center justify-center h-13 px-6 rounded-xl bg-[var(--color-surface-1)] hover:bg-[var(--color-surface-2)] text-[var(--color-fg-primary)] font-semibold text-sm border-2 border-[var(--color-border)] hover:border-brand-500/50 active:scale-[0.98] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-500 transition-all cursor-pointer"
               >
                 <span>I&apos;m a Brand or Agency</span>
                 <ArrowRightIcon />
-              </button>
+              </Link>
             </div>
 
             {/* Supported platforms strip */}

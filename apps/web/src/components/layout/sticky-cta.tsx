@@ -1,12 +1,11 @@
 'use client';
 
 import React, { useEffect, useState } from 'react';
+import Link from 'next/link';
 import { useIsMobile } from '@/hooks/use-media-query';
-import { useAuthModal } from '@/components/auth/auth-modal-context';
 
 export function StickyCta() {
   const isMobile = useIsMobile();
-  const { openAuth } = useAuthModal();
   const [sheetOpen, setSheetOpen] = useState(false);
 
   useEffect(() => {
@@ -36,21 +35,19 @@ export function StickyCta() {
       }}
       className="flex items-center justify-between gap-3 shadow-2xl desk:hidden"
     >
-      <button
-        type="button"
-        onClick={() => openAuth({ role: 'creator', mode: 'signup' })}
-        className="flex-1 inline-flex items-center justify-center h-10 px-3 rounded-lg bg-indigo-600 hover:bg-indigo-700 bg-gradient-to-r from-indigo-600 to-violet-600 text-white font-bold text-xs tracking-wide shadow-md active:opacity-90 cursor-pointer"
+      <Link
+        href="/auth/creator/sign-up"
+        className="flex-1 inline-flex items-center justify-center h-10 px-3 rounded-lg bg-indigo-600 hover:bg-indigo-700 bg-gradient-to-r from-indigo-600 to-violet-600 text-white font-bold text-xs tracking-wide shadow-md active:opacity-90"
       >
         Creator? Join free
-      </button>
+      </Link>
 
-      <button
-        type="button"
-        onClick={() => openAuth({ role: 'brand', mode: 'signup' })}
+      <Link
+        href="/auth/brand/sign-up"
         className="inline-flex items-center justify-center h-10 px-4 rounded-lg bg-[var(--color-surface-2)] text-[var(--color-fg-primary)] font-semibold text-xs border border-[var(--color-border)] active:opacity-90"
       >
         Brand
-      </button>
+      </Link>
     </div>
   );
 }

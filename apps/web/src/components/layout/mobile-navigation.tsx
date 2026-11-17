@@ -229,29 +229,23 @@ export function MobileNavigation() {
               initial={{ opacity: 0, y: 15 }}
               animate={{ opacity: 1, y: 0 }}
               exit={{ opacity: 0, y: 15 }}
-              className="p-5 border-t border-[var(--color-border)] bg-[var(--color-surface-1)] space-y-3 shrink-0"
+              className="p-5 border-t border-[var(--color-border)] bg-[var(--color-surface-1)] space-y-2.5 shrink-0"
             >
-              <button
-                type="button"
-                onClick={() => {
-                  closeSheet();
-                  openAuth({ role: 'creator', mode: 'signup' });
-                }}
-                className="w-full flex items-center justify-center min-h-[44px] h-12 rounded-xl bg-indigo-600 hover:bg-indigo-700 bg-gradient-to-r from-indigo-600 to-violet-600 text-white font-bold text-base shadow-lg shadow-indigo-500/25 active:scale-[0.98] transition-all cursor-pointer"
+              <Link
+                href="/auth/creator/sign-in"
+                onClick={closeSheet}
+                className="w-full flex items-center justify-center min-h-[44px] h-12 rounded-xl bg-indigo-600 hover:bg-indigo-700 bg-gradient-to-r from-indigo-600 to-violet-600 text-white font-bold text-sm shadow-lg shadow-indigo-500/25 active:scale-[0.98] transition-all"
               >
-                Get Started Free — Creator
-              </button>
+                Creator Portal (Sign In)
+              </Link>
 
-              <button
-                type="button"
-                onClick={() => {
-                  closeSheet();
-                  openAuth({ mode: 'signin' });
-                }}
-                className="w-full flex items-center justify-center min-h-[44px] h-11 rounded-xl bg-[var(--color-surface-2)] text-[var(--color-fg-primary)] font-semibold text-sm border border-[var(--color-border)] active:scale-[0.98] transition-all cursor-pointer"
+              <Link
+                href="/auth/brand/sign-in"
+                onClick={closeSheet}
+                className="w-full flex items-center justify-center min-h-[44px] h-11 rounded-xl bg-[var(--color-surface-2)] text-[var(--color-fg-primary)] font-semibold text-sm border border-[var(--color-border)] active:scale-[0.98] transition-all"
               >
-                Sign In to Account
-              </button>
+                Brand &amp; Agency Portal (Sign In)
+              </Link>
             </motion.div>
           </div>
         )}

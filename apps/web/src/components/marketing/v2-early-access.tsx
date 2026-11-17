@@ -1,10 +1,9 @@
 'use client';
 
 import React, { useState } from 'react';
-import { useAuthModal } from '@/components/auth/auth-modal-context';
+import Link from 'next/link';
 
 export function V2EarlyAccess() {
-  const { openAuth } = useAuthModal();
   const [email, setEmail] = useState('');
   const [submitted, setSubmitted] = useState(false);
 
@@ -54,15 +53,21 @@ export function V2EarlyAccess() {
           </form>
         )}
 
-        {/* Quick alternative button to open Modal */}
-        <div className="mb-8">
-          <button
-            type="button"
-            onClick={() => openAuth({ role: 'creator', mode: 'signup' })}
+        {/* Quick alternative links */}
+        <div className="mb-8 flex items-center justify-center gap-4">
+          <Link
+            href="/auth/creator/sign-in"
             className="text-xs font-semibold text-brand-600 dark:text-brand-400 hover:underline"
           >
-            Already have an invite? Creator Sign Up &amp; Login &rarr;
-          </button>
+            Creator Sign In &rarr;
+          </Link>
+          <span className="text-xs text-[var(--color-fg-muted)]">•</span>
+          <Link
+            href="/auth/brand/sign-in"
+            className="text-xs font-semibold text-brand-600 dark:text-brand-400 hover:underline"
+          >
+            Brand Sign In &rarr;
+          </Link>
         </div>
 
         {/* 3 Trust chips */}
