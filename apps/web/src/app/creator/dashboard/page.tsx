@@ -41,7 +41,7 @@ export default async function CreatorDashboardPage() {
                 {user.emailVerified ? 'Verified Creator' : 'Verification Pending'}
               </div>
             </div>
-            <form action="/api/auth/logout" method="POST">
+            <form action="/api/auth/logout?redirect=/auth/creator/sign-in" method="POST">
               <button
                 type="submit"
                 className="text-xs font-semibold px-3 py-1.5 rounded-lg border border-slate-300 dark:border-slate-700 hover:bg-slate-100 dark:hover:bg-slate-800 text-slate-700 dark:text-slate-300 transition"

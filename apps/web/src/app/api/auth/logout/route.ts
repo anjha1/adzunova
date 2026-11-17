@@ -6,8 +6,21 @@ const AUTH_COOKIE_NAME = process.env.AUTH_COOKIE_NAME || 'adzunova_session';
 
 async function handleLogout(req: NextRequest) {
   const sessionToken = req.cookies.get(AUTH_COOKIE_NAME)?.value;
+  let userRole: string | null = null;
 
   if (sessionToken) {
+    try {
+      const parts = sessionToken.split('.');
+      const payloadB64 = parts.length >= 4 ? parts[2] : parts.length === 3 ? parts[1] : null;
+      if (payloadB64) {
+        const jsonStr = Buffer.from(payloadB64.replace(/-/g, '+').replace(/_/g, '/'), 'base64').toString('utf8');
+        const payload = JSON.parse(jsonStr);
+        userRole = payload.role;
+      }
+    } catch {
+      // Ignore parsing errors
+    }
+
     try {
       await identityRequest('/api/v1/auth/logout', {
         method: 'POST',
@@ -19,7 +32,8 @@ async function handleLogout(req: NextRequest) {
   }
 
   const searchParams = req.nextUrl.searchParams;
-  const redirectTarget = searchParams.get('redirect') || '/auth/creator/sign-in';
+  const defaultRedirect = userRole === 'BRAND' ? '/auth/brand/sign-in' : '/auth/creator/sign-in';
+  const redirectTarget = searchParams.get('redirect') || defaultRedirect;
 
   const acceptsHtml = req.headers.get('accept')?.includes('text/html');
   const isFormPost = req.headers.get('content-type')?.includes('application/x-www-form-urlencoded');
