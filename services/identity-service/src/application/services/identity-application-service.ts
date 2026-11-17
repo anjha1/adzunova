@@ -1,0 +1,519 @@
+import { getDatabase } from '../../infrastructure/persistence/database';
+import {
+  UserEntity,
+  CreatorProfileEntity,
+  BrandProfileEntity,
+  IdentityEntity,
+  SessionEntity,
+  VerificationTokenEntity,
+  UserRole,
+} from '../../domain/entities/models';
+import {
+  hashPassword,
+  verifyPassword,
+  hashToken,
+  generateRandomToken,
+  createSessionJwt,
+} from '../../infrastructure/security/crypto';
+import crypto from 'crypto';
+
+export class IdentityService {
+  /**
+   * Register a Creator Account
+   */
+  async registerCreator(input: {
+    fullName: string;
+    email: string;
+    password: string;
+    country: string;
+    category: any;
+  }): Promise<{ user: UserEntity; profile: CreatorProfileEntity; sessionToken: string }> {
+    const db = await getDatabase();
+    const normalizedEmail = input.email.trim().toLowerCase();
+
+    // Check existing
+    const existing = await db.collection<UserEntity>('users').findOne({ normalizedEmail });
+    if (existing) {
+      throw new Error('An account with this email address already exists.');
+    }
+
+    const userId = crypto.randomBytes(12).toString('hex');
+    const passwordHash = await hashPassword(input.password);
+    const now = new Date();
+
+    const user: UserEntity = {
+      _id: userId,
+      email: input.email.trim(),
+      normalizedEmail,
+      passwordHash,
+      role: 'CREATOR',
+      emailVerified: false,
+      status: 'ACTIVE',
+      createdAt: now,
+      updatedAt: now,
+      lastLoginAt: now,
+    };
+
+    const profile: CreatorProfileEntity = {
+      userId,
+      displayName: input.fullName.trim(),
+      category: input.category,
+      country: input.country,
+      onboardingCompleted: false,
+      onboardingStep: 1,
+      profileStatus: 'DRAFT',
+      createdAt: now,
+      updatedAt: now,
+    };
+
+    await db.collection<UserEntity>('users').insertOne(user as any);
+    await db.collection<CreatorProfileEntity>('creator_profiles').insertOne(profile as any);
+
+    // Create session
+    const sessionToken = await this.createSession(userId, 'CREATOR');
+
+    return { user, profile, sessionToken };
+  }
+
+  /**
+   * Find User By Email
+   */
+  async findUserByEmail(email: string): Promise<UserEntity | null> {
+    const db = await getDatabase();
+    const normalizedEmail = email.trim().toLowerCase();
+    return db.collection<UserEntity>('users').findOne({ normalizedEmail });
+  }
+
+  /**
+   * Register a Brand / Company Account
+   */
+  async registerBrand(input: {
+    fullName: string;
+    workEmail: string;
+    password: string;
+    companyName: string;
+    website?: string;
+    industry: string;
+    country: string;
+    businessType: any;
+  }): Promise<{ user: UserEntity; profile: BrandProfileEntity; sessionToken: string }> {
+    const db = await getDatabase();
+    const normalizedEmail = input.workEmail.trim().toLowerCase();
+
+    const existing = await db.collection<UserEntity>('users').findOne({ normalizedEmail });
+    if (existing) {
+      throw new Error('An account with this email address already exists.');
+    }
+
+    const userId = crypto.randomBytes(12).toString('hex');
+    const passwordHash = await hashPassword(input.password);
+    const now = new Date();
+
+    const user: UserEntity = {
+      _id: userId,
+      email: input.workEmail.trim(),
+      normalizedEmail,
+      passwordHash,
+      role: 'BRAND',
+      emailVerified: false,
+      status: 'ACTIVE',
+      createdAt: now,
+      updatedAt: now,
+      lastLoginAt: now,
+    };
+
+    const profile: BrandProfileEntity = {
+      userId,
+      contactName: input.fullName.trim(),
+      companyName: input.companyName.trim(),
+      website: input.website?.trim(),
+      industry: input.industry.trim(),
+      businessType: input.businessType,
+      country: input.country,
+      onboardingCompleted: false,
+      onboardingStep: 1,
+      profileStatus: 'DRAFT',
+      createdAt: now,
+      updatedAt: now,
+    };
+
+    await db.collection<UserEntity>('users').insertOne(user as any);
+    await db.collection<BrandProfileEntity>('brand_profiles').insertOne(profile as any);
+
+    const sessionToken = await this.createSession(userId, 'BRAND');
+
+    return { user, profile, sessionToken };
+  }
+
+  /**
+   * Standard Password Login
+   */
+  async loginWithPassword(
+    email: string,
+    password: string,
+    expectedRole?: UserRole
+  ): Promise<{ user: UserEntity; profile: any; sessionToken: string }> {
+    const db = await getDatabase();
+    const normalizedEmail = email.trim().toLowerCase();
+
+    const user = await db.collection<UserEntity>('users').findOne({ normalizedEmail });
+    if (!user || !user.passwordHash) {
+      throw new Error('Invalid email or password credentials.');
+    }
+
+    if (user.status === 'SUSPENDED') {
+      throw new Error('This account has been suspended. Please contact support.');
+    }
+
+    const isValid = await verifyPassword(password, user.passwordHash);
+    if (!isValid) {
+      throw new Error('Invalid email or password credentials.');
+    }
+
+    // Role validation
+    if (expectedRole && user.role !== expectedRole) {
+      throw new Error(
+        `This account is registered as a ${user.role}. Please sign in via the ${user.role.toLowerCase()} portal.`
+      );
+    }
+
+    // Fetch profile
+    let profile: any = null;
+    if (user.role === 'CREATOR') {
+      profile = await db.collection('creator_profiles').findOne({ userId: user._id });
+    } else if (user.role === 'BRAND') {
+      profile = await db.collection('brand_profiles').findOne({ userId: user._id });
+    }
+
+    // Update lastLoginAt
+    await db.collection('users').updateOne({ _id: user._id as any }, { $set: { lastLoginAt: new Date() } });
+
+    const sessionToken = await this.createSession(user._id, user.role);
+
+    return { user, profile, sessionToken };
+  }
+
+  /**
+   * Google OAuth Callback Resolution
+   */
+  async resolveGoogleUser(input: {
+    googleId: string;
+    email: string;
+    name: string;
+    role: UserRole;
+  }): Promise<{ user: UserEntity; profile: any; sessionToken: string; isNewUser: boolean }> {
+    const db = await getDatabase();
+    const normalizedEmail = input.email.trim().toLowerCase();
+
+    // 1. Check if identity exists
+    const identity = await db.collection<IdentityEntity>('identities').findOne({
+      provider: 'google',
+      providerUserId: input.googleId,
+    });
+
+    if (identity) {
+      const user = await db.collection<any>('users').findOne({ _id: identity.userId });
+      if (!user) {
+        throw new Error('Account linkage corrupted. Please contact support.');
+      }
+
+      // Note: When existing identity is found, seamlessly sign in with their existing role
+      // and let the downstream router direct them to their role-specific dashboard.
+
+      let profile: any = null;
+      if (user.role === 'CREATOR') {
+        profile = await db.collection('creator_profiles').findOne({ userId: user._id });
+      } else {
+        profile = await db.collection('brand_profiles').findOne({ userId: user._id });
+      }
+
+      await db.collection('users').updateOne({ _id: user._id }, { $set: { lastLoginAt: new Date() } });
+      const sessionToken = await this.createSession(user._id, user.role);
+
+      return { user, profile, sessionToken, isNewUser: false };
+    }
+
+    // 2. Check if user with this email already exists
+    const existingUser = await db.collection<UserEntity>('users').findOne({ normalizedEmail });
+    if (existingUser) {
+      // Account linking verification
+      if (input.role && existingUser.role !== input.role) {
+        throw new Error(
+          `This email is associated with a ${existingUser.role} account. Cannot convert to ${input.role}.`
+        );
+      }
+
+      // Link identity
+      await db.collection<IdentityEntity>('identities').insertOne({
+        userId: existingUser._id,
+        provider: 'google',
+        providerUserId: input.googleId,
+        providerEmail: input.email,
+        createdAt: new Date(),
+      } as any);
+
+      // Mark email as verified by Google
+      await db.collection('users').updateOne(
+        { _id: existingUser._id as any },
+        { $set: { emailVerified: true, lastLoginAt: new Date() } }
+      );
+
+      let profile: any = null;
+      if (existingUser.role === 'CREATOR') {
+        profile = await db.collection('creator_profiles').findOne({ userId: existingUser._id });
+      } else {
+        profile = await db.collection('brand_profiles').findOne({ userId: existingUser._id });
+      }
+
+      const sessionToken = await this.createSession(existingUser._id, existingUser.role);
+      return { user: existingUser, profile, sessionToken, isNewUser: false };
+    }
+
+    // 3. Create fresh Google User
+    const userId = crypto.randomBytes(12).toString('hex');
+    const now = new Date();
+
+    const newUser: UserEntity = {
+      _id: userId,
+      email: input.email.trim(),
+      normalizedEmail,
+      role: input.role,
+      emailVerified: true,
+      status: 'ACTIVE',
+      createdAt: now,
+      updatedAt: now,
+      lastLoginAt: now,
+    };
+
+    await db.collection<UserEntity>('users').insertOne(newUser as any);
+    await db.collection<IdentityEntity>('identities').insertOne({
+      userId,
+      provider: 'google',
+      providerUserId: input.googleId,
+      providerEmail: input.email,
+      createdAt: now,
+    } as any);
+
+    let profile: any = null;
+    if (input.role === 'CREATOR') {
+      profile = {
+        userId,
+        displayName: input.name,
+        category: 'Influencer',
+        country: 'Global',
+        onboardingCompleted: false,
+        onboardingStep: 1,
+        profileStatus: 'DRAFT',
+        createdAt: now,
+        updatedAt: now,
+      };
+      await db.collection('creator_profiles').insertOne(profile);
+    } else {
+      profile = {
+        userId,
+        contactName: input.name,
+        companyName: `${input.name}'s Company`,
+        industry: 'General',
+        businessType: 'Startup',
+        country: 'Global',
+        onboardingCompleted: false,
+        onboardingStep: 1,
+        profileStatus: 'DRAFT',
+        createdAt: now,
+        updatedAt: now,
+      };
+      await db.collection('brand_profiles').insertOne(profile);
+    }
+
+    const sessionToken = await this.createSession(userId, input.role);
+    return { user: newUser, profile, sessionToken, isNewUser: true };
+  }
+
+  /**
+   * Session Management
+   */
+  async createSession(userId: string, role: UserRole): Promise<string> {
+    const db = await getDatabase();
+    const sessionId = crypto.randomUUID();
+    const rawToken = generateRandomToken(32);
+    const sessionTokenHash = hashToken(rawToken);
+
+    const now = new Date();
+    const expiresAt = new Date(now.getTime() + 7 * 24 * 60 * 60 * 1000); // 7 days
+
+    const session: SessionEntity = {
+      userId,
+      role,
+      sessionTokenHash,
+      createdAt: now,
+      expiresAt,
+      lastUsedAt: now,
+    };
+
+    await db.collection<SessionEntity>('sessions').insertOne(session as any);
+
+    const jwtToken = createSessionJwt({
+      userId,
+      email: '',
+      role,
+      sessionId,
+    });
+
+    return `${rawToken}.${jwtToken}`;
+  }
+
+  async validateSession(tokenStr: string): Promise<{ user: UserEntity; profile: any } | null> {
+    if (!tokenStr) return null;
+    const [rawToken] = tokenStr.split('.');
+    if (!rawToken) return null;
+
+    const db = await getDatabase();
+    const sessionTokenHash = hashToken(rawToken);
+
+    const session = await db.collection<any>('sessions').findOne({
+      sessionTokenHash,
+      expiresAt: { $gt: new Date() },
+      revokedAt: { $exists: false },
+    });
+
+    if (!session) return null;
+
+    const user = await db.collection<any>('users').findOne({ _id: session.userId });
+    if (!user || user.status === 'SUSPENDED') return null;
+
+    let profile: any = null;
+    if (user.role === 'CREATOR') {
+      profile = await db.collection('creator_profiles').findOne({ userId: user._id });
+    } else {
+      profile = await db.collection('brand_profiles').findOne({ userId: user._id });
+    }
+
+    // Touch lastUsedAt asynchronously
+    db.collection('sessions').updateOne({ _id: session._id }, { $set: { lastUsedAt: new Date() } }).catch(() => {});
+
+    return { user, profile };
+  }
+
+  async revokeSession(tokenStr: string): Promise<void> {
+    if (!tokenStr) return;
+    const [rawToken] = tokenStr.split('.');
+    if (!rawToken) return;
+
+    const db = await getDatabase();
+    const sessionTokenHash = hashToken(rawToken);
+    await db.collection('sessions').updateOne(
+      { sessionTokenHash },
+      { $set: { revokedAt: new Date() } }
+    );
+  }
+
+  /**
+   * Onboarding Update
+   */
+  async updateOnboarding(
+    userId: string,
+    role: UserRole,
+    step: number,
+    data: Record<string, any>,
+    completed: boolean = false
+  ): Promise<any> {
+    const db = await getDatabase();
+    const now = new Date();
+
+    if (role === 'CREATOR') {
+      const updateData: any = {
+        ...data,
+        onboardingStep: step,
+        updatedAt: now,
+      };
+      if (completed) {
+        updateData.onboardingCompleted = true;
+        updateData.profileStatus = 'COMPLETED';
+      }
+
+      await db.collection('creator_profiles').updateOne(
+        { userId },
+        { $set: updateData }
+      );
+      return db.collection('creator_profiles').findOne({ userId });
+    } else {
+      const updateData: any = {
+        ...data,
+        onboardingStep: step,
+        updatedAt: now,
+      };
+      if (completed) {
+        updateData.onboardingCompleted = true;
+        updateData.profileStatus = 'COMPLETED';
+      }
+
+      await db.collection('brand_profiles').updateOne(
+        { userId },
+        { $set: updateData }
+      );
+      return db.collection('brand_profiles').findOne({ userId });
+    }
+  }
+
+  /**
+   * Password Reset Flow
+   */
+  async createPasswordResetToken(email: string): Promise<string | null> {
+    const db = await getDatabase();
+    const normalizedEmail = email.trim().toLowerCase();
+    const user = await db.collection<UserEntity>('users').findOne({ normalizedEmail });
+    if (!user) return null; // generic handling
+
+    const rawToken = generateRandomToken(32);
+    const tokenHash = hashToken(rawToken);
+    const now = new Date();
+    const expiresAt = new Date(now.getTime() + 60 * 60 * 1000); // 1 hour
+
+    await db.collection<VerificationTokenEntity>('verification_tokens').insertOne({
+      userId: user._id,
+      tokenHash,
+      purpose: 'PASSWORD_RESET',
+      expiresAt,
+      createdAt: now,
+    } as any);
+
+    return rawToken;
+  }
+
+  async resetPasswordWithToken(token: string, newPassword: string): Promise<boolean> {
+    const db = await getDatabase();
+    const tokenHash = hashToken(token);
+
+    const tokenDoc = await db.collection<VerificationTokenEntity>('verification_tokens').findOne({
+      tokenHash,
+      purpose: 'PASSWORD_RESET',
+      expiresAt: { $gt: new Date() },
+      usedAt: { $exists: false },
+    });
+
+    if (!tokenDoc) return false;
+
+    const passwordHash = await hashPassword(newPassword);
+    const now = new Date();
+
+    // Update user password
+    await db.collection('users').updateOne(
+      { _id: tokenDoc.userId as any },
+      { $set: { passwordHash, updatedAt: now } }
+    );
+
+    // Mark token used
+    await db.collection('verification_tokens').updateOne(
+      { _id: tokenDoc._id },
+      { $set: { usedAt: now } }
+    );
+
+    // Revoke all existing sessions for this user (security rule)
+    await db.collection('sessions').updateMany(
+      { userId: tokenDoc.userId, revokedAt: { $exists: false } },
+      { $set: { revokedAt: now } }
+    );
+
+    return true;
+  }
+}

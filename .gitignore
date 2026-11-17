@@ -11,10 +11,15 @@ build/
 out/
 coverage/
 
-# Environment secrets
+# Environment secrets & credentials
 .env
 .env.*
 !.env.example
+*.pem
+*.key
+*.p12
+service-account*.json
+firebase-adminsdk*.json
 
 # Python
 .venv/
@@ -47,3 +52,6 @@ Thumbs.db
 *.tmp
 *.bak
 .cache/
+
+.claude/
+.mcp.json

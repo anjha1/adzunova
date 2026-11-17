@@ -1,0 +1,292 @@
+export const LANDING_CONTENT = {
+  meta: {
+    title: 'Adzunova — Global Creator & Brand Partnership Platform',
+    description: 'The complete collaboration platform for creators, talent, brands, and agencies. Discover talent, agree on clear terms, protect payments, and measure outcomes in one connected workspace.',
+  },
+
+  hero: {
+    badge: 'Creator & Brand Partnership Platform',
+    headline: 'The complete collaboration platform for',
+    headlineAccent: 'creators & brands.',
+    subheadline: 'Discover verified creative talent, organize campaigns, secure agreements, and track measurable marketing outcomes — all in one connected workspace.',
+    roleSelector: {
+      creatorLabel: 'I am a Creator',
+      brandLabel: 'I am a Brand / Agency',
+      creatorCta: 'Apply for Creator Access',
+      brandCta: 'Explore Brand Solutions',
+      creatorSubtext: 'Monetize your audience with verified media kits & protected payments.',
+      brandSubtext: 'Launch targeted creator campaigns with verified reach & measurable ROI.',
+    },
+    platformChips: [
+      { name: 'YouTube', icon: '📹' },
+      { name: 'Instagram', icon: '📱' },
+      { name: 'TikTok', icon: '⚡' },
+      { name: 'UGC & Video', icon: '🎬' },
+      { name: 'Podcasts', icon: '🎙️' },
+      { name: 'Specialists', icon: '✨' },
+    ],
+    statusText: 'Currently welcoming creators, agencies, and brand partners in early access',
+  },
+
+  chaosToOrder: {
+    badge: 'Why Adzunova Exists',
+    headline: 'From scattered chaos to one organized platform.',
+    subheadline: 'Creator marketing shouldn’t require jumping between direct messages, spreadsheets, and manual transfers. See how Adzunova consolidates every stage.',
+    painPoints: [
+      {
+        id: 'search',
+        label: 'Scattered Talent Search',
+        problem: 'Wasting hours browsing 5+ social apps independently with no easy way to verify engagement authenticity.',
+        solution: 'Unified directory with verified channels, audience demographics, and authentic engagement insights.',
+        icon: '🔍',
+      },
+      {
+        id: 'conversations',
+        label: 'Lost Conversations',
+        problem: 'Crucial briefs, feedback, and terms getting lost across Instagram DMs, personal inboxes, and chat apps.',
+        solution: 'Centralized partnership workspaces where all creative discussions stay linked to the active campaign.',
+        icon: '💬',
+      },
+      {
+        id: 'contracts',
+        label: 'Unclear Agreements',
+        problem: 'Relying on loose email confirmations without documented deliverable deadlines or usage rights terms.',
+        solution: 'Clear collaboration agreements outlining deliverable formats, revision counts, and licensing windows.',
+        icon: '📄',
+      },
+      {
+        id: 'payments',
+        label: 'Payment Uncertainty',
+        problem: 'Creators waiting months for invoices while brands worry about paying before content is delivered.',
+        solution: 'Protected project funding committed upfront and released promptly upon approved delivery.',
+        icon: '🔒',
+      },
+      {
+        id: 'feedback',
+        label: 'Disorganized Feedback',
+        problem: 'Exchanging video drafts through random drive links with conflicting and untracked revision notes.',
+        solution: 'Structured content review queues with timestamped stakeholder feedback and version tracking.',
+        icon: '🎬',
+      },
+      {
+        id: 'results',
+        label: 'Unmeasured Results',
+        problem: 'Struggling to know whether a partnership actually drove website visitors, engagement, or sales.',
+        solution: 'Comprehensive campaign reporting tracking verified reach, link clicks, promo codes, and ROI.',
+        icon: '📊',
+      },
+    ],
+  },
+
+  audiences: {
+    badge: 'Two Audiences • One Platform',
+    headline: 'Engineered for both creators and businesses.',
+    subheadline: 'Symmetric tools designed to give creators business independence and brands campaign clarity.',
+    tabs: [
+      {
+        id: 'creators',
+        label: 'For Creators & Talent',
+        headline: 'Grow your creative business with clarity and confidence.',
+        description: 'Connect with quality brands, showcase your authentic audience reach, agree on clear deliverables, and receive timely payments without chasing outstanding invoices.',
+        ctaText: 'Join as a Creator',
+        ctaHref: '/signup?role=creator',
+        benefits: [
+          'Professional media kit highlighting verified follower reach and engagement',
+          'Configurable rate cards and clear deliverable timelines',
+          'Protected payment terms committed before production starts',
+          'Documented agreements covering deliverable scopes and content usage rights',
+          'Organized revision queues so feedback is always clear and actionable',
+        ],
+      },
+      {
+        id: 'brands',
+        label: 'For Brands & Agencies',
+        headline: 'Scale impactful creator partnerships with complete visibility.',
+        description: 'Plan, launch, and manage collaborations with multiple creators simultaneously. Evaluate audience fit, coordinate creative reviews, and measure real marketing impact.',
+        ctaText: 'Launch Brand Campaigns',
+        ctaHref: '/solutions/brands',
+        benefits: [
+          'Targeted talent discovery filtered by niche, geography, and real reach',
+          'Structured campaign briefs outlining deliverables, deadlines, and guidelines',
+          'Team workspaces to coordinate creator outreach and review drafts together',
+          'Organized payment workflows releasing compensation upon approved delivery',
+          'Performance tracking to understand reach, engagement, and campaign outcomes',
+        ],
+      },
+    ],
+  },
+
+  talent: {
+    badge: 'Creative Diversity',
+    headline: 'Beyond social media influencers. Built for all creative talent.',
+    subheadline: 'Adzunova supports the full breadth of the creative economy — connecting businesses with YouTubers, actors, models, UGC specialists, photographers, voice artists, and subject matter experts.',
+    categories: [
+      {
+        id: 'video',
+        title: 'Social Video & Media Creators',
+        summary: 'Content storytellers with engaged communities across major video, streaming, and social networks.',
+        items: [
+          'YouTube Filmmakers & Reviewers',
+          'Instagram & TikTok Creators',
+          'Podcasters & Audio Hosts',
+          'Gaming & Live Streamers',
+          'Professional & B2B Creators',
+          'Lifestyle & Visual Curators',
+        ],
+      },
+      {
+        id: 'specialists',
+        title: 'Creative Specialists & Artists',
+        summary: 'Talented specialists delivering professional media production, visual assets, and authentic storytelling.',
+        items: [
+          'UGC Video Creators',
+          'Commercial Photographers',
+          'Actors & Screen Performers',
+          'Musicians & Voice Artists',
+          'Fashion Models & Stylists',
+          'Video Editors & Motion Designers',
+        ],
+      },
+      {
+        id: 'experts',
+        title: 'Industry Experts & Educators',
+        summary: 'Subject matter leaders whose verified expertise builds consumer trust and enterprise credibility.',
+        items: [
+          'Technology & Software Experts',
+          'Health & Wellness Specialists',
+          'Business & Finance Educators',
+          'Teachers & Course Creators',
+          'Brand & D2C Consultants',
+          'Keynote & Event Speakers',
+        ],
+      },
+    ],
+  },
+
+  howItWorks: {
+    badge: 'How Collaboration Works',
+    headline: 'A clear, organized process from first outreach to final results.',
+    subheadline: 'Eliminate miscommunication and payment uncertainty. Adzunova guides creators and brands through a structured partnership workflow designed for mutual success.',
+    phases: [
+      {
+        code: 'STAGE 01',
+        title: 'Discover & Evaluate',
+        summary: 'Find relevant creative talent, review authentic audience reach, and align on initial campaign goals.',
+        steps: [
+          { num: '01', title: 'Targeted Search', desc: 'Filter by platform, niche, audience region, and rates.' },
+          { num: '02', title: 'Audience Verification', desc: 'Review real engagement metrics and verified past work.' },
+          { num: '03', title: 'Rate Comparison', desc: 'Assess rate cards and deliverable options side by side.' },
+          { num: '04', title: 'Direct Pitch', desc: 'Send campaign invitations with clear creative briefs.' },
+        ],
+      },
+      {
+        code: 'STAGE 02',
+        title: 'Agree & Create',
+        summary: 'Finalize deliverable terms, protect project funding, and produce high-quality creative assets.',
+        steps: [
+          { num: '05', title: 'Term Alignment', desc: 'Agree on deliverables, deadlines, and revisions.' },
+          { num: '06', title: 'Documented Terms', desc: 'Clear guidelines covering content usage and exclusivity.' },
+          { num: '07', title: 'Protected Funding', desc: 'Funds are securely committed before production begins.' },
+          { num: '08', title: 'Content Staging', desc: 'Submit draft videos and photos with timestamped feedback.' },
+        ],
+      },
+      {
+        code: 'STAGE 03',
+        title: 'Approve & Settle',
+        summary: 'Sign off on finished deliverables, release creator compensation, and track performance outcomes.',
+        steps: [
+          { num: '09', title: 'Creative Sign-Off', desc: 'Review finished deliverables against the agreed brief.' },
+          { num: '10', title: 'Live Distribution', desc: 'Publish content across channels with trackable links.' },
+          { num: '11', title: 'Prompt Payout', desc: 'Compensation is released promptly upon approval.' },
+          { num: '12', title: 'Campaign Insights', desc: 'Evaluate audience reach, clicks, and marketing impact.' },
+        ],
+      },
+    ],
+  },
+
+  showcase: {
+    badge: 'Interactive Product Showcase',
+    headline: 'See how campaigns are run in Adzunova.',
+    subheadline: 'Explore the key modules that keep creator collaborations organized, accountable, and transparent.',
+    tabs: [
+      {
+        id: 'discovery',
+        label: 'Talent Discovery',
+        title: 'Find creators with verified audience reach',
+        description: 'Filter creator profiles by niche, audience geography, engagement consistency, and verified past collaboration history.',
+        badge: 'Sample preview',
+      },
+      {
+        id: 'milestones',
+        label: 'Milestone Tracking',
+        title: 'Track deliverables across multiple creators',
+        description: 'Keep multi-creator campaigns on schedule with visual milestone tracking, draft review queues, and timestamped feedback.',
+        badge: 'Sample preview',
+      },
+      {
+        id: 'payments',
+        label: 'Payment Protection',
+        title: 'Secured project funding and prompt payouts',
+        description: 'Project compensation is committed upfront before production starts and released promptly when deliverables are signed off.',
+        badge: 'Sample preview',
+      },
+      {
+        id: 'agreements',
+        label: 'Agreements & Rights',
+        title: 'Clear content licensing and usage guidelines',
+        description: 'Unambiguous digital agreements covering digital advertising usage, exclusivity periods, and deliverable specifications.',
+        badge: 'Sample preview',
+      },
+      {
+        id: 'analytics',
+        label: 'Performance Insights',
+        title: 'Measure real campaign impact and engagement',
+        description: 'Track audience impressions, promo code redemptions, and click-through performance across all participating creators.',
+        badge: 'Sample preview',
+      },
+    ],
+  },
+
+  trustAndAI: {
+    trustBadge: 'Trust & Transparency',
+    trustHeadline: 'Built on verified profiles and transparent terms.',
+    trustSubheadline: 'Adzunova provides structured verification and clear agreements so brands protect their marketing investments and creators have guaranteed clarity on deliverables and compensation.',
+    tiers: [
+      { name: 'Business & Contact Verification', state: 'Active', desc: 'Verified business email domains and contact credentials.' },
+      { name: 'Connected Social Channel Verification', state: 'Active', desc: 'Direct channel links confirming creator identity and ownership.' },
+      { name: 'Audience Authenticity & Quality Review', state: 'In Review', desc: 'Ongoing checks for genuine engagement and follower quality.' },
+      { name: 'Verified Payment Setup', state: 'Upcoming', desc: 'Secure payment setup for prompt disbursements and bank transfers.' },
+      { name: 'Completed Campaign History', state: 'Upcoming', desc: 'On-time delivery track records and authentic partnership reviews.' },
+      { name: 'Enterprise Brand Partnership Status', state: 'Enterprise', desc: 'Dedicated partnership agreements for high-volume marketing teams.' },
+    ],
+    safeguards: [
+      { icon: '🔒', title: 'Protected Payment Terms', desc: 'Project funds are committed before production begins, ensuring creators are guaranteed compensation and brands only release payouts upon approved delivery.' },
+      { icon: '📄', title: 'Documented Usage & Licensing Rights', desc: 'Agreements clearly specify where and how content can be used, including digital advertising rights, organic posting, and exclusivity timeframes.' },
+      { icon: '🤝', title: 'Organized Milestone Approvals', desc: 'Every campaign milestone documents agreed briefs, submitted drafts, and revision feedback in one audit-friendly thread so expectations remain clear.' },
+      { icon: '⭐', title: 'Authentic Two-Way Reviews', desc: 'Creators and brands review each other after completed collaborations, building trusted professional reputations across the marketplace.' },
+    ],
+    aiBadge: 'Intelligent Partnership Tools',
+    aiHeadline: 'Smarter creator discovery. Meaningful collaboration insights.',
+    aiSubheadline: 'Adzunova is building intelligent recommendation tools to help brands identify suitable creators, understand fair pricing benchmarks, and forecast campaign reach — with humans always in full control.',
+    aiNotice: 'Our intelligent tools highlight matching creators and suggest fair rate benchmarks based on market data. Creators and brands always make the final decisions, negotiate their own terms, and approve every agreement.',
+    aiTools: [
+      { title: 'Creator & Brand Recommendations', desc: 'Identifies creators whose audience demographics, creative tone, and past collaborations align with your brand goals.', badge: 'Smart Matching' },
+      { title: 'Audience Authenticity Insights', desc: 'Flags unusual follower spikes, suspicious comment patterns, and engagement anomalies to ensure authentic creator partnerships.', badge: 'Quality Check' },
+      { title: 'Market Rate Guidance', desc: 'Suggests fair compensation ranges based on content format, creative scope, channel reach, and exclusivity timelines.', badge: 'Rate Guidance' },
+      { title: 'Campaign Reach Estimates', desc: 'Provides estimated audience impressions and expected engagement bands before you finalize creator selections.', badge: 'Reach Forecasting' },
+      { title: 'Campaign Brief Assistant', desc: 'Helps brands write concise, thorough creative briefs so creators clearly understand deliverables from day one.', badge: 'Brief Assistant' },
+      { title: 'Partnership Performance Insights', desc: 'Analyzes click trends and promo engagement to surface which creative formats delivered the strongest audience resonance.', badge: 'Performance Insights' },
+    ],
+  },
+
+  earlyAccess: {
+    badge: 'Early Access Program',
+    headline: 'Be part of the next generation of creator collaborations.',
+    subheadline: 'Whether you are a creator ready to build your business with verified brand partnerships or a brand looking to scale high-performing creator campaigns, join our early access cohort.',
+    benefits: [
+      { title: 'One Connected Platform', desc: 'Discover talent, manage communications, review deliverables, and track campaign outcomes in one central hub.' },
+      { title: 'Transparent Payment Workflows', desc: 'Agreed project compensation committed upfront, guaranteeing reliable and prompt payouts upon approved content delivery.' },
+      { title: 'Smarter Creator Discovery', desc: 'Helpful audience insights and market rate guidance to help brands find the right creative partners with complete confidence.' },
+    ],
+  },
+};
