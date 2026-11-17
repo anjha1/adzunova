@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { identityFetch } from '@/lib/identity-client';
 import { generateRequestId } from '@/lib/request-id';
+import { getPublicOrigin } from '@/lib/config';
 
 const AUTH_COOKIE_NAME = process.env.AUTH_COOKIE_NAME || 'adzunova_session';
 
@@ -10,7 +11,7 @@ export async function GET(req: NextRequest) {
   const code = searchParams.get('code');
   const state = searchParams.get('state');
   const error = searchParams.get('error');
-  const origin = req.nextUrl.origin;
+  const origin = getPublicOrigin(req);
 
   let errorRole = 'creator';
   if (state) {

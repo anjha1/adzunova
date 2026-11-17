@@ -1,13 +1,15 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { identityFetch } from '@/lib/identity-client';
 import { generateRequestId } from '@/lib/request-id';
+import { getPublicOrigin } from '@/lib/config';
 
 export async function GET(req: NextRequest) {
   const requestId = generateRequestId();
   const searchParams = req.nextUrl.searchParams;
   const role = searchParams.get('role') || 'CREATOR';
   const redirect = searchParams.get('redirect') || '';
-  const callbackUrl = `${req.nextUrl.origin}/api/auth/callback/google`;
+  const publicOrigin = getPublicOrigin(req);
+  const callbackUrl = `${publicOrigin}/api/auth/callback/google`;
 
   const queryParams = new URLSearchParams({
     role,

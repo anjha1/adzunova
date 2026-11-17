@@ -26,3 +26,23 @@ const config = loadConfig();
 export const IDENTITY_SERVICE_URL = config.IDENTITY_SERVICE_URL;
 export const AUTH_COOKIE_NAME = config.AUTH_COOKIE_NAME;
 export const IS_DEVELOPMENT = config.IS_DEVELOPMENT;
+
+/**
+ * Resolves the public-facing origin URL of the incoming request,
+ * accounting for reverse-proxies (Render, Vercel, Cloudflare, etc.)
+ * which forward traffic from internal ports (e.g. localhost:10000).
+ */
+export function getPublicOrigin(req: { headers: { get(name: string): string | null }; nextUrl: { origin: string } }): string {
+  const forwardedHost = req.headers.get('x-forwarded-host');
+  const forwardedProto = req.headers.get('x-forwarded-proto') || 'https';
+  if (forwardedHost) {
+    return `${forwardedProto}://${forwardedHost}`;
+  }
+
+  const appUrl = process.env.NEXT_PUBLIC_APP_URL || process.env.APP_URL;
+  if (appUrl) {
+    return appUrl.replace(/\/$/, '');
+  }
+
+  return req.nextUrl.origin;
+}
