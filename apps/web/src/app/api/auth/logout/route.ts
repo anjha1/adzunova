@@ -47,7 +47,8 @@ async function handleLogout(req: NextRequest) {
     response = NextResponse.json({ success: true, message: 'Logged out' });
   }
 
-  // Clear session cookie
+  // Clear session cookie completely
+  response.cookies.delete(AUTH_COOKIE_NAME);
   response.cookies.set({
     name: AUTH_COOKIE_NAME,
     value: '',
@@ -56,6 +57,7 @@ async function handleLogout(req: NextRequest) {
     sameSite: 'lax',
     path: '/',
     maxAge: 0,
+    expires: new Date(0),
   });
 
   return response;

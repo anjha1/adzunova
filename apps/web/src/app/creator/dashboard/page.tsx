@@ -9,7 +9,7 @@ export default async function CreatorDashboardPage() {
   const session = await getSession();
 
   if (!session || !session.user) {
-    redirect('/auth/creator/sign-in?redirect=/creator/dashboard');
+    redirect('/api/auth/logout?redirect=/auth/creator/sign-in');
   }
 
   if (session.user.role !== 'CREATOR') {

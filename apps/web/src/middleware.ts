@@ -75,6 +75,11 @@ export function middleware(req: NextRequest) {
     pathname.startsWith('/auth/creator/sign-in') ||
     pathname.startsWith('/auth/creator/sign-up')
   ) {
+    if (req.nextUrl.searchParams.has('redirect') || req.nextUrl.searchParams.has('error')) {
+      const response = NextResponse.next();
+      response.cookies.delete(AUTH_COOKIE_NAME);
+      return response;
+    }
     if (activeRole === 'CREATOR') {
       return NextResponse.redirect(new URL('/creator/dashboard', origin));
     }
@@ -84,6 +89,11 @@ export function middleware(req: NextRequest) {
     pathname.startsWith('/auth/brand/sign-in') ||
     pathname.startsWith('/auth/brand/sign-up')
   ) {
+    if (req.nextUrl.searchParams.has('redirect') || req.nextUrl.searchParams.has('error')) {
+      const response = NextResponse.next();
+      response.cookies.delete(AUTH_COOKIE_NAME);
+      return response;
+    }
     if (activeRole === 'BRAND') {
       return NextResponse.redirect(new URL('/brand/dashboard', origin));
     }

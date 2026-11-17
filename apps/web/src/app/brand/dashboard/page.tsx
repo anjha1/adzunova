@@ -9,7 +9,7 @@ export default async function BrandDashboardPage() {
   const session = await getSession();
 
   if (!session || !session.user) {
-    redirect('/auth/brand/sign-in?redirect=/brand/dashboard');
+    redirect('/api/auth/logout?redirect=/auth/brand/sign-in');
   }
 
   if (session.user.role !== 'BRAND') {
