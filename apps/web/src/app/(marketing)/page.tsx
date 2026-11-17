@@ -1,6 +1,5 @@
 import type { Metadata } from 'next';
-import { redirect } from 'next/navigation';
-import { getSession } from '@/lib/auth';
+import { HomeAuthRedirect } from '@/components/auth/home-auth-redirect';
 import { V2Hero } from '@/components/marketing/v2-hero';
 import { V2QuickVideo } from '@/components/marketing/v2-quick-video';
 import { V2FourSteps } from '@/components/marketing/v2-four-steps';
@@ -27,19 +26,12 @@ export const metadata: Metadata = {
   },
 };
 
-export default async function HomePage() {
-  const session = await getSession();
-
-  if (session?.user) {
-    if (session.user.role === 'CREATOR') {
-      redirect('/creator/dashboard');
-    } else if (session.user.role === 'BRAND') {
-      redirect('/brand/dashboard');
-    }
-  }
-
+export default function HomePage() {
   return (
     <>
+      {/* Client-side auth redirect for logged-in sessions without breaking static prerendering */}
+      <HomeAuthRedirect />
+
       {/* 1. Hero: <8 word headline, 1-line subhead, Creator-first CTA, 3D card ring */}
       <V2Hero />
 

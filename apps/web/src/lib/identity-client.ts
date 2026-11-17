@@ -100,7 +100,10 @@ async function fetchWithTimeout(url: string, init: RequestInit): Promise<Respons
   const controller = new AbortController();
   const timer = setTimeout(() => controller.abort(), REQUEST_TIMEOUT_MS);
   try {
-    return await fetch(url, { ...init, signal: controller.signal });
+    const signal = init.signal
+      ? AbortSignal.any([controller.signal, init.signal])
+      : controller.signal;
+    return await fetch(url, { ...init, signal });
   } finally {
     clearTimeout(timer);
   }

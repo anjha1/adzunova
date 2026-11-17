@@ -21,9 +21,13 @@ export async function identityRequest<T = Record<string, any>>(
   return { data };
 }
 
+/** Timeout for session verification requests (3 seconds) */
+const GET_SESSION_TIMEOUT_MS = 3_000;
+
 /**
  * Server-side helper to fetch current user session from HttpOnly cookie.
- * Returns null if cookie is absent or the session is invalid/expired.
+ * Returns null immediately if cookie is absent, invalid, expired, or if the
+ * identity-service call times out / fails, ensuring pages never hang or crash.
  */
 export async function getSession(requestId?: string): Promise<AuthSession | null> {
   const cookieStore = await cookies();
@@ -31,22 +35,46 @@ export async function getSession(requestId?: string): Promise<AuthSession | null
 
   if (!sessionToken) return null;
 
-  const { data, err } = await identityFetch<AuthSession>('/api/v1/auth/me', {
-    headers: { Authorization: `Bearer ${sessionToken}` },
-    requestId,
-  });
+  const controller = new AbortController();
+  const timer = setTimeout(() => controller.abort(), GET_SESSION_TIMEOUT_MS);
 
-  if (err) {
-    console.warn('[getSession] Failed to validate session:', {
-      code: err.code,
-      message: err.message,
-      internal: err._internal,
+  try {
+    const fetchPromise = identityFetch<AuthSession>('/api/v1/auth/me', {
+      headers: { Authorization: `Bearer ${sessionToken}` },
       requestId,
+      signal: controller.signal,
     });
-    return null;
-  }
 
-  return data ?? null;
+    const timeoutPromise = new Promise<{ data?: undefined; err?: { code: string; message: string; _internal?: any } }>((resolve) => {
+      controller.signal.addEventListener('abort', () => {
+        resolve({
+          err: {
+            code: 'IDENTITY_TIMEOUT',
+            message: `Session check timed out after ${GET_SESSION_TIMEOUT_MS}ms`,
+          },
+        });
+      });
+    });
+
+    const { data, err } = await Promise.race([fetchPromise, timeoutPromise]);
+
+    if (err) {
+      console.warn('[getSession] Failed to validate session:', {
+        code: err.code,
+        message: err.message,
+        internal: err._internal,
+        requestId,
+      });
+      return null;
+    }
+
+    return data ?? null;
+  } catch (error) {
+    console.warn('[getSession] Error during session validation:', error instanceof Error ? error.message : error);
+    return null;
+  } finally {
+    clearTimeout(timer);
+  }
 }
 
 export { IDENTITY_SERVICE_URL, AUTH_COOKIE_NAME };
