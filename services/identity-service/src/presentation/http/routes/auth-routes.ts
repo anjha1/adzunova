@@ -169,15 +169,16 @@ export function createAuthRouter(identityService: IdentityService): Router {
   router.get('/oauth/google/init', (req: Request, res: Response) => {
     const role = (req.query.role as any) === 'BRAND' ? 'BRAND' : 'CREATOR';
     const redirect = (req.query.redirect as string) || '';
+    const queryCallbackUrl = req.query.callbackUrl as string;
+    const callbackUrl = queryCallbackUrl || process.env.GOOGLE_CALLBACK_URL || 'http://localhost:3000/api/auth/callback/google';
 
     const clientId = process.env.GOOGLE_CLIENT_ID;
-    const callbackUrl = process.env.GOOGLE_CALLBACK_URL || 'http://localhost:3000/api/auth/callback/google';
 
     if (!clientId) {
       return res.status(500).json({ error: 'GOOGLE_CLIENT_ID is not configured.' });
     }
 
-    const state = signOAuthState({ role, redirect });
+    const state = signOAuthState({ role, redirect, callbackUrl });
     const scope = encodeURIComponent('openid profile email');
     const authUrl = `https://accounts.google.com/o/oauth2/v2/auth?response_type=code&client_id=${clientId}&redirect_uri=${encodeURIComponent(
       callbackUrl
@@ -202,7 +203,7 @@ export function createAuthRouter(identityService: IdentityService): Router {
 
       const clientId = process.env.GOOGLE_CLIENT_ID;
       const clientSecret = process.env.GOOGLE_CLIENT_SECRET;
-      const callbackUrl = process.env.GOOGLE_CALLBACK_URL || 'http://localhost:3000/api/auth/callback/google';
+      const callbackUrl = verifiedState.callbackUrl || process.env.GOOGLE_CALLBACK_URL || 'http://localhost:3000/api/auth/callback/google';
 
       if (!clientId || !clientSecret) {
         return res.status(500).json({ error: 'Google OAuth credentials missing on server.' });

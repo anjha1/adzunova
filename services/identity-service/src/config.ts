@@ -28,7 +28,7 @@ const ENV_SCHEMA = z.object({
   // --- Google OAuth ---
   GOOGLE_CLIENT_ID: z.string().min(1, 'GOOGLE_CLIENT_ID is required for Google OAuth'),
   GOOGLE_CLIENT_SECRET: z.string().min(1, 'GOOGLE_CLIENT_SECRET is required for Google OAuth'),
-  GOOGLE_CALLBACK_URL: z.string().min(1, 'GOOGLE_CALLBACK_URL is required (e.g. http://localhost:3000/api/auth/callback/google)'),
+  GOOGLE_CALLBACK_URL: z.string().optional().default('http://localhost:3000/api/auth/callback/google'),
 
   // --- Email (optional for dev, required for prod) ---
   SMTP_HOST: z.string().optional(),

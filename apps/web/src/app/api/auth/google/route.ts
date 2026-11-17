@@ -7,9 +7,18 @@ export async function GET(req: NextRequest) {
   const searchParams = req.nextUrl.searchParams;
   const role = searchParams.get('role') || 'CREATOR';
   const redirect = searchParams.get('redirect') || '';
+  const callbackUrl = `${req.nextUrl.origin}/api/auth/callback/google`;
+
+  const queryParams = new URLSearchParams({
+    role,
+    callbackUrl,
+  });
+  if (redirect) {
+    queryParams.set('redirect', redirect);
+  }
 
   const { data, err } = await identityFetch<{ url: string }>(
-    `/api/v1/auth/oauth/google/init?role=${encodeURIComponent(role)}&redirect=${encodeURIComponent(redirect)}`,
+    `/api/v1/auth/oauth/google/init?${queryParams.toString()}`,
     { method: 'GET', requestId }
   );
 

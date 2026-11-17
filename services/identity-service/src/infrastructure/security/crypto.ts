@@ -52,15 +52,15 @@ export function verifySessionJwt(token: string): TokenPayload | null {
   }
 }
 
-export function signOAuthState(data: { role: UserRole; redirect?: string }): string {
+export function signOAuthState(data: { role: UserRole; redirect?: string; callbackUrl?: string }): string {
   const nonce = generateRandomToken(16);
   const payload = { ...data, nonce, exp: Math.floor(Date.now() / 1000) + 900 }; // 15 mins
   return jwt.sign(payload, JWT_SECRET);
 }
 
-export function verifyOAuthState(state: string): { role: UserRole; redirect?: string; nonce: string } | null {
+export function verifyOAuthState(state: string): { role: UserRole; redirect?: string; callbackUrl?: string; nonce: string } | null {
   try {
-    return jwt.verify(state, JWT_SECRET) as { role: UserRole; redirect?: string; nonce: string };
+    return jwt.verify(state, JWT_SECRET) as { role: UserRole; redirect?: string; callbackUrl?: string; nonce: string };
   } catch {
     return null;
   }

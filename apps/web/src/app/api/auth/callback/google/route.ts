@@ -12,10 +12,25 @@ export async function GET(req: NextRequest) {
   const error = searchParams.get('error');
   const origin = req.nextUrl.origin;
 
+  let errorRole = 'creator';
+  if (state) {
+    try {
+      const parts = state.split('.');
+      if (parts.length >= 2) {
+        const payload = JSON.parse(Buffer.from(parts[1], 'base64').toString('utf8'));
+        if (payload.role?.toUpperCase() === 'BRAND') {
+          errorRole = 'brand';
+        }
+      }
+    } catch {
+      // Fallback to default creator role if state cannot be inspected
+    }
+  }
+
   if (error || !code || !state) {
     const errorMsg = error || 'OAuth cancellation or missing authorization code.';
     return NextResponse.redirect(
-      `${origin}/auth/creator/sign-in?error=${encodeURIComponent(errorMsg)}`
+      `${origin}/auth/${errorRole}/sign-in?error=${encodeURIComponent(errorMsg)}`
     );
   }
 
@@ -42,13 +57,13 @@ export async function GET(req: NextRequest) {
         ? 'Authentication service is temporarily unavailable.'
         : err.message;
     return NextResponse.redirect(
-      `${origin}/auth/creator/sign-in?error=${encodeURIComponent(msg)}&requestId=${requestId}`
+      `${origin}/auth/${errorRole}/sign-in?error=${encodeURIComponent(msg)}&requestId=${requestId}`
     );
   }
 
   if (!data?.sessionToken) {
     return NextResponse.redirect(
-      `${origin}/auth/creator/sign-in?error=${encodeURIComponent('OAuth verification failed')}&requestId=${requestId}`
+      `${origin}/auth/${errorRole}/sign-in?error=${encodeURIComponent('OAuth verification failed')}&requestId=${requestId}`
     );
   }
 

@@ -33,6 +33,18 @@ if (isDev) {
 
 // ── Dependency-Free Liveness Endpoints (Registered FIRST) ─────────────────────
 // Must respond in <5ms without awaiting any database, auth, or I/O
+app.get('/', (_req: Request, res: Response) => {
+  res.status(200).json({
+    status: 'ok',
+    service: 'identity-service',
+    endpoints: {
+      liveness: '/health',
+      readiness: '/health/ready',
+      api: '/api/v1',
+    },
+  });
+});
+
 app.get('/health', (_req: Request, res: Response) => {
   res.status(200).json({ status: 'ok', service: 'identity-service' });
 });
