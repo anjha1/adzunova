@@ -82,7 +82,7 @@ export default function CreatorSignUpPage() {
         return;
       }
 
-      router.push(`/auth/creator/verify-email?email=${encodeURIComponent(email)}`);
+      router.push('/auth/creator/verify-email');
       router.refresh();
     } catch {
       setError('Connection error. Please try again.');

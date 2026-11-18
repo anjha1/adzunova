@@ -534,4 +534,13 @@ export class IdentityService {
 
     return true;
   }
+
+  async markEmailVerified(userId: string): Promise<boolean> {
+    const db = await getDatabase();
+    await db.collection('users').updateOne(
+      { _id: userId as any },
+      { $set: { emailVerified: true, updatedAt: new Date() } }
+    );
+    return true;
+  }
 }

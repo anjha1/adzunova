@@ -51,9 +51,10 @@ export async function POST(req: NextRequest) {
 
     // If response contains sessionToken, establish HttpOnly cookie
     if (data && typeof data.sessionToken === 'string') {
+      const isProduction = process.env.NODE_ENV === 'production';
       response.cookies.set(AUTH_COOKIE_NAME, data.sessionToken, {
         httpOnly: true,
-        secure: false, // allow localhost
+        secure: isProduction,
         sameSite: 'lax',
         path: '/',
         maxAge: 7 * 24 * 60 * 60, // 7 days

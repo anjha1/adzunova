@@ -84,7 +84,7 @@ export default function BrandSignUpPage() {
         return;
       }
 
-      router.push(`/auth/brand/verify-email?email=${encodeURIComponent(workEmail)}`);
+      router.push('/auth/brand/verify-email');
       router.refresh();
     } catch {
       setError('Connection error. Please try again.');

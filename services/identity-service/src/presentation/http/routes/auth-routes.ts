@@ -376,6 +376,7 @@ export function createAuthRouter(identityService: IdentityService): Router {
       const authHeader = req.headers.authorization;
       const token = authHeader?.startsWith('Bearer ') ? authHeader.slice(7) : req.headers['x-session-token'] as string;
       const { email, purpose } = req.body;
+      const otpPurpose = purpose || 'EMAIL_VERIFICATION';
 
       let userId = '';
       let targetEmail = email;
@@ -386,6 +387,11 @@ export function createAuthRouter(identityService: IdentityService): Router {
           userId = session.user._id;
           targetEmail = session.user.email;
         }
+      }
+
+      // Purpose-specific security check
+      if (otpPurpose === 'EMAIL_VERIFICATION' && !userId) {
+        return res.status(401).json({ error: 'Active session required to dispatch email verification code.' });
       }
 
       if (!userId && targetEmail) {
@@ -406,7 +412,7 @@ export function createAuthRouter(identityService: IdentityService): Router {
       const result = await otpService.generateAndSendOtp(
         userId,
         targetEmail,
-        purpose || 'EMAIL_VERIFICATION'
+        otpPurpose
       );
 
       return res.status(200).json(result);
@@ -421,6 +427,7 @@ export function createAuthRouter(identityService: IdentityService): Router {
       const authHeader = req.headers.authorization;
       const token = authHeader?.startsWith('Bearer ') ? authHeader.slice(7) : req.headers['x-session-token'] as string;
       const { code, email, purpose } = req.body;
+      const otpPurpose = purpose || 'EMAIL_VERIFICATION';
 
       if (!code) {
         return res.status(400).json({ error: 'Verification code is required.' });
@@ -432,6 +439,11 @@ export function createAuthRouter(identityService: IdentityService): Router {
         if (session) {
           userId = session.user._id;
         }
+      }
+
+      // Purpose-specific security check: Email verification strictly requires session
+      if (otpPurpose === 'EMAIL_VERIFICATION' && !userId) {
+        return res.status(401).json({ error: 'Active session required to verify email verification code.' });
       }
 
       if (!userId && email) {
@@ -450,11 +462,16 @@ export function createAuthRouter(identityService: IdentityService): Router {
       const isValid = await otpService.verifyOtp(
         userId,
         code,
-        purpose || 'EMAIL_VERIFICATION'
+        otpPurpose
       );
 
+      // If email verification succeeded, mark user account as verified in DB
+      if (otpPurpose === 'EMAIL_VERIFICATION') {
+        await identityService.markEmailVerified(userId);
+      }
+
       let resetToken: string | undefined = undefined;
-      if (purpose === 'PASSWORD_RESET' && email) {
+      if (otpPurpose === 'PASSWORD_RESET' && email) {
         const tokenFromDb = await identityService.createPasswordResetToken(email);
         resetToken = tokenFromDb || ('dev_reset_' + crypto.randomBytes(16).toString('hex'));
       }
