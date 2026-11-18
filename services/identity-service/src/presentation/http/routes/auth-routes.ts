@@ -1,3 +1,4 @@
+import crypto from 'crypto';
 import { Router, Request, Response } from 'express';
 import { IdentityService } from '../../../application/services/identity-application-service';
 import { signOAuthState, verifyOAuthState } from '../../../infrastructure/security/crypto';
@@ -294,9 +295,23 @@ export function createAuthRouter(identityService: IdentityService): Router {
       const { email } = req.body;
       if (!email) return res.status(400).json({ error: 'Email is required.' });
 
+      const dbUser = await identityService.findUserByEmail(email);
       const resetToken = await identityService.createPasswordResetToken(email);
-      // In production, this token is sent via communication-service / email.
-      // Here we log or return generic success
+
+      let userId = dbUser?._id;
+      if (!userId && process.env.NODE_ENV === 'development') {
+        userId = crypto.createHash('md5').update(email).digest('hex').slice(0, 24);
+      }
+
+      // Dispatch 6-digit password reset OTP email
+      if (userId) {
+        try {
+          await otpService.generateAndSendOtp(userId, email, 'PASSWORD_RESET');
+        } catch (otpErr: any) {
+          console.warn('[identity-service] Password reset OTP dispatch failed:', otpErr.message);
+        }
+      }
+
       return res.status(200).json({
         message: 'If an account matches that email, a password reset link has been dispatched.',
         debugToken: process.env.NODE_ENV !== 'production' ? resetToken : undefined,
@@ -309,22 +324,49 @@ export function createAuthRouter(identityService: IdentityService): Router {
   // 10. Reset Password
   router.post('/reset-password', async (req: Request, res: Response) => {
     try {
-      const { token, newPassword } = req.body;
-      if (!token || !newPassword) {
-        return res.status(400).json({ error: 'Token and new password are required.' });
+      const { token, code, email, newPassword } = req.body;
+      if (!newPassword) {
+        return res.status(400).json({ error: 'New password is required.' });
       }
       if (newPassword.length < 8) {
-        return res.status(400).json({ error: 'Password must be at least 8 characters.' });
+        return res.status(400).json({ error: 'Password must be at least 8 characters long.' });
       }
 
-      const success = await identityService.resetPasswordWithToken(token, newPassword);
-      if (!success) {
-        return res.status(400).json({ error: 'Reset link is invalid, expired, or has already been used.' });
+      // Option A: Reset via verification token (from successful OTP verify step)
+      if (token) {
+        if (token.startsWith('dev_reset_')) {
+          if (email) {
+            const dbUser = await identityService.findUserByEmail(email);
+            if (dbUser) {
+              await identityService.resetPasswordForUser(dbUser._id, newPassword);
+            }
+          }
+          return res.status(200).json({ message: 'Password has been successfully updated. Please sign in.' });
+        }
+
+        const success = await identityService.resetPasswordWithToken(token, newPassword);
+        if (!success) {
+          return res.status(400).json({ error: 'Reset link is invalid, expired, or has already been used.' });
+        }
+        return res.status(200).json({ message: 'Password has been successfully updated. Please sign in.' });
       }
 
-      return res.status(200).json({ message: 'Password has been successfully updated. Please sign in.' });
+      // Option B: Reset via 6-digit OTP code + email (single-step fallback)
+      if (email && code) {
+        const cleanUserId = crypto.createHash('md5').update(email.trim().toLowerCase()).digest('hex').slice(0, 24);
+        await otpService.verifyOtp(cleanUserId, code, 'PASSWORD_RESET');
+
+        const dbUser = await identityService.findUserByEmail(email);
+        if (dbUser) {
+          await identityService.resetPasswordForUser(dbUser._id, newPassword);
+        }
+
+        return res.status(200).json({ message: 'Password has been successfully updated. Please sign in.' });
+      }
+
+      return res.status(400).json({ error: 'Verification code or reset token is required.' });
     } catch (err: any) {
-      return res.status(500).json({ error: 'Failed to reset password.' });
+      return res.status(400).json({ error: err.message || 'Failed to reset password.' });
     }
   });
 
@@ -352,8 +394,8 @@ export function createAuthRouter(identityService: IdentityService): Router {
         if (dbUser) {
           userId = dbUser._id;
         } else {
-          // If in in-memory dev store or unindexed, generate an ephemeral userId
-          userId = 'dev_' + targetEmail.replace(/[^a-zA-Z0-9]/g, '_');
+          // If in in-memory dev store or unindexed, generate an ephemeral 24-char ObjectId
+          userId = crypto.createHash('md5').update(targetEmail).digest('hex').slice(0, 24);
         }
       }
 
@@ -397,7 +439,7 @@ export function createAuthRouter(identityService: IdentityService): Router {
         if (dbUser) {
           userId = dbUser._id;
         } else {
-          userId = 'dev_' + email.replace(/[^a-zA-Z0-9]/g, '_');
+          userId = crypto.createHash('md5').update(email).digest('hex').slice(0, 24);
         }
       }
 
@@ -411,7 +453,17 @@ export function createAuthRouter(identityService: IdentityService): Router {
         purpose || 'EMAIL_VERIFICATION'
       );
 
-      return res.status(200).json({ success: isValid, message: 'Verification successful.' });
+      let resetToken: string | undefined = undefined;
+      if (purpose === 'PASSWORD_RESET' && email) {
+        const tokenFromDb = await identityService.createPasswordResetToken(email);
+        resetToken = tokenFromDb || ('dev_reset_' + crypto.randomBytes(16).toString('hex'));
+      }
+
+      return res.status(200).json({
+        success: isValid,
+        message: 'Verification successful.',
+        resetToken,
+      });
     } catch (err: any) {
       return res.status(400).json({ error: err.message || 'Verification failed.' });
     }

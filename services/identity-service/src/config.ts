@@ -36,6 +36,12 @@ const ENV_SCHEMA = z.object({
   SMTP_USER: z.string().optional(),
   SMTP_PASS: z.string().optional(),
   OTP_FROM: z.string().optional(),
+  BREVO_API_KEY: z.string().optional(),
+  BREVO_SENDER_EMAIL: z.string().optional(),
+  BREVO_SENDER_NAME: z.string().optional(),
+  OTP_EXPIRY_MINUTES: z.string().optional(),
+  OTP_RESEND_COOLDOWN_SECONDS: z.string().optional(),
+  OTP_MAX_ATTEMPTS: z.string().optional(),
 
   // --- Node env ---
   NODE_ENV: z.enum(['development', 'production', 'test']).optional(),

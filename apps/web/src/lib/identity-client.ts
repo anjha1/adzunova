@@ -9,7 +9,7 @@
 const IDENTITY_SERVICE_URL =
   process.env.IDENTITY_SERVICE_URL || 'http://127.0.0.1:4101';
 
-const REQUEST_TIMEOUT_MS = 5_000;
+const REQUEST_TIMEOUT_MS = 15_000;
 const RETRY_DELAY_MS = 300;
 
 export type IdentityErrorCode =

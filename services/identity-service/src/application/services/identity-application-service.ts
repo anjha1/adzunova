@@ -516,4 +516,22 @@ export class IdentityService {
 
     return true;
   }
+
+  async resetPasswordForUser(userId: string, newPassword: string): Promise<boolean> {
+    const db = await getDatabase();
+    const passwordHash = await hashPassword(newPassword);
+    const now = new Date();
+
+    await db.collection('users').updateOne(
+      { _id: userId as any },
+      { $set: { passwordHash, updatedAt: now } }
+    );
+
+    await db.collection('sessions').updateMany(
+      { userId, revokedAt: { $exists: false } },
+      { $set: { revokedAt: now } }
+    );
+
+    return true;
+  }
 }

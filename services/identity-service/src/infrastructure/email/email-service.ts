@@ -11,15 +11,24 @@ export interface ISmtpConfig {
 export class EmailService {
   private transporter: Transporter | null = null;
   private fromAddress: string;
+  private brevoApiKey: string;
+  private brevoSenderEmail: string;
+  private brevoSenderName: string;
 
   constructor() {
+    this.brevoApiKey = process.env.BREVO_API_KEY || '';
+    this.brevoSenderEmail = process.env.BREVO_SENDER_EMAIL || process.env.OTP_FROM || 'testuser@fluenzyai.app';
+    this.brevoSenderName = process.env.BREVO_SENDER_NAME || 'Adzunova';
+
     const host = process.env.SMTP_HOST || 'smtp-relay.brevo.com';
     const port = parseInt(process.env.SMTP_PORT || '587', 10);
     const user = process.env.SMTP_USER || '';
     const pass = process.env.SMTP_PASS || '';
-    this.fromAddress = process.env.OTP_FROM || 'Adzunova Security <otp@fluenzyai.app>';
+    this.fromAddress = process.env.OTP_FROM || `${this.brevoSenderName} <${this.brevoSenderEmail}>`;
 
-    if (user && pass) {
+    if (this.brevoApiKey) {
+      console.log(`[EmailService] Initialized with Brevo Transactional Email API (Sender: ${this.brevoSenderEmail})`);
+    } else if (user && pass) {
       this.transporter = nodemailer.createTransport({
         host,
         port,
@@ -29,12 +38,14 @@ export class EmailService {
           pass,
         },
       });
+      console.log(`[EmailService] Initialized with SMTP Relay (${host}:${port})`);
     } else {
-      console.warn('[EmailService] SMTP credentials not fully configured. Operating in mock email mode.');
+      console.warn('[EmailService] Email credentials not fully configured. Operating in mock email mode.');
     }
   }
 
   async sendOtpEmail(toEmail: string, otpCode: string, purpose: string): Promise<boolean> {
+    const expiryMinutes = parseInt(process.env.OTP_EXPIRY_MINUTES || '5', 10);
     const subject = purpose === 'PASSWORD_RESET' 
       ? 'Adzunova Security: Your Password Reset Code' 
       : 'Adzunova Verification Code';
@@ -57,7 +68,7 @@ export class EmailService {
             ${otpCode}
           </div>
           <p style="color: #64748b; font-size: 13px; margin-top: 16px; margin-bottom: 0;">
-            This code will expire in <strong>10 minutes</strong>. Never share this code with anyone.
+            This code will expire in <strong>${expiryMinutes} minutes</strong>. Never share this code with anyone.
           </p>
         </div>
         <p style="color: #94a3b8; font-size: 12px; line-height: 1.5; text-align: center; margin: 0;">
@@ -66,29 +77,62 @@ export class EmailService {
       </div>
     `;
 
-    if (!this.transporter) {
-      if (process.env.NODE_ENV === 'development') {
-        console.log(`[MOCK EMAIL] To: ${toEmail} | OTP: ${otpCode} | Purpose: ${purpose}`);
+    // 1. Try Brevo Transactional Email REST API if API Key is configured
+    if (this.brevoApiKey) {
+      try {
+        const response = await fetch('https://api.brevo.com/v3/smtp/email', {
+          method: 'POST',
+          headers: {
+            accept: 'application/json',
+            'api-key': this.brevoApiKey,
+            'content-type': 'application/json',
+          },
+          body: JSON.stringify({
+            sender: {
+              name: this.brevoSenderName,
+              email: this.brevoSenderEmail,
+            },
+            to: [{ email: toEmail }],
+            subject,
+            htmlContent: htmlBody,
+          }),
+        });
+
+        if (response.ok) {
+          const resData = (await response.json().catch(() => ({}))) as Record<string, any>;
+          console.log(`[EmailService] ✅ Email dispatched to ${toEmail} via Brevo API (MessageId: ${resData?.messageId || 'ok'})`);
+          return true;
+        }
+
+        const errJson = await response.json().catch(() => ({}));
+        console.error(`[EmailService] ❌ Brevo API error (${response.status}):`, errJson);
+      } catch (brevoErr: any) {
+        console.error('[EmailService] ❌ Brevo API request exception:', brevoErr.message);
       }
-      return true;
     }
 
-    try {
-      await this.transporter.sendMail({
-        from: this.fromAddress,
-        to: toEmail,
-        subject,
-        html: htmlBody,
-      });
-      return true;
-    } catch (err: any) {
-      console.error('[EmailService] Failed to send email via SMTP:', err.message);
-      // Fallback log ONLY in development
-      if (process.env.NODE_ENV === 'development') {
-        console.log(`[DEV OTP FALLBACK] Code for ${toEmail} is: ${otpCode}`);
+    // 2. Try SMTP Transporter fallback
+    if (this.transporter) {
+      try {
+        await this.transporter.sendMail({
+          from: this.fromAddress,
+          to: toEmail,
+          subject,
+          html: htmlBody,
+        });
+        console.log(`[EmailService] ✅ Email dispatched to ${toEmail} via SMTP`);
+        return true;
+      } catch (smtpErr: any) {
+        console.error('[EmailService] ❌ Failed to send email via SMTP:', smtpErr.message);
       }
-      return false;
     }
+
+    // 3. Fallback dev console output
+    if (process.env.NODE_ENV === 'development') {
+      console.log(`[DEV OTP FALLBACK] Code for ${toEmail} is: ${otpCode}`);
+    }
+
+    return !this.brevoApiKey && !this.transporter;
   }
 }
 

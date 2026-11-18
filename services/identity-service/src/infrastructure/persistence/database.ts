@@ -33,8 +33,8 @@ export async function getDatabase(): Promise<IDatabaseStore> {
       if (!client) {
         client = new MongoClient(uri, {
           maxPoolSize: 10,
-          serverSelectionTimeoutMS: 5000,
-          connectTimeoutMS: 5000,
+          serverSelectionTimeoutMS: isDev ? 1500 : 5000,
+          connectTimeoutMS: isDev ? 1500 : 5000,
           socketTimeoutMS: 10000,
         });
         await client.connect();
