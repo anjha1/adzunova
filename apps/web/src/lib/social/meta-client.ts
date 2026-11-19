@@ -61,7 +61,7 @@ export async function exchangeCodeForShortLivedToken(code: string): Promise<Meta
   const redirectUri = process.env.INSTAGRAM_REDIRECT_URI;
 
   if (!appId || !appSecret || !redirectUri) {
-    throw new Error('Missing Meta OAuth configuration parameters');
+    throw new Error('Missing Meta credentials for token exchange');
   }
 
   const endpoint = `${GRAPH_BASE_URL}/oauth/access_token`;
@@ -143,11 +143,11 @@ export async function fetchInstagramAccounts(userAccessToken: string): Promise<I
     });
   }
 
-  // 1. Query Facebook Pages (/me/accounts) - checking both instagram_business_account and connected_instagram_account
+  // Path A: Check /me/accounts (Facebook Pages) with Page Access Token resolution
   try {
     const endpoint = `${GRAPH_BASE_URL}/me/accounts`;
     const params = new URLSearchParams({
-      fields: 'id,name,instagram_business_account{id,username,name,profile_picture_url,followers_count,media_count},connected_instagram_account{id,username,name,profile_picture_url,followers_count,media_count}',
+      fields: 'id,name,access_token,instagram_business_account{id,username,name,profile_picture_url,followers_count,media_count}',
       access_token: userAccessToken,
       appsecret_proof: appsecretProof,
     });
@@ -158,26 +158,45 @@ export async function fetchInstagramAccounts(userAccessToken: string): Promise<I
     });
 
     const data = await res.json();
+    console.log('[fetchInstagramAccounts] /me/accounts status:', res.status, 'pages count:', data.data?.length ?? 0);
+
     if (res.ok && Array.isArray(data.data)) {
       for (const page of data.data) {
         if (page.instagram_business_account) {
           addAccount(page.instagram_business_account);
-        }
-        if (page.connected_instagram_account) {
-          addAccount(page.connected_instagram_account);
+        } else if (page.id && page.access_token) {
+          // Attempt deep resolution using the Page Access Token
+          try {
+            const pageProof = createAppSecretProof(page.access_token, appSecret);
+            const pageEndpoint = `${GRAPH_BASE_URL}/${page.id}`;
+            const pageParams = new URLSearchParams({
+              fields: 'instagram_business_account{id,username,name,profile_picture_url,followers_count,media_count}',
+              access_token: page.access_token,
+              appsecret_proof: pageProof,
+            });
+            const pageRes = await fetch(`${pageEndpoint}?${pageParams.toString()}`);
+            if (pageRes.ok) {
+              const pageData = await pageRes.json();
+              if (pageData.instagram_business_account) {
+                addAccount(pageData.instagram_business_account);
+              }
+            }
+          } catch (pageErr) {
+            console.warn('[fetchInstagramAccounts] Page token inspection failed for', page.id, pageErr);
+          }
         }
       }
     }
   } catch (err) {
-    console.warn('[fetchInstagramAccounts] /me/accounts check error:', err);
+    console.warn('[fetchInstagramAccounts] /me/accounts query error:', err);
   }
 
-  // 2. Query Business Portfolio assets (/me/businesses -> instagram_accounts)
+  // Path B: Check Meta Business Portfolio assets (/me/businesses -> owned/client instagram accounts)
   if (accounts.length === 0) {
     try {
       const bizEndpoint = `${GRAPH_BASE_URL}/me/businesses`;
       const bizParams = new URLSearchParams({
-        fields: 'id,name,instagram_accounts{id,username,name,profile_picture_url,followers_count,media_count}',
+        fields: 'id,name',
         access_token: userAccessToken,
         appsecret_proof: appsecretProof,
       });
@@ -187,24 +206,41 @@ export async function fetchInstagramAccounts(userAccessToken: string): Promise<I
         headers: { Accept: 'application/json' },
       });
 
-      if (bizRes.ok) {
-        const bizData = await bizRes.json();
-        if (Array.isArray(bizData.data)) {
-          for (const biz of bizData.data) {
-            const igAccounts = biz.instagram_accounts?.data;
-            if (Array.isArray(igAccounts)) {
-              for (const ig of igAccounts) {
-                addAccount(ig);
+      const bizData = await bizRes.json();
+      console.log('[fetchInstagramAccounts] /me/businesses status:', bizRes.status, 'biz count:', bizData.data?.length ?? 0);
+
+      if (bizRes.ok && Array.isArray(bizData.data)) {
+        for (const biz of bizData.data) {
+          // Check owned Instagram accounts
+          for (const edge of ['owned_instagram_accounts', 'client_instagram_accounts', 'instagram_accounts']) {
+            try {
+              const igEndpoint = `${GRAPH_BASE_URL}/${biz.id}/${edge}`;
+              const igParams = new URLSearchParams({
+                fields: 'id,username,name,profile_picture_url,followers_count,media_count',
+                access_token: userAccessToken,
+                appsecret_proof: appsecretProof,
+              });
+              const igRes = await fetch(`${igEndpoint}?${igParams.toString()}`);
+              if (igRes.ok) {
+                const igData = await igRes.json();
+                if (Array.isArray(igData.data)) {
+                  for (const item of igData.data) {
+                    addAccount(item);
+                  }
+                }
               }
+            } catch {
+              // Ignore non-applicable edge
             }
           }
         }
       }
     } catch (bizErr) {
-      console.warn('[fetchInstagramAccounts] /me/businesses check error:', bizErr);
+      console.warn('[fetchInstagramAccounts] /me/businesses query error:', bizErr);
     }
   }
 
+  console.log('[fetchInstagramAccounts] Total resolved Instagram business accounts:', accounts.length);
   return accounts;
 }
 
@@ -218,6 +254,7 @@ export async function probeAccountCapabilities(
 ): Promise<CapabilityProbeResult> {
   const appSecret = process.env.META_APP_SECRET;
   const appsecretProof = appSecret ? createAppSecretProof(accessToken, appSecret) : '';
+  const errors: Record<string, string> = {};
 
   const result: CapabilityProbeResult = {
     basic_profile: false,
@@ -225,94 +262,107 @@ export async function probeAccountCapabilities(
     demographics_gender_age: false,
     demographics_country: false,
     probed_at: new Date().toISOString(),
-    errors: {},
+    errors,
   };
 
-  // 1. Basic Profile Probe
+  // 1. Probe basic profile fields
   try {
-    const profileUrl = new URL(`${GRAPH_BASE_URL}/${igAccountId}`);
-    profileUrl.searchParams.set('fields', 'username,followers_count,media_count');
-    profileUrl.searchParams.set('access_token', accessToken);
-    if (appsecretProof) profileUrl.searchParams.set('appsecret_proof', appsecretProof);
-
-    const res = await fetch(profileUrl.toString());
+    const profileUrl = `${GRAPH_BASE_URL}/${igAccountId}?fields=id,username,followers_count,media_count&access_token=${accessToken}&appsecret_proof=${appsecretProof}`;
+    const res = await fetch(profileUrl);
     const data = await res.json();
     if (res.ok && data.username) {
       result.basic_profile = true;
-    } else {
-      result.errors!.basic_profile = scrubSensitiveData(data.error?.message || 'Profile check failed');
+    } else if (data.error) {
+      errors.basic_profile = scrubSensitiveData(data.error.message || 'Profile check failed');
     }
   } catch (err) {
-    result.errors!.basic_profile = err instanceof Error ? err.message : 'Network error';
+    errors.basic_profile = 'Network error during basic_profile probe';
   }
 
-  // 2. Views Insight Probe
+  // 2. Probe views insights
   try {
-    const viewsUrl = new URL(`${GRAPH_BASE_URL}/${igAccountId}/insights`);
-    viewsUrl.searchParams.set('metric', 'views');
-    viewsUrl.searchParams.set('metric_type', 'total_value');
-    viewsUrl.searchParams.set('period', 'day');
-    viewsUrl.searchParams.set('access_token', accessToken);
-    if (appsecretProof) viewsUrl.searchParams.set('appsecret_proof', appsecretProof);
-
-    const res = await fetch(viewsUrl.toString());
+    const viewsUrl = `${GRAPH_BASE_URL}/${igAccountId}/insights?metric=views&period=day&access_token=${accessToken}&appsecret_proof=${appsecretProof}`;
+    const res = await fetch(viewsUrl);
     const data = await res.json();
     if (res.ok && Array.isArray(data.data) && data.data.length > 0) {
       result.views_insights = true;
       result.views_sample = data.data[0]?.total_value?.value ?? null;
-    } else {
-      result.errors!.views_insights = scrubSensitiveData(data.error?.message || 'Views insight unavailable');
+    } else if (data.error) {
+      errors.views_insights = scrubSensitiveData(data.error.message || 'Views insights failed');
     }
   } catch (err) {
-    result.errors!.views_insights = err instanceof Error ? err.message : 'Network error';
+    errors.views_insights = 'Network error during views_insights probe';
   }
 
-  // 3. Demographics: Gender & Age Probe
+  // 3. Probe gender and age demographics
   try {
-    const demoUrl = new URL(`${GRAPH_BASE_URL}/${igAccountId}/insights`);
-    demoUrl.searchParams.set('metric', 'follower_demographics');
-    demoUrl.searchParams.set('period', 'lifetime');
-    demoUrl.searchParams.set('metric_type', 'total_value');
-    demoUrl.searchParams.set('breakdown', 'gender,age');
-    demoUrl.searchParams.set('access_token', accessToken);
-    if (appsecretProof) demoUrl.searchParams.set('appsecret_proof', appsecretProof);
-
-    const res = await fetch(demoUrl.toString());
+    const demoUrl = `${GRAPH_BASE_URL}/${igAccountId}/insights?metric=follower_demographics&period=lifetime&metric_type=total_value&breakdown=gender,age&access_token=${accessToken}&appsecret_proof=${appsecretProof}`;
+    const res = await fetch(demoUrl);
     const data = await res.json();
     if (res.ok && Array.isArray(data.data) && data.data.length > 0) {
       result.demographics_gender_age = true;
-      result.gender_sample_found = Boolean(data.data[0]?.total_value?.breakdowns?.length > 0);
-    } else {
-      result.errors!.demographics_gender_age = scrubSensitiveData(
-        data.error?.message || 'Demographics (gender/age) unavailable'
-      );
+      result.gender_sample_found = true;
+    } else if (data.error) {
+      errors.demographics_gender_age = scrubSensitiveData(data.error.message || 'Demographics gender_age failed');
     }
   } catch (err) {
-    result.errors!.demographics_gender_age = err instanceof Error ? err.message : 'Network error';
+    errors.demographics_gender_age = 'Network error during demographics_gender_age probe';
   }
 
-  // 4. Demographics: Country Probe (graceful fallback)
+  // 4. Probe country demographics
   try {
-    const geoUrl = new URL(`${GRAPH_BASE_URL}/${igAccountId}/insights`);
-    geoUrl.searchParams.set('metric', 'follower_demographics');
-    geoUrl.searchParams.set('period', 'lifetime');
-    geoUrl.searchParams.set('metric_type', 'total_value');
-    geoUrl.searchParams.set('breakdown', 'country');
-    geoUrl.searchParams.set('access_token', accessToken);
-    if (appsecretProof) geoUrl.searchParams.set('appsecret_proof', appsecretProof);
-
-    const res = await fetch(geoUrl.toString());
+    const countryUrl = `${GRAPH_BASE_URL}/${igAccountId}/insights?metric=follower_demographics&period=lifetime&metric_type=total_value&breakdown=country&access_token=${accessToken}&appsecret_proof=${appsecretProof}`;
+    const res = await fetch(countryUrl);
     const data = await res.json();
     if (res.ok && Array.isArray(data.data) && data.data.length > 0) {
       result.demographics_country = true;
-    } else {
-      result.errors!.demographics_country = scrubSensitiveData(
-        data.error?.message || 'Demographics (country) not exposed'
-      );
+    } else if (data.error) {
+      errors.demographics_country = scrubSensitiveData(data.error.message || 'Demographics country failed');
     }
   } catch (err) {
-    result.errors!.demographics_country = err instanceof Error ? err.message : 'Network error';
+    errors.demographics_country = 'Network error during demographics_country probe';
   }
 
   return result;
+}
+
+/**
+ * Fetches time-series views and engagement metrics for the specified account
+ */
+export async function fetchTimeRangeMetrics(
+  igAccountId: string,
+  accessToken: string,
+  since: Date,
+  until: Date
+): Promise<Array<{ timestamp: string; views: number; reach: number }>> {
+  const appSecret = process.env.META_APP_SECRET;
+  const appsecretProof = appSecret ? createAppSecretProof(accessToken, appSecret) : '';
+
+  const sinceUnix = Math.floor(since.getTime() / 1000);
+  const untilUnix = Math.floor(until.getTime() / 1000);
+
+  const url = `${GRAPH_BASE_URL}/${igAccountId}/insights?metric=views,reach&period=day&since=${sinceUnix}&until=${untilUnix}&access_token=${accessToken}&appsecret_proof=${appsecretProof}`;
+  const res = await fetch(url);
+  const data = await res.json();
+
+  if (!res.ok || data.error) {
+    throw new Error(scrubSensitiveData(data.error?.message || 'Failed to fetch time-range metrics'));
+  }
+
+  // Build daily series
+  const results: Array<{ timestamp: string; views: number; reach: number }> = [];
+  const viewsData = data.data?.find((m: any) => m.name === 'views')?.values || [];
+  const reachData = data.data?.find((m: any) => m.name === 'reach')?.values || [];
+
+  for (let i = 0; i < viewsData.length; i++) {
+    const v = viewsData[i];
+    const r = reachData[i];
+    results.push({
+      timestamp: v.end_time,
+      views: Number(v.value || 0),
+      reach: Number(r?.value || 0),
+    });
+  }
+
+  return results;
 }
