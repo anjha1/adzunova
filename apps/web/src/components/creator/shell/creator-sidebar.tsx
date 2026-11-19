@@ -98,6 +98,7 @@ export function CreatorSidebar({ collapsed, onToggleCollapse }: CreatorSidebarPr
           </Link>
         )}
         <button
+          data-variant="ghost"
           onClick={onToggleCollapse}
           aria-label={collapsed ? 'Expand sidebar' : 'Collapse sidebar'}
           className={`p-1.5 rounded-lg border border-border text-muted-foreground hover:text-foreground hover:bg-muted transition ${
@@ -116,20 +117,43 @@ export function CreatorSidebar({ collapsed, onToggleCollapse }: CreatorSidebarPr
         {renderSection('Preferences', accountItems)}
       </div>
 
-      {/* Workspace Status Footer */}
+      {/* Workspace Status & Sign Out Footer */}
       {!collapsed ? (
-        <div className="p-3 m-3 rounded-xl bg-muted/40 border border-border text-xs">
+        <div className="p-3 m-3 rounded-xl bg-muted/40 border border-border text-xs space-y-2.5">
           <div className="flex items-center gap-2 font-bold text-foreground">
             <ShellIcon name="Briefcase" className="text-indigo-600 dark:text-indigo-400" size={16} />
             <span>Creator Workspace</span>
           </div>
-          <p className="mt-1 text-[11px] text-muted-foreground">
+          <p className="text-[11px] text-muted-foreground">
             ADZUNOVA Advertising Marketplace v2.0
           </p>
+          <div className="pt-2 border-t border-border">
+            <form action="/api/auth/logout?redirect=/auth/creator/sign-in" method="POST">
+              <button
+                type="submit"
+                data-variant="ghost"
+                className="w-full flex items-center gap-2 px-2.5 py-1.5 rounded-lg text-xs font-medium text-muted-foreground hover:text-foreground hover:bg-muted transition cursor-pointer"
+              >
+                <ShellIcon name="LogOut" size={15} />
+                <span>Sign Out</span>
+              </button>
+            </form>
+          </div>
         </div>
       ) : (
-        <div className="p-3 flex justify-center text-muted-foreground">
+        <div className="p-3 flex flex-col items-center gap-2 text-muted-foreground">
           <ShellIcon name="Briefcase" size={20} />
+          <form action="/api/auth/logout?redirect=/auth/creator/sign-in" method="POST">
+            <button
+              type="submit"
+              data-variant="ghost"
+              title="Sign Out"
+              aria-label="Sign Out"
+              className="p-1.5 rounded-lg hover:bg-muted hover:text-foreground text-muted-foreground transition cursor-pointer"
+            >
+              <ShellIcon name="LogOut" size={18} />
+            </button>
+          </form>
         </div>
       )}
     </aside>

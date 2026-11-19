@@ -1,6 +1,6 @@
 'use client';
 
-import React from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import Link from 'next/link';
 import { ThemeToggle } from '@/components/layout/theme-toggle';
 import { ShellIcon } from './shell-icons';
@@ -12,8 +12,76 @@ interface CreatorHeaderProps {
   isVerified?: boolean;
 }
 
-export function CreatorHeader({ userEmail, displayName, avatarUrl, isVerified }: CreatorHeaderProps) {
-  const [imgError, setImgError] = React.useState(false);
+export function CreatorHeader({
+  userEmail: initialEmail,
+  displayName: initialDisplayName,
+  avatarUrl: initialAvatarUrl,
+  isVerified: initialVerified,
+}: CreatorHeaderProps) {
+  const [userEmail, setUserEmail] = useState<string | undefined>(initialEmail);
+  const [displayName, setDisplayName] = useState<string | undefined>(initialDisplayName);
+  const [avatarUrl, setAvatarUrl] = useState<string | undefined>(initialAvatarUrl);
+  const [isVerified, setIsVerified] = useState<boolean>(initialVerified ?? true);
+  const [imgError, setImgError] = useState(false);
+  const [isMenuOpen, setIsMenuOpen] = useState(false);
+  const menuRef = useRef<HTMLDivElement>(null);
+
+  // Load real Google/OAuth profile data client-side if not supplied via props
+  useEffect(() => {
+    if (initialEmail || initialDisplayName || initialAvatarUrl) {
+      setUserEmail(initialEmail);
+      setDisplayName(initialDisplayName);
+      setAvatarUrl(initialAvatarUrl);
+      setIsVerified(initialVerified ?? true);
+      return;
+    }
+
+    let isMounted = true;
+    async function loadUserSession() {
+      try {
+        const res = await fetch('/api/auth/me');
+        if (!res.ok) return;
+        const data = await res.json();
+        if (isMounted && data?.user) {
+          const u = data.user;
+          const p = data.profile;
+          setUserEmail(u.email);
+          setDisplayName(p?.displayName || u.displayName);
+          setAvatarUrl(p?.avatarUrl || u.avatarUrl);
+          setIsVerified(u.emailVerified ?? true);
+        }
+      } catch {
+        // Fallback gracefully
+      }
+    }
+    loadUserSession();
+    return () => {
+      isMounted = false;
+    };
+  }, [initialEmail, initialDisplayName, initialAvatarUrl, initialVerified]);
+
+  // Click outside to close dropdown
+  useEffect(() => {
+    function handleClickOutside(event: MouseEvent) {
+      if (menuRef.current && !menuRef.current.contains(event.target as Node)) {
+        setIsMenuOpen(false);
+      }
+    }
+    function handleKeyDown(event: KeyboardEvent) {
+      if (event.key === 'Escape') {
+        setIsMenuOpen(false);
+      }
+    }
+    if (isMenuOpen) {
+      document.addEventListener('mousedown', handleClickOutside);
+      document.addEventListener('keydown', handleKeyDown);
+    }
+    return () => {
+      document.removeEventListener('mousedown', handleClickOutside);
+      document.removeEventListener('keydown', handleKeyDown);
+    };
+  }, [isMenuOpen]);
+
   const initials = (displayName?.[0] || userEmail?.[0] || 'C').toUpperCase();
 
   return (
@@ -50,28 +118,135 @@ export function CreatorHeader({ userEmail, displayName, avatarUrl, isVerified }:
         {/* Dark/Light Theme Toggle */}
         <ThemeToggle />
 
-        {/* User preview */}
-        <div className="hidden desk:flex items-center gap-3 pl-2 border-l border-border">
-          <div className="text-right">
-            <div className="text-xs font-bold text-foreground truncate max-w-[140px]">
-              {displayName || userEmail || 'Creator'}
+        {/* User profile dropdown container */}
+        <div className="relative hidden desk:block" ref={menuRef}>
+          <button
+            type="button"
+            data-variant="ghost"
+            onClick={() => setIsMenuOpen(!isMenuOpen)}
+            aria-expanded={isMenuOpen}
+            aria-haspopup="true"
+            aria-label="User profile menu"
+            className="flex items-center gap-3 pl-2 border-l border-border hover:bg-muted/50 p-1.5 rounded-xl transition cursor-pointer text-left"
+          >
+            <div className="text-right">
+              <div className="text-xs font-bold text-foreground truncate max-w-[140px]">
+                {displayName || userEmail || 'Creator'}
+              </div>
+              <div className="text-[10px] flex items-center justify-end gap-1 font-semibold text-emerald-700 dark:text-emerald-400">
+                <span className="w-1.5 h-1.5 rounded-full bg-emerald-500" />
+                <span>{isVerified ? 'Verified Creator' : 'Verification Active'}</span>
+              </div>
             </div>
-            <div className="text-[10px] flex items-center justify-end gap-1 font-semibold text-emerald-700 dark:text-emerald-400">
-              <span className="w-1.5 h-1.5 rounded-full bg-emerald-500" />
-              <span>{isVerified ? 'Verified Creator' : 'Verification Active'}</span>
-            </div>
-          </div>
-          {avatarUrl && !imgError ? (
-            <img
-              src={avatarUrl}
-              alt={displayName || 'Creator'}
-              referrerPolicy="no-referrer"
-              onError={() => setImgError(true)}
-              className="w-9 h-9 rounded-xl object-cover border border-border shadow-xs"
+
+            {avatarUrl && !imgError ? (
+              <img
+                src={avatarUrl}
+                alt={displayName || 'Creator'}
+                referrerPolicy="no-referrer"
+                onError={() => setImgError(true)}
+                className="w-9 h-9 rounded-xl object-cover border border-border shadow-xs"
+              />
+            ) : (
+              <div className="w-9 h-9 rounded-xl bg-indigo-600 text-white font-black flex items-center justify-center text-sm shadow-xs">
+                {initials}
+              </div>
+            )}
+
+            <ShellIcon
+              name="ChevronDown"
+              size={14}
+              className={`text-muted-foreground transition-transform duration-150 ${
+                isMenuOpen ? 'rotate-180' : ''
+              }`}
             />
-          ) : (
-            <div className="w-9 h-9 rounded-xl bg-indigo-600 text-white font-black flex items-center justify-center text-sm shadow-xs">
-              {initials}
+          </button>
+
+          {/* Interactive Profile Popup Menu */}
+          {isMenuOpen && (
+            <div
+              role="menu"
+              className="absolute right-0 top-full mt-2 w-72 rounded-2xl bg-card border border-border shadow-2xl p-2 z-50 animate-in fade-in zoom-in-95 duration-150"
+            >
+              {/* Profile Card Header -> Links to /creator/profile */}
+              <Link
+                href="/creator/profile"
+                onClick={() => setIsMenuOpen(false)}
+                className="flex items-center gap-3 p-3 rounded-xl bg-muted/40 hover:bg-muted border border-border/50 transition group"
+              >
+                {avatarUrl && !imgError ? (
+                  <img
+                    src={avatarUrl}
+                    alt={displayName || 'Creator'}
+                    referrerPolicy="no-referrer"
+                    className="w-11 h-11 rounded-xl object-cover border border-border shadow-xs shrink-0"
+                  />
+                ) : (
+                  <div className="w-11 h-11 rounded-xl bg-indigo-600 text-white font-black flex items-center justify-center text-base shadow-xs shrink-0">
+                    {initials}
+                  </div>
+                )}
+                <div className="min-w-0 flex-1">
+                  <div className="text-xs font-bold text-foreground truncate group-hover:text-indigo-600 dark:group-hover:text-indigo-400 transition">
+                    {displayName || 'Creator Profile'}
+                  </div>
+                  <div className="text-[11px] text-muted-foreground truncate">
+                    {userEmail || 'Click to view profile'}
+                  </div>
+                  <span className="inline-block mt-1 text-[9px] font-bold px-1.5 py-0.2 rounded bg-indigo-500/10 text-indigo-600 dark:text-indigo-400 border border-indigo-500/20">
+                    View Public Profile →
+                  </span>
+                </div>
+              </Link>
+
+              {/* Navigation Links */}
+              <div className="py-2 space-y-0.5">
+                <Link
+                  href="/creator/profile"
+                  role="menuitem"
+                  onClick={() => setIsMenuOpen(false)}
+                  className="flex items-center gap-2.5 px-3 py-2 rounded-xl text-xs font-medium text-foreground hover:bg-muted transition"
+                >
+                  <ShellIcon name="User" size={16} className="text-muted-foreground" />
+                  <span>Edit Profile & Media Kit</span>
+                </Link>
+
+                <Link
+                  href="/creator/accounts"
+                  role="menuitem"
+                  onClick={() => setIsMenuOpen(false)}
+                  className="flex items-center gap-2.5 px-3 py-2 rounded-xl text-xs font-medium text-foreground hover:bg-muted transition"
+                >
+                  <ShellIcon name="Link" size={16} className="text-muted-foreground" />
+                  <span>Connected Social Accounts</span>
+                </Link>
+
+                <Link
+                  href="/creator/settings"
+                  role="menuitem"
+                  onClick={() => setIsMenuOpen(false)}
+                  className="flex items-center gap-2.5 px-3 py-2 rounded-xl text-xs font-medium text-foreground hover:bg-muted transition"
+                >
+                  <ShellIcon name="Settings" size={16} className="text-muted-foreground" />
+                  <span>Account & Privacy Settings</span>
+                </Link>
+              </div>
+
+              {/* Divider */}
+              <div className="my-1 border-t border-border" />
+
+              {/* Explicit Sign Out / Logout Action */}
+              <form action="/api/auth/logout?redirect=/auth/creator/sign-in" method="POST">
+                <button
+                  type="submit"
+                  data-variant="ghost"
+                  role="menuitem"
+                  className="w-full flex items-center gap-2.5 px-3 py-2.5 rounded-xl text-xs font-semibold text-destructive bg-destructive/5 hover:bg-destructive/15 transition cursor-pointer text-left"
+                >
+                  <ShellIcon name="LogOut" size={16} className="text-destructive" />
+                  <span>Sign Out / Log Out</span>
+                </button>
+              </form>
             </div>
           )}
         </div>

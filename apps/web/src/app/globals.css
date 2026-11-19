@@ -150,6 +150,8 @@
   --color-card-foreground: #0f172a;
   --color-muted: #f1f5f9;
   --color-muted-foreground: #475569;
+  --color-destructive: #b91c1c;
+  --color-destructive-foreground: #ffffff;
 }
 
 /* --------------------------------------------------------------------------
@@ -262,6 +264,8 @@
   --color-card-foreground: #f4f4f5;
   --color-muted: #27272a;
   --color-muted-foreground: #a1a1aa;
+  --color-destructive: #f87171;
+  --color-destructive-foreground: #09090b;
 }
 
 /* --------------------------------------------------------------------------
@@ -331,6 +335,8 @@
   --color-muted-foreground: var(--color-muted-foreground);
   --color-brand: var(--color-brand-600);
   --color-border: var(--color-border);
+  --color-destructive: var(--color-destructive);
+  --color-destructive-foreground: var(--color-destructive-foreground);
 
   /* Brand Scale (Indigo-Violet) */
   --color-brand-50: #f0f0ff;

@@ -32,17 +32,22 @@ export function MobileMoreSheet({ isOpen, onClose, userEmail, displayName }: Mob
 
         {/* Profile preview header */}
         <div className="px-6 py-4 border-b border-border flex items-center justify-between">
-          <div>
-            <div className="font-bold text-foreground text-base">
+          <Link
+            href="/creator/profile"
+            onClick={onClose}
+            className="flex-1 group"
+          >
+            <div className="font-bold text-foreground text-base group-hover:text-indigo-600 dark:group-hover:text-indigo-400 transition">
               {displayName || 'Creator'}
             </div>
             <div className="text-xs text-muted-foreground">
-              {userEmail}
+              {userEmail || 'View profile →'}
             </div>
-          </div>
+          </Link>
           <button
             onClick={onClose}
-            className="p-1.5 rounded-full bg-muted text-muted-foreground hover:text-foreground"
+            aria-label="Close menu"
+            className="p-1.5 rounded-full bg-muted text-muted-foreground hover:text-foreground cursor-pointer"
           >
             ✕
           </button>
