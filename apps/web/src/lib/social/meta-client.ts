@@ -120,44 +120,88 @@ export async function exchangeForLongLivedToken(shortLivedToken: string): Promis
 }
 
 /**
- * Finds Instagram business accounts associated with the user's Facebook pages
+ * Finds Instagram business accounts associated with the user's Facebook pages or Business Portfolio
  */
 export async function fetchInstagramAccounts(userAccessToken: string): Promise<InstagramBusinessAccount[]> {
   const appSecret = process.env.META_APP_SECRET;
   if (!appSecret) throw new Error('META_APP_SECRET is required');
 
   const appsecretProof = createAppSecretProof(userAccessToken, appSecret);
-  const endpoint = `${GRAPH_BASE_URL}/me/accounts`;
-  const params = new URLSearchParams({
-    fields: 'id,name,instagram_business_account{id,username,name,profile_picture_url,followers_count,media_count}',
-    access_token: userAccessToken,
-    appsecret_proof: appsecretProof,
-  });
+  const accounts: InstagramBusinessAccount[] = [];
+  const seenIds = new Set<string>();
 
-  const res = await fetch(`${endpoint}?${params.toString()}`, {
-    method: 'GET',
-    headers: { Accept: 'application/json' },
-  });
-
-  const data = await res.json();
-  if (!res.ok || data.error) {
-    throw new Error(scrubSensitiveData(data.error?.message || 'Failed to fetch user accounts'));
+  function addAccount(ig: any) {
+    if (!ig || !ig.id || seenIds.has(ig.id)) return;
+    seenIds.add(ig.id);
+    accounts.push({
+      id: ig.id,
+      username: ig.username || 'instagram_creator',
+      name: ig.name,
+      profile_picture_url: ig.profile_picture_url || null,
+      followers_count: Number(ig.followers_count || 0),
+      media_count: Number(ig.media_count || 0),
+    });
   }
 
-  const accounts: InstagramBusinessAccount[] = [];
-  if (Array.isArray(data.data)) {
-    for (const page of data.data) {
-      if (page.instagram_business_account) {
-        const ig = page.instagram_business_account;
-        accounts.push({
-          id: ig.id,
-          username: ig.username,
-          name: ig.name,
-          profile_picture_url: ig.profile_picture_url || null,
-          followers_count: Number(ig.followers_count || 0),
-          media_count: Number(ig.media_count || 0),
-        });
+  // 1. Query Facebook Pages (/me/accounts) - checking both instagram_business_account and connected_instagram_account
+  try {
+    const endpoint = `${GRAPH_BASE_URL}/me/accounts`;
+    const params = new URLSearchParams({
+      fields: 'id,name,instagram_business_account{id,username,name,profile_picture_url,followers_count,media_count},connected_instagram_account{id,username,name,profile_picture_url,followers_count,media_count}',
+      access_token: userAccessToken,
+      appsecret_proof: appsecretProof,
+    });
+
+    const res = await fetch(`${endpoint}?${params.toString()}`, {
+      method: 'GET',
+      headers: { Accept: 'application/json' },
+    });
+
+    const data = await res.json();
+    if (res.ok && Array.isArray(data.data)) {
+      for (const page of data.data) {
+        if (page.instagram_business_account) {
+          addAccount(page.instagram_business_account);
+        }
+        if (page.connected_instagram_account) {
+          addAccount(page.connected_instagram_account);
+        }
       }
+    }
+  } catch (err) {
+    console.warn('[fetchInstagramAccounts] /me/accounts check error:', err);
+  }
+
+  // 2. Query Business Portfolio assets (/me/businesses -> instagram_accounts)
+  if (accounts.length === 0) {
+    try {
+      const bizEndpoint = `${GRAPH_BASE_URL}/me/businesses`;
+      const bizParams = new URLSearchParams({
+        fields: 'id,name,instagram_accounts{id,username,name,profile_picture_url,followers_count,media_count}',
+        access_token: userAccessToken,
+        appsecret_proof: appsecretProof,
+      });
+
+      const bizRes = await fetch(`${bizEndpoint}?${bizParams.toString()}`, {
+        method: 'GET',
+        headers: { Accept: 'application/json' },
+      });
+
+      if (bizRes.ok) {
+        const bizData = await bizRes.json();
+        if (Array.isArray(bizData.data)) {
+          for (const biz of bizData.data) {
+            const igAccounts = biz.instagram_accounts?.data;
+            if (Array.isArray(igAccounts)) {
+              for (const ig of igAccounts) {
+                addAccount(ig);
+              }
+            }
+          }
+        }
+      }
+    } catch (bizErr) {
+      console.warn('[fetchInstagramAccounts] /me/businesses check error:', bizErr);
     }
   }
 
