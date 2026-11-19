@@ -44,5 +44,14 @@ export function getPublicOrigin(req: { headers: { get(name: string): string | nu
     return appUrl.replace(/\/$/, '');
   }
 
+  const host = req.headers.get('host');
+  if (host && !host.includes('localhost:10000') && !host.includes('127.0.0.1:10000')) {
+    return `${forwardedProto}://${host}`;
+  }
+
+  if (req.nextUrl.origin.includes('localhost:10000') || req.nextUrl.origin.includes('127.0.0.1:10000')) {
+    return 'https://adzunova-web.onrender.com';
+  }
+
   return req.nextUrl.origin;
 }

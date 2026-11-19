@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getSession } from '@/lib/auth';
+import { getPublicOrigin } from '@/lib/config';
 import { validateAndConsumeOAuthState } from '@/lib/social/oauth-state';
 import {
   exchangeCodeForShortLivedToken,
@@ -17,17 +18,18 @@ export async function GET(req: NextRequest) {
   const error = searchParams.get('error');
   const errorReason = searchParams.get('error_reason');
   const errorDescription = searchParams.get('error_description');
+  const origin = getPublicOrigin(req);
 
   // 1. Verify user session
   const session = await getSession();
   if (!session || !session.user || session.user.role !== 'CREATOR') {
-    return NextResponse.redirect(new URL('/auth/creator/sign-in?redirect=/creator/accounts', req.url));
+    return NextResponse.redirect(new URL('/auth/creator/sign-in?redirect=/creator/accounts', origin));
   }
 
   // 2. Handle user denied / Meta OAuth errors
   if (error || !code) {
     const reason = encodeURIComponent(errorDescription || errorReason || error || 'Connection cancelled by user');
-    return NextResponse.redirect(new URL(`/creator/accounts?error=oauth_denied&message=${reason}`, req.url));
+    return NextResponse.redirect(new URL(`/creator/accounts?error=oauth_denied&message=${reason}`, origin));
   }
 
   // 3. Verify state token (single-use, unexpired, bound to creator)
@@ -35,7 +37,7 @@ export async function GET(req: NextRequest) {
   if (!stateCheck.valid) {
     const reason = encodeURIComponent(stateCheck.reason || 'Invalid state');
     return NextResponse.redirect(
-      new URL(`/creator/accounts?error=invalid_state&message=${reason}`, req.url)
+      new URL(`/creator/accounts?error=invalid_state&message=${reason}`, origin)
     );
   }
 
@@ -60,7 +62,7 @@ export async function GET(req: NextRequest) {
             encodeURIComponent(
               'No Instagram Professional or Business account linked to your Facebook page. Please convert your Instagram account to Professional and link it to a Facebook Page.'
             ),
-          req.url
+          origin
         )
       );
     }
@@ -109,7 +111,7 @@ export async function GET(req: NextRequest) {
     return NextResponse.redirect(
       new URL(
         `/creator/accounts?success=instagram_connected&username=${encodeURIComponent(targetAccount.username)}`,
-        req.url
+        origin
       )
     );
   } catch (err) {
@@ -117,7 +119,7 @@ export async function GET(req: NextRequest) {
       err instanceof Error ? err.message : 'Failed to finalize Instagram connection'
     );
     return NextResponse.redirect(
-      new URL(`/creator/accounts?error=connection_failed&message=${errorMsg}`, req.url)
+      new URL(`/creator/accounts?error=connection_failed&message=${errorMsg}`, origin)
     );
   }
 }

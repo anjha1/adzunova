@@ -1,13 +1,16 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getSession } from '@/lib/auth';
+import { getPublicOrigin } from '@/lib/config';
 import { generateOAuthState } from '@/lib/social/oauth-state';
 import { getMetaUnifiedLoginUrl } from '@/lib/social/meta-client';
 
 export async function GET(req: NextRequest) {
+  const origin = getPublicOrigin(req);
+
   // 1. Authenticate creator session
   const session = await getSession();
   if (!session || !session.user || session.user.role !== 'CREATOR') {
-    return NextResponse.redirect(new URL('/auth/creator/sign-in?redirect=/creator/accounts', req.url));
+    return NextResponse.redirect(new URL('/auth/creator/sign-in?redirect=/creator/accounts', origin));
   }
 
   // 2. Validate configuration existence
@@ -15,7 +18,7 @@ export async function GET(req: NextRequest) {
   const appSecret = process.env.META_APP_SECRET;
   if (!appId || !appSecret) {
     return NextResponse.redirect(
-      new URL('/creator/accounts?error=instagram_not_configured&reason=Missing+Meta+credentials', req.url)
+      new URL('/creator/accounts?error=instagram_not_configured&reason=Missing+Meta+credentials', origin)
     );
   }
 
@@ -32,7 +35,7 @@ export async function GET(req: NextRequest) {
   } catch (err) {
     console.error('[InstagramConnect] Failed to initiate OAuth flow:', err);
     return NextResponse.redirect(
-      new URL('/creator/accounts?error=connect_init_failed&reason=Internal+error', req.url)
+      new URL('/creator/accounts?error=connect_init_failed&reason=Internal+error', origin)
     );
   }
 }
