@@ -5,8 +5,6 @@ import { ShellIcon } from '@/components/creator/shell/shell-icons';
 import { getSocialAccountsByCreatorId } from '@/lib/social/social-repository';
 import { getLatestAudienceSnapshot } from '@/lib/social/metrics-store';
 
-export const instant = false;
-
 export default async function CreatorDashboardPage() {
   const session = await getSession();
   const profile = session?.profile;

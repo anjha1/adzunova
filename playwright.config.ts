@@ -14,7 +14,7 @@ export default defineConfig({
     trace: 'on-first-retry',
   },
   webServer: {
-    command: 'npm run dev --prefix apps/web',
+    command: 'npm run start --prefix apps/web',
     url: 'http://localhost:3000',
     reuseExistingServer: true,
     timeout: 120 * 1000,

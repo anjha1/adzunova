@@ -3,8 +3,6 @@ import Link from 'next/link';
 import { PageHeader, EmptyState, StatCard } from '@/components/creator/ui';
 import { ShellIcon } from '@/components/creator/shell/shell-icons';
 
-export const instant = false;
-
 interface OfferItem {
   id: string;
   brandName: string;

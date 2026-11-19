@@ -36,7 +36,7 @@ function getPublicOrigin(req: NextRequest): string {
   return req.nextUrl.origin;
 }
 
-export function middleware(req: NextRequest) {
+export function proxy(req: NextRequest) {
   const { pathname } = req.nextUrl;
   const sessionToken = req.cookies.get(AUTH_COOKIE_NAME)?.value;
   const activeRole = getValidSessionRole(sessionToken);

@@ -1,6 +1,6 @@
 'use client';
 
-import { createContext, useContext, useLayoutEffect, useState } from 'react';
+import { createContext, useContext, useEffect, useLayoutEffect, useState } from 'react';
 
 // ---------------------------------------------------------------------------
 // Types
@@ -25,9 +25,11 @@ const STORAGE_KEY = 'adzunova-theme';
 
 function getSystemPreference(): 'light' | 'dark' {
   if (typeof window === 'undefined') return 'light';
-  return window.matchMedia('(prefers-color-scheme: dark)').matches
-    ? 'dark'
-    : 'light';
+  try {
+    return window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light';
+  } catch {
+    return 'light';
+  }
 }
 
 function getStoredPreference(): Theme {
@@ -48,48 +50,35 @@ function resolveTheme(preference: Theme): 'light' | 'dark' {
 }
 
 function applyThemeToDOM(resolved: 'light' | 'dark') {
-  document.documentElement.setAttribute('data-theme', resolved);
+  if (typeof document !== 'undefined') {
+    document.documentElement.setAttribute('data-theme', resolved);
+  }
 }
 
 // ---------------------------------------------------------------------------
-// Provider
+// Provider (SSR-Safe & Hydration-Safe)
 // ---------------------------------------------------------------------------
 export function ThemeProvider({ children }: { children: React.ReactNode }) {
-  /**
-   * Lazy state initializers run on first render (client-side only since
-   * this is a 'use client' component). They read localStorage directly,
-   * so React's initial state matches what the DOM already has from the
-   * inline script. No setState call in effects needed.
-   */
-  const [theme, setThemeState] = useState<Theme>(getStoredPreference);
-  const [resolvedTheme, setResolvedTheme] = useState<'light' | 'dark'>(
-    () => resolveTheme(getStoredPreference()),
-  );
+  // Deterministic server/prerender initial state (matches data-theme="light" on <html>)
+  const [theme, setThemeState] = useState<Theme>('system');
+  const [resolvedTheme, setResolvedTheme] = useState<'light' | 'dark'>('light');
 
-  /**
-   * useLayoutEffect: runs after hydration, before paint.
-   *
-   * Purpose:
-   *   1. Re-apply data-theme attribute — necessary because React Strict Mode
-   *      (dev only) remounts components and resets <html> attributes that
-   *      React doesn't own (the inline script set them). This is a no-op
-   *      in production.
-   *   2. Subscribe to OS preference changes when theme is 'system'.
-   *
-   * We do NOT call setState here — state was already initialized correctly
-   * by the lazy initializers above.
-   *
-   * Pattern from Next.js 16 docs:
-   *   node_modules/next/dist/docs/01-app/02-guides/preventing-flash-before-hydration.md
-   */
+  // Synchronize on mount from the pre-paint DOM attribute or localStorage
+  useEffect(() => {
+    const domTheme = document.documentElement.getAttribute('data-theme') as 'light' | 'dark' | null;
+    const stored = getStoredPreference();
+    const resolved = domTheme === 'dark' || domTheme === 'light' ? domTheme : resolveTheme(stored);
+
+    setThemeState(stored);
+    setResolvedTheme(resolved);
+  }, []);
+
+  // Subscribe to OS preference changes when theme preference is 'system'
   useLayoutEffect(() => {
-    // Re-apply in case React's dev remount cleared the attribute
-    applyThemeToDOM(resolvedTheme);
+    if (typeof window === 'undefined') return;
 
     const mediaQuery = window.matchMedia('(prefers-color-scheme: dark)');
-
     function onSystemChange(e: MediaQueryListEvent) {
-      // Only react to OS changes when user preference is 'system'
       if (getStoredPreference() === 'system') {
         const next: 'light' | 'dark' = e.matches ? 'dark' : 'light';
         setResolvedTheme(next);

@@ -17,7 +17,9 @@
     "lint": "turbo run lint",
     "ci:guards": "node scripts/ci-guards.mjs",
     "typecheck": "turbo run typecheck",
-    "test": "turbo run test"
+    "test": "turbo run test",
+    "verify": "pnpm --filter @adzunova/web build && npx tsc -p apps/web/tsconfig.json --noEmit && node scripts/ci-guards.mjs && node tests/unit/instagram-phase-b.test.mjs && node ./node_modules/.pnpm/node_modules/tsx/dist/cli.mjs tests/unit/instagram-phase-c.test.mjs && node ./node_modules/.pnpm/node_modules/tsx/dist/cli.mjs tests/unit/privacy-compliance.test.mjs && node ./node_modules/.pnpm/node_modules/tsx/dist/cli.mjs tests/unit/instagram-phase-e.test.mjs && node ./node_modules/.pnpm/node_modules/tsx/dist/cli.mjs tests/contract/meta-graph-contract.test.mjs && node ./node_modules/.pnpm/node_modules/tsx/dist/cli.mjs tests/security/social-security.test.mjs && node ./node_modules/.pnpm/node_modules/tsx/dist/cli.mjs tests/load/scheduler-load-chaos.test.mjs",
+    "test:e2e": "playwright test"
   },
   "devDependencies": {
     "@axe-core/playwright": "^4.14.0",
