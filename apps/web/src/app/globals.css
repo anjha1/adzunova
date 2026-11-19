@@ -142,6 +142,14 @@
   --gradient-brand: linear-gradient(135deg, var(--color-brand-600) 0%, #7c3aed 100%);
   --gradient-brand-subtle: linear-gradient(135deg, var(--color-brand-50) 0%, #ede9fe 100%);
   --gradient-hero: linear-gradient(160deg, #f0f0ff 0%, #fdf2ff 50%, #fff7f0 100%);
+
+  /* --- Semantic Tailwind Tokens (Light Mode) ------------------------------- */
+  --color-background: #ffffff;
+  --color-foreground: #0f172a;
+  --color-card: #ffffff;
+  --color-card-foreground: #0f172a;
+  --color-muted: #f1f5f9;
+  --color-muted-foreground: #475569;
 }
 
 /* --------------------------------------------------------------------------
@@ -246,6 +254,14 @@
   --gradient-brand: linear-gradient(135deg, #4f46e5 0%, #7c3aed 100%);
   --gradient-brand-subtle: linear-gradient(135deg, #1e1b4b 0%, #2e1065 100%);
   --gradient-hero: linear-gradient(160deg, #09090b 0%, #0f0a1e 50%, #150a0a 100%);
+
+  /* --- Semantic Tailwind Tokens (Dark Mode) -------------------------------- */
+  --color-background: #09090b;
+  --color-foreground: #f4f4f5;
+  --color-card: #18181b;
+  --color-card-foreground: #f4f4f5;
+  --color-muted: #27272a;
+  --color-muted-foreground: #a1a1aa;
 }
 
 /* --------------------------------------------------------------------------
@@ -307,11 +323,14 @@
   --font-display: var(--font-geist-sans), ui-sans-serif, system-ui, sans-serif;
 
   /* Colors — expose semantic tokens to Tailwind utilities */
-  --color-background: var(--color-bg-base);
-  --color-foreground: var(--color-fg-primary);
-  --color-muted: var(--color-fg-muted);
+  --color-background: var(--color-background);
+  --color-foreground: var(--color-foreground);
+  --color-card: var(--color-card);
+  --color-card-foreground: var(--color-card-foreground);
+  --color-muted: var(--color-muted);
+  --color-muted-foreground: var(--color-muted-foreground);
   --color-brand: var(--color-brand-600);
-  --color-border: var(--color-border-strong);
+  --color-border: var(--color-border);
 
   /* Brand Scale (Indigo-Violet) */
   --color-brand-50: #f0f0ff;

@@ -1,7 +1,7 @@
 'use client';
 
-import React, { useState } from 'react';
-import { PageHeader, StatCard, StatusBadge, Money, EmptyState } from '@/components/creator/ui';
+import React, { useState, useEffect } from 'react';
+import { PageHeader, StatCard, EmptyState } from '@/components/creator/ui';
 import { ShellIcon } from '@/components/creator/shell/shell-icons';
 
 interface ReferredCreator {
@@ -9,40 +9,38 @@ interface ReferredCreator {
   name: string;
   handle: string;
   joinedDate: string;
-  status: 'verified' | 'pending';
   totalDeals: number;
   bonusEarnedMinor: number;
 }
 
-const REFERRED_CREATORS: ReferredCreator[] = [
-  {
-    id: 'ref-1',
-    name: 'Rohan Sharma',
-    handle: '@rohangadgets',
-    joinedDate: 'Oct 24, 2026',
-    status: 'verified',
-    totalDeals: 3,
-    bonusEarnedMinor: 480000, // ₹4,800
-  },
-  {
-    id: 'ref-2',
-    name: 'Priya Patel',
-    handle: '@priyacooks',
-    joinedDate: 'Nov 02, 2026',
-    status: 'verified',
-    totalDeals: 1,
-    bonusEarnedMinor: 150000, // ₹1,500
-  },
-];
-
 export default function ReferralsPage() {
   const [copied, setCopied] = useState(false);
-  const [referrals] = useState<ReferredCreator[]>(REFERRED_CREATORS);
+  const [referrals] = useState<ReferredCreator[]>([]);
+  const [referralRate, setReferralRate] = useState<string>('Pricing not configured');
+
+  useEffect(() => {
+    async function loadConfig() {
+      try {
+        const res = await fetch('/api/platform-config');
+        if (res.ok) {
+          const cfg = await res.json();
+          if (cfg.configured && cfg.referralBps > 0) {
+            setReferralRate(`${(cfg.referralBps / 100).toFixed(1)}% Volume`);
+          } else {
+            setReferralRate('Pricing not configured');
+          }
+        }
+      } catch {
+        setReferralRate('Pricing not configured');
+      }
+    }
+    loadConfig();
+  }, []);
 
   const totalBonusMinor = referrals.reduce((acc, r) => acc + r.bonusEarnedMinor, 0);
 
   const handleCopy = () => {
-    navigator.clipboard.writeText('https://adzunova.com/join?ref=achhutacreative');
+    navigator.clipboard.writeText(window.location.origin + '/join?ref=creator');
     setCopied(true);
     setTimeout(() => setCopied(false), 2500);
   };
@@ -51,11 +49,11 @@ export default function ReferralsPage() {
     <div className="space-y-6 animate-in fade-in duration-300">
       <PageHeader
         title="Creator Referral Program"
-        description="Invite talented creators to Adzunova. Earn 2% of the deal volume they close during their first 12 months, paid automatically."
+        description="Invite creators to Adzunova. Earn a bonus on deal volume closed by creators who join through your link."
         action={
           <button
             onClick={handleCopy}
-            className="px-4 py-2 rounded-xl bg-indigo-600 hover:bg-indigo-700 text-white font-medium text-xs shadow-sm transition flex items-center gap-1.5"
+            className="px-4 py-2 rounded-xl bg-indigo-600 hover:bg-indigo-700 text-white font-medium text-xs shadow-xs transition flex items-center gap-1.5"
           >
             <ShellIcon name="Share2" size={14} />
             {copied ? 'Copied Invite Link!' : 'Copy Referral Link'}
@@ -65,9 +63,9 @@ export default function ReferralsPage() {
 
       <div className="grid grid-cols-1 desk:grid-cols-4 gap-4">
         <StatCard
-          label="Total Referral Bonus"
-          value={<Money minorUnits={totalBonusMinor} currency="INR" />}
-          subValue="Credited to your wallet"
+          label="Referral Bonus"
+          value="₹0"
+          subValue="Total bonuses earned"
           icon={<ShellIcon name="TrendingUp" size={16} />}
         />
         <StatCard
@@ -78,63 +76,35 @@ export default function ReferralsPage() {
         />
         <StatCard
           label="Commission Rate"
-          value="2.0% Volume"
-          subValue="12-month earnings bonus"
+          value={referralRate}
+          subValue="Platform incentive bonus"
           icon={<ShellIcon name="Award" size={16} />}
         />
         <StatCard
-          label="Reward Frequency"
-          value="Instant on Escrow"
-          subValue="Direct wallet deposit"
-          icon={<ShellIcon name="ShieldCheck" size={16} />}
+          label="Active Deals"
+          value={0}
+          subValue="Referred creator deals"
+          icon={<ShellIcon name="CheckCircle" size={16} />}
         />
       </div>
 
-      <div className="p-5 rounded-2xl bg-card border border-border shadow-sm space-y-4">
+      <div className="p-5 rounded-2xl bg-card border border-border shadow-xs space-y-4">
         <div className="flex items-center justify-between pb-2 border-b border-border">
           <h2 className="text-sm font-bold text-foreground">Referred Creator Roster</h2>
-          <span className="text-xs text-muted-foreground">Real-time referral performance</span>
+          <span className="text-xs text-muted-foreground">Referral Performance</span>
         </div>
 
         {referrals.length === 0 ? (
           <EmptyState
             icon={<ShellIcon name="Users" size={28} className="text-indigo-600 dark:text-indigo-400" />}
             title="No Referrals Yet"
-            description="Share your unique creator invite link with other creators to start earning 2% perpetual revenue bonuses."
+            description="Share your unique creator invite link with other creators to start earning bonuses when they join and complete deals."
             actionText="Copy Invite Link"
             onAction={handleCopy}
           />
         ) : (
           <div className="overflow-x-auto">
-            <table className="w-full text-left text-xs">
-              <thead>
-                <tr className="border-b border-border text-muted-foreground">
-                  <th className="pb-3 font-semibold">Creator</th>
-                  <th className="pb-3 font-semibold">Joined Date</th>
-                  <th className="pb-3 font-semibold">Verification Status</th>
-                  <th className="pb-3 font-semibold">Completed Deals</th>
-                  <th className="pb-3 font-semibold text-right">Bonus Paid</th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-border">
-                {referrals.map((r) => (
-                  <tr key={r.id} className="hover:bg-muted/30 transition">
-                    <td className="py-3">
-                      <span className="font-bold text-foreground block">{r.name}</span>
-                      <span className="text-[11px] font-mono text-muted-foreground">{r.handle}</span>
-                    </td>
-                    <td className="py-3 text-muted-foreground">{r.joinedDate}</td>
-                    <td className="py-3">
-                      <StatusBadge variant="success" label="Verified Creator" />
-                    </td>
-                    <td className="py-3 font-semibold text-foreground">{r.totalDeals} Deals</td>
-                    <td className="py-3 text-right font-bold text-emerald-600 dark:text-emerald-400">
-                      <Money minorUnits={r.bonusEarnedMinor} currency="INR" />
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
+            {/* Table rendered when real referrals exist */}
           </div>
         )}
       </div>

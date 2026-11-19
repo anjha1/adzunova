@@ -1,28 +1,50 @@
 'use client';
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { PageHeader, StatusBadge } from '@/components/creator/ui';
 import { ShellIcon } from '@/components/creator/shell/shell-icons';
 
 export default function ProfilePage() {
-  const [displayName, setDisplayName] = useState('Achhuta Creative');
-  const [handle, setHandle] = useState('achhutacreative');
+  const [displayName, setDisplayName] = useState('');
+  const [handle, setHandle] = useState('');
   const [category, setCategory] = useState('Consumer Tech');
-  const [location, setLocation] = useState('Mumbai, India');
-  const [languages, setLanguages] = useState('English, Hindi');
-  const [bio, setBio] = useState(
-    'Award-winning tech reviewer and digital creator. Focused on flagship smartphone camera tests, developer workstation setups, and clean audio hardware.'
-  );
-  const [youtubeUrl, setYoutubeUrl] = useState('https://youtube.com/@achhutacreative');
-  const [instagramUrl, setInstagramUrl] = useState('https://instagram.com/achhutacreative');
+  const [location, setLocation] = useState('');
+  const [languages, setLanguages] = useState('');
+  const [bio, setBio] = useState('');
+  const [youtubeUrl, setYoutubeUrl] = useState('');
+  const [instagramUrl, setInstagramUrl] = useState('');
   const [previewMode, setPreviewMode] = useState<'desktop' | 'mobile'>('desktop');
   const [isSaved, setIsSaved] = useState(false);
+
+  useEffect(() => {
+    async function loadProfile() {
+      try {
+        const res = await fetch('/api/auth/me');
+        if (res.ok) {
+          const data = await res.json();
+          const profile = data.profile || {};
+          const user = data.user || {};
+          setDisplayName(profile.displayName || user.displayName || '');
+          setHandle(profile.handle || user.email?.split('@')[0] || '');
+          setBio(profile.bio || '');
+          setLocation(profile.location || '');
+          setCategory(profile.category || 'Consumer Tech');
+          setLanguages(profile.languages || '');
+        }
+      } catch {
+        // Fallback to blank form
+      }
+    }
+    loadProfile();
+  }, []);
 
   const handleSave = (e: React.FormEvent) => {
     e.preventDefault();
     setIsSaved(true);
     setTimeout(() => setIsSaved(false), 2500);
   };
+
+  const initialLetter = (displayName?.[0] || 'C').toUpperCase();
 
   return (
     <div className="space-y-6 animate-in fade-in duration-300">
@@ -32,7 +54,7 @@ export default function ProfilePage() {
         action={
           <button
             onClick={handleSave}
-            className="px-4 py-2 rounded-xl bg-indigo-600 hover:bg-indigo-700 text-white font-medium text-xs shadow-sm transition flex items-center gap-1.5"
+            className="px-4 py-2 rounded-xl bg-indigo-600 hover:bg-indigo-700 text-white font-medium text-xs shadow-xs transition flex items-center gap-1.5"
           >
             <ShellIcon name="Save" size={14} />
             {isSaved ? 'Profile Updated!' : 'Save Changes'}
@@ -42,7 +64,7 @@ export default function ProfilePage() {
 
       <div className="grid grid-cols-1 desk:grid-cols-2 gap-6">
         {/* Left: Editor Form */}
-        <div className="p-5 rounded-2xl bg-card border border-border shadow-sm space-y-4">
+        <div className="p-5 rounded-2xl bg-card border border-border shadow-xs space-y-4">
           <div className="flex items-center justify-between pb-2 border-b border-border">
             <h2 className="text-sm font-bold text-foreground">Profile Information</h2>
             <span className="text-xs text-muted-foreground">Publicly visible</span>
@@ -54,6 +76,7 @@ export default function ProfilePage() {
                 <label className="font-semibold text-foreground block mb-1">Display Name</label>
                 <input
                   type="text"
+                  placeholder="Your creative name"
                   value={displayName}
                   onChange={(e) => setDisplayName(e.target.value)}
                   className="w-full rounded-xl border border-border bg-background px-3 py-2 text-foreground focus:ring-1 focus:ring-indigo-500"
@@ -66,6 +89,7 @@ export default function ProfilePage() {
                   <span className="absolute left-3 top-2 text-muted-foreground">@</span>
                   <input
                     type="text"
+                    placeholder="handle"
                     value={handle}
                     onChange={(e) => setHandle(e.target.value)}
                     className="w-full rounded-xl border border-border bg-background pl-7 pr-3 py-2 text-foreground font-mono focus:ring-1 focus:ring-indigo-500"
@@ -94,6 +118,7 @@ export default function ProfilePage() {
                 <label className="font-semibold text-foreground block mb-1">Location</label>
                 <input
                   type="text"
+                  placeholder="City, Country"
                   value={location}
                   onChange={(e) => setLocation(e.target.value)}
                   className="w-full rounded-xl border border-border bg-background px-3 py-2 text-foreground"
@@ -109,6 +134,7 @@ export default function ProfilePage() {
               <textarea
                 rows={3}
                 maxLength={300}
+                placeholder="Tell brands what makes your audience and content format unique..."
                 value={bio}
                 onChange={(e) => setBio(e.target.value)}
                 className="w-full rounded-xl border border-border bg-background p-3 text-foreground leading-relaxed focus:ring-1 focus:ring-indigo-500"
@@ -122,6 +148,7 @@ export default function ProfilePage() {
                 <label className="text-muted-foreground block mb-1">YouTube Channel URL</label>
                 <input
                   type="text"
+                  placeholder="https://youtube.com/@channel"
                   value={youtubeUrl}
                   onChange={(e) => setYoutubeUrl(e.target.value)}
                   className="w-full rounded-xl border border-border bg-background px-3 py-2 text-foreground font-mono"
@@ -132,6 +159,7 @@ export default function ProfilePage() {
                 <label className="text-muted-foreground block mb-1">Instagram Profile URL</label>
                 <input
                   type="text"
+                  placeholder="https://instagram.com/profile"
                   value={instagramUrl}
                   onChange={(e) => setInstagramUrl(e.target.value)}
                   className="w-full rounded-xl border border-border bg-background px-3 py-2 text-foreground font-mono"
@@ -142,7 +170,7 @@ export default function ProfilePage() {
         </div>
 
         {/* Right: Live Preview */}
-        <div className="p-5 rounded-2xl bg-card border border-border shadow-sm space-y-4">
+        <div className="p-5 rounded-2xl bg-card border border-border shadow-xs space-y-4">
           <div className="flex items-center justify-between pb-2 border-b border-border">
             <h3 className="text-sm font-bold text-foreground">Live Public Card Preview</h3>
             <div className="flex items-center gap-1 p-0.5 rounded-lg bg-muted text-[11px] font-semibold">
@@ -169,30 +197,32 @@ export default function ProfilePage() {
 
           {/* Rendered Preview Card */}
           <div
-            className={`mx-auto rounded-2xl border border-border bg-background overflow-hidden shadow-md transition-all ${
+            className={`mx-auto rounded-2xl border border-border bg-background overflow-hidden shadow-xs transition-all ${
               previewMode === 'mobile' ? 'max-w-xs p-4' : 'w-full p-6'
             }`}
           >
             <div className="flex items-start gap-4">
               <div className="w-16 h-16 rounded-2xl bg-indigo-600 text-white flex items-center justify-center font-bold text-lg shrink-0">
-                {displayName.substring(0, 2).toUpperCase()}
+                {initialLetter}
               </div>
               <div>
                 <div className="flex items-center gap-2">
-                  <h4 className="font-bold text-base text-foreground">{displayName}</h4>
-                  <StatusBadge variant="success" label="Verified" />
+                  <h4 className="font-bold text-base text-foreground">{displayName || 'Creator'}</h4>
+                  <StatusBadge variant="neutral" label="Unverified" />
                 </div>
-                <span className="text-xs font-mono text-muted-foreground">@{handle}</span>
+                <span className="text-xs font-mono text-muted-foreground">@{handle || 'handle'}</span>
                 <span className="block text-[11px] font-medium text-indigo-600 dark:text-indigo-400 mt-0.5">
-                  {category} • {location}
+                  {category} {location ? `• ${location}` : ''}
                 </span>
               </div>
             </div>
 
-            <p className="text-xs text-muted-foreground mt-4 leading-relaxed">{bio}</p>
+            <p className="text-xs text-muted-foreground mt-4 leading-relaxed">
+              {bio || 'No bio entered yet. Complete your profile details on the left.'}
+            </p>
 
             <div className="mt-4 pt-3 border-t border-border flex items-center justify-between text-xs">
-              <span className="font-semibold text-foreground">Verified Reach: 482K</span>
+              <span className="text-muted-foreground">Verified Reach: — (Not connected)</span>
               <button className="px-3 py-1 rounded-lg bg-indigo-600 text-white font-medium text-xs">
                 Book Sponsorship
               </button>

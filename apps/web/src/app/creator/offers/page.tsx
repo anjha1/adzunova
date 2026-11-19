@@ -28,7 +28,7 @@ export default async function OffersPage() {
       <div className="grid grid-cols-2 desk:grid-cols-4 gap-4">
         <StatCard label="New Offers" value={0} subValue="Awaiting your response" icon={<ShellIcon name="Inbox" size={16} />} />
         <StatCard label="Negotiating" value={0} subValue="Counter-offers sent" icon={<ShellIcon name="MessageSquare" size={16} />} />
-        <StatCard label="Accepted Deals" value={0} subValue="Moved to escrow" icon={<ShellIcon name="ShieldCheck" size={16} />} />
+        <StatCard label="Accepted Deals" value={0} subValue="Confirmed bookings" icon={<ShellIcon name="CheckCircle" size={16} />} />
         <StatCard label="Avg Offer Value" value="₹0" subValue="Across all platforms" icon={<ShellIcon name="Tag" size={16} />} />
       </div>
 

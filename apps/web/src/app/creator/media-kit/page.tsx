@@ -1,131 +1,230 @@
 'use client';
 
-import React, { useState } from 'react';
-import { PageHeader, StatCard, StatusBadge, Money } from '@/components/creator/ui';
+import React, { useState, useEffect } from 'react';
+import Link from 'next/link';
+import { PageHeader, EmptyState } from '@/components/creator/ui';
 import { ShellIcon } from '@/components/creator/shell/shell-icons';
+import { DerivedAudienceMetrics } from '@/lib/social/demographics-engine';
+
+interface MediaKitData {
+  hasConnectedAccount: boolean;
+  account?: {
+    id: string;
+    username: string;
+    provider: string;
+    followersCount: number;
+    mediaCount: number;
+    status: string;
+    lastSyncedAt: string | null;
+  };
+  totalReach: number;
+  totalViews: number;
+  audienceScore: number | null;
+  demographics: DerivedAudienceMetrics | null;
+}
 
 export default function MediaKitPage() {
+  const [data, setData] = useState<MediaKitData | null>(null);
+  const [loading, setLoading] = useState(true);
   const [copied, setCopied] = useState(false);
 
+  useEffect(() => {
+    async function loadMediaKit() {
+      try {
+        const res = await fetch('/api/creator/analytics?range=30d');
+        if (res.ok) {
+          const json = await res.json();
+          setData(json);
+        }
+      } catch (err) {
+        console.warn('Failed to load media kit data:', err);
+      } finally {
+        setLoading(false);
+      }
+    }
+    loadMediaKit();
+  }, []);
+
   const handleCopyLink = () => {
-    navigator.clipboard.writeText('https://adzunova.com/@creator/media-kit');
+    navigator.clipboard.writeText(window.location.href);
     setCopied(true);
     setTimeout(() => setCopied(false), 2500);
   };
 
+  if (loading) {
+    return (
+      <div className="space-y-6 animate-pulse">
+        <div className="h-8 w-64 bg-muted rounded-xl" />
+        <div className="h-96 bg-card border border-border rounded-3xl" />
+      </div>
+    );
+  }
+
+  const hasConnected = data?.hasConnectedAccount;
+  const demographics = data?.demographics;
+  const account = data?.account;
+
   return (
     <div className="space-y-6 animate-in fade-in duration-300">
       <PageHeader
-        title="Automated Verified Media Kit"
-        description="Always-up-to-date, live media kit backed by verified platform data. Send this single link to brands to bypass agency back-and-forth."
+        title="Automated Media Kit"
+        description="Shareable live media kit backed by verified platform data. Direct brand partners to your verified profile."
         action={
-          <div className="flex items-center gap-2">
-            <button
-              onClick={() => alert('Exporting high-resolution 300 DPI PDF Media Kit...')}
-              className="px-3.5 py-2 rounded-xl border border-border text-xs text-muted-foreground hover:bg-muted font-medium flex items-center gap-1.5"
-            >
-              <ShellIcon name="Download" size={14} />
-              Export PDF
-            </button>
-            <button
-              onClick={handleCopyLink}
-              className="px-4 py-2 rounded-xl bg-indigo-600 hover:bg-indigo-700 text-white font-medium text-xs shadow-sm transition flex items-center gap-1.5"
-            >
-              <ShellIcon name="Share2" size={14} />
-              {copied ? 'Copied Public Link!' : 'Share Live Media Kit'}
-            </button>
-          </div>
+          hasConnected ? (
+            <div className="flex items-center gap-2">
+              <button
+                onClick={handleCopyLink}
+                className="px-4 py-2 rounded-xl bg-indigo-600 hover:bg-indigo-700 text-white font-medium text-xs shadow-xs transition flex items-center gap-1.5"
+              >
+                <ShellIcon name="Share2" size={14} />
+                {copied ? 'Copied Public Link!' : 'Share Live Media Kit'}
+              </button>
+            </div>
+          ) : undefined
         }
       />
 
-      {/* Media Kit Preview Sheet */}
-      <div className="max-w-4xl mx-auto rounded-3xl bg-card border border-border shadow-xl overflow-hidden">
-        {/* Header Banner */}
-        <div className="h-36 bg-gradient-to-r from-indigo-600 via-indigo-700 to-purple-800 p-6 flex items-end">
-          <span className="text-xs font-bold text-white/80 bg-black/30 backdrop-blur-md px-3 py-1 rounded-full">
-            ADZUNOVA VERIFIED MEDIA KIT • UPDATED DAILY
-          </span>
-        </div>
-
-        <div className="px-8 pb-8 pt-0 space-y-6">
-          {/* Profile Overview */}
-          <div className="flex flex-col desk:flex-row desk:items-end justify-between gap-4 -mt-12">
-            <div className="flex items-end gap-4">
-              <div className="w-24 h-24 rounded-2xl bg-slate-900 border-4 border-card flex items-center justify-center text-white text-2xl font-black shadow-lg">
-                AC
+      {!hasConnected ? (
+        <EmptyState
+          icon={<ShellIcon name="Share2" size={28} className="text-indigo-600 dark:text-indigo-400" />}
+          title="Media Kit Awaiting Connected Channels"
+          description="Your public media kit is generated automatically from verified follower counts, video views, and audience demographics once you connect your Instagram or YouTube account."
+          actionText="Connect Social Accounts"
+          actionHref="/creator/accounts"
+        />
+      ) : (
+        <div className="max-w-4xl mx-auto rounded-3xl bg-card border border-border shadow-xs overflow-hidden p-6 desk:p-8 space-y-8">
+          {/* Header Card */}
+          <div className="flex flex-col desk:flex-row desk:items-center justify-between gap-4 pb-6 border-b border-border">
+            <div className="flex items-center gap-4">
+              <div className="w-16 h-16 rounded-2xl bg-gradient-to-tr from-amber-500 to-rose-500 text-white flex items-center justify-center font-black text-xl shadow-md">
+                IG
               </div>
               <div>
                 <div className="flex items-center gap-2">
-                  <h2 className="text-xl font-black text-foreground">Achhuta Creative</h2>
-                  <StatusBadge variant="success" label="Verified Pro Creator" />
+                  <h2 className="text-xl font-black text-foreground">@{account?.username}</h2>
+                  <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-emerald-500/10 text-emerald-800 dark:text-emerald-300 border border-emerald-500/20">
+                    Verified Creator
+                  </span>
                 </div>
-                <p className="text-xs text-muted-foreground mt-0.5">
-                  @achhutacreative • Consumer Tech, AI Hardware & Mobile Reviews
+                <p className="text-xs text-muted-foreground mt-1">
+                  Verified via Meta Graph API OAuth &bull;{' '}
+                  {account?.lastSyncedAt
+                    ? `Verified on ${new Date(account.lastSyncedAt).toLocaleDateString()}`
+                    : 'Initial sync active'}
                 </p>
               </div>
             </div>
 
             <div className="flex items-center gap-3">
-              <span className="text-xs font-semibold text-muted-foreground">📍 Mumbai, India</span>
-              <span className="text-xs font-semibold text-muted-foreground">🗣️ English, Hindi</span>
+              <Link
+                href="/creator/rate-card"
+                className="px-4 py-2 rounded-xl bg-indigo-600 hover:bg-indigo-700 text-white font-bold text-xs shadow-xs transition"
+              >
+                View Rate Card
+              </Link>
             </div>
           </div>
 
-          <p className="text-xs text-muted-foreground leading-relaxed max-w-2xl">
-            Award-winning consumer technology reviews focusing on flagship smartphones, creator audio setups, and developer productivity machines. Audience consists of high-intent engineers, founders, and creative professionals.
-          </p>
+          {/* Key Verified Stats Strip */}
+          <div className="grid grid-cols-2 desk:grid-cols-4 gap-4">
+            <div className="p-4 rounded-2xl bg-muted/30 border border-border">
+              <span className="text-xs text-muted-foreground font-semibold">Total Verified Reach</span>
+              <div className="text-2xl font-black text-foreground mt-1">
+                {Number(account?.followersCount || 0).toLocaleString()}
+              </div>
+              <span className="text-[11px] text-muted-foreground">Followers</span>
+            </div>
 
-          {/* Verified Stats Highlight */}
-          <div className="grid grid-cols-2 desk:grid-cols-4 gap-4 p-5 rounded-2xl bg-muted/30 border border-border">
-            <div className="space-y-0.5">
-              <span className="text-[11px] font-semibold text-muted-foreground uppercase">Verified Reach</span>
-              <p className="text-lg font-black text-foreground">482,500+</p>
-              <span className="text-[10px] text-muted-foreground">YouTube & Instagram</span>
+            <div className="p-4 rounded-2xl bg-muted/30 border border-border">
+              <span className="text-xs text-muted-foreground font-semibold">Published Content</span>
+              <div className="text-2xl font-black text-foreground mt-1">
+                {Number(account?.mediaCount || 0).toLocaleString()}
+              </div>
+              <span className="text-[11px] text-muted-foreground">Reels &amp; Posts</span>
             </div>
-            <div className="space-y-0.5">
-              <span className="text-[11px] font-semibold text-muted-foreground uppercase">Engagement Rate</span>
-              <p className="text-lg font-black text-emerald-600 dark:text-emerald-400">4.92%</p>
-              <span className="text-[10px] text-muted-foreground">2.2x niche benchmark</span>
+
+            <div className="p-4 rounded-2xl bg-muted/30 border border-border">
+              <span className="text-xs text-muted-foreground font-semibold">18+ Audience Ratio</span>
+              <div className="text-2xl font-black text-foreground mt-1">
+                {demographics ? `${Math.round(demographics.share_18_plus * 100)}%` : '—'}
+              </div>
+              <span className="text-[11px] text-muted-foreground">
+                {demographics ? `Minor (13-17): ${Math.round(demographics.share_13_17 * 100)}%` : 'Pending sync'}
+              </span>
             </div>
-            <div className="space-y-0.5">
-              <span className="text-[11px] font-semibold text-muted-foreground uppercase">Audience Score</span>
-              <p className="text-lg font-black text-indigo-600 dark:text-indigo-400">94 / 100</p>
-              <span className="text-[10px] text-muted-foreground">Audience authenticity</span>
-            </div>
-            <div className="space-y-0.5">
-              <span className="text-[11px] font-semibold text-muted-foreground uppercase">Avg Monthly Views</span>
-              <p className="text-lg font-black text-foreground">1,240,000</p>
-              <span className="text-[10px] text-muted-foreground">Across all videos</span>
+
+            <div className="p-4 rounded-2xl bg-muted/30 border border-border">
+              <span className="text-xs text-muted-foreground font-semibold">Audience Quality</span>
+              <div className="text-2xl font-black text-foreground mt-1">
+                {data?.audienceScore ? `${data.audienceScore}/100` : '—'}
+              </div>
+              <span className="text-[11px] text-muted-foreground">
+                {data?.audienceScore ? 'Meta Verified' : 'Pending sync'}
+              </span>
             </div>
           </div>
 
-          {/* Core Audience Split */}
-          <div className="grid grid-cols-1 desk:grid-cols-2 gap-4">
-            <div className="p-4 rounded-xl border border-border bg-card space-y-2 text-xs">
-              <span className="font-bold text-foreground block">Age Demographics</span>
-              <p className="text-muted-foreground">18-34 years makes up <strong>80%</strong> of the audience.</p>
-              <div className="flex gap-1 h-3 rounded-full overflow-hidden bg-muted mt-2">
-                <div style={{ width: '42%' }} className="bg-indigo-600" title="18-24: 42%" />
-                <div style={{ width: '38%' }} className="bg-indigo-400" title="25-34: 38%" />
-                <div style={{ width: '20%' }} className="bg-indigo-200" title="35+: 20%" />
+          {/* Demographic Breakdown */}
+          {demographics && (
+            <div className="grid grid-cols-1 desk:grid-cols-2 gap-6 pt-2">
+              {/* Age */}
+              <div className="p-5 rounded-2xl bg-muted/20 border border-border space-y-3">
+                <h3 className="font-bold text-xs uppercase tracking-wider text-foreground">
+                  Audience Age Segments
+                </h3>
+                <div className="space-y-2">
+                  {demographics.ageDistribution.map((item) => (
+                    <div key={item.bucket} className="space-y-1">
+                      <div className="flex justify-between text-xs">
+                        <span className="font-medium text-foreground">
+                          {item.bucket === '13-17' ? '13–17 (Meta estimate)' : item.bucket}
+                        </span>
+                        <span className="text-muted-foreground">
+                          {Math.round(item.percentage * 100)}%
+                        </span>
+                      </div>
+                      <div className="w-full h-1.5 rounded-full bg-muted overflow-hidden">
+                        <div
+                          className="h-full bg-indigo-600 dark:bg-indigo-400 rounded-full"
+                          style={{ width: `${Math.round(item.percentage * 100)}%` }}
+                        />
+                      </div>
+                    </div>
+                  ))}
+                </div>
               </div>
-            </div>
 
-            <div className="p-4 rounded-xl border border-border bg-card space-y-2 text-xs">
-              <span className="font-bold text-foreground block">Geography Focus</span>
-              <p className="text-muted-foreground">Top regions: India (64%), United States (18%), UK (9%).</p>
-              <div className="flex items-center gap-2 mt-2">
-                <span className="px-2 py-0.5 rounded bg-muted text-[11px] font-medium text-foreground">
-                  🇮🇳 Tier 1 Metros
-                </span>
-                <span className="px-2 py-0.5 rounded bg-muted text-[11px] font-medium text-foreground">
-                  🇺🇸 Tech Hubs
-                </span>
+              {/* Geography */}
+              <div className="p-5 rounded-2xl bg-muted/20 border border-border space-y-3">
+                <h3 className="font-bold text-xs uppercase tracking-wider text-foreground">
+                  Top Audience Geography
+                </h3>
+                {demographics.hasCountryBreakdown && demographics.countryDistribution.length > 0 ? (
+                  <div className="grid grid-cols-2 gap-2 pt-1">
+                    {demographics.countryDistribution.slice(0, 6).map((c) => (
+                      <div key={c.countryCode} className="p-2.5 rounded-xl bg-card border border-border flex justify-between items-center text-xs">
+                        <span className="font-bold text-foreground">{c.countryCode}</span>
+                        <span className="text-muted-foreground">{Math.round(c.percentage * 100)}%</span>
+                      </div>
+                    ))}
+                  </div>
+                ) : (
+                  <p className="text-xs text-muted-foreground pt-4">
+                    Country geography breakdown is not exposed by current account settings.
+                  </p>
+                )}
               </div>
             </div>
+          )}
+
+          {/* Footer Transparency Notice */}
+          <div className="pt-4 border-t border-border flex items-center justify-between text-[11px] text-muted-foreground">
+            <span>Data audited and encrypted under Meta Platform Terms</span>
+            <span>Adzunova Marketplace Live Kit</span>
           </div>
         </div>
-      </div>
+      )}
     </div>
   );
 }

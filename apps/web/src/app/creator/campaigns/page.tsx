@@ -46,8 +46,8 @@ export default async function CampaignsPage() {
         <StatCard
           label="Completed Campaigns"
           value={completedCount}
-          subValue="100% escrow settled"
-          icon={<ShellIcon name="ShieldCheck" size={16} />}
+          subValue="Completed sponsorships"
+          icon={<ShellIcon name="CheckCircle" size={16} />}
         />
       </div>
 
@@ -56,7 +56,7 @@ export default async function CampaignsPage() {
         <EmptyState
           icon={<ShellIcon name="Briefcase" size={28} className="text-indigo-600 dark:text-indigo-400" />}
           title="No Active Campaigns Yet"
-          description="When a brand accepts your rate card quote and pre-funds escrow, your dedicated campaign workspace and deliverable checklist will appear here."
+          description="When a brand books your rate card or accepts an offer, your dedicated campaign workspace and deliverable checklist will appear here."
           actionText="View Deals Inbox"
           actionHref="/creator/offers"
           secondaryActionText="Configure Rate Card"
@@ -67,15 +67,15 @@ export default async function CampaignsPage() {
           {campaigns.map((c) => (
             <div
               key={c.id}
-              className="p-5 rounded-2xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 flex items-center justify-between"
+              className="p-5 rounded-2xl bg-card border border-border flex items-center justify-between"
             >
               <div>
-                <h3 className="font-bold text-sm text-slate-900 dark:text-white">{c.title}</h3>
-                <p className="text-xs text-slate-500 mt-0.5">{c.brandName} • Due {c.deadline}</p>
+                <h3 className="font-bold text-sm text-foreground">{c.title}</h3>
+                <p className="text-xs text-muted-foreground mt-0.5">{c.brandName} • Due {c.deadline}</p>
               </div>
               <Link
                 href={`/creator/campaigns/${c.id}`}
-                className="px-3.5 py-1.5 rounded-xl bg-slate-900 dark:bg-white text-white dark:text-slate-900 text-xs font-bold"
+                className="px-3.5 py-1.5 rounded-xl bg-primary text-primary-foreground text-xs font-bold"
               >
                 Open Workspace
               </Link>

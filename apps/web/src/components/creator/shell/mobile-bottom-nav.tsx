@@ -14,7 +14,7 @@ export function MobileBottomNav({ onOpenMore }: MobileBottomNavProps) {
   const pathname = usePathname();
 
   return (
-    <nav className="desk:hidden fixed bottom-0 left-0 right-0 z-40 bg-white/95 dark:bg-slate-900/95 backdrop-blur-md border-t border-slate-200 dark:border-slate-800 pb-safe">
+    <nav className="desk:hidden fixed bottom-0 left-0 right-0 z-40 bg-card/95 backdrop-blur-md border-t border-border pb-safe">
       <div className="flex items-center justify-around h-16 px-1">
         {MOBILE_PRIMARY_TABS.map((tab) => {
           const isMore = tab.href === '#more';
@@ -25,7 +25,7 @@ export function MobileBottomNav({ onOpenMore }: MobileBottomNavProps) {
               <button
                 key={tab.title}
                 onClick={onOpenMore}
-                className="flex-1 flex flex-col items-center justify-center py-1 text-slate-500 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white transition"
+                className="flex-1 flex flex-col items-center justify-center py-1 text-muted-foreground hover:text-foreground transition"
               >
                 <div className="relative">
                   <ShellIcon name={tab.iconName} size={20} />
@@ -42,7 +42,7 @@ export function MobileBottomNav({ onOpenMore }: MobileBottomNavProps) {
               className={`flex-1 flex flex-col items-center justify-center py-1 transition ${
                 isActive
                   ? 'text-indigo-600 dark:text-indigo-400'
-                  : 'text-slate-500 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white'
+                  : 'text-muted-foreground hover:text-foreground'
               }`}
             >
               <div className="relative">

@@ -14,7 +14,7 @@ export default function CreatorOnboardingPage() {
     displayName: '',
     category: 'Influencer',
     bio: '',
-    country: 'United States',
+    country: 'India',
     portfolioUrl: '',
     youtube: '',
     instagram: '',
@@ -93,8 +93,8 @@ export default function CreatorOnboardingPage() {
 
   if (checkingAuth) {
     return (
-      <div className="min-h-screen bg-slate-50 dark:bg-slate-950 flex items-center justify-center">
-        <div className="text-sm font-semibold text-slate-500 animate-pulse">
+      <div className="min-h-screen bg-background flex items-center justify-center">
+        <div className="text-sm font-semibold text-muted-foreground animate-pulse">
           Verifying creator session...
         </div>
       </div>
@@ -102,7 +102,7 @@ export default function CreatorOnboardingPage() {
   }
 
   return (
-    <div className="min-h-screen bg-slate-50 dark:bg-slate-950 py-12 px-4 sm:px-6 lg:px-8 pb-32">
+    <div className="min-h-screen bg-background py-12 px-4 sm:px-6 lg:px-8 pb-32">
       <div className="max-w-xl mx-auto">
         {/* Step indicator */}
         <div className="mb-8">
@@ -110,13 +110,13 @@ export default function CreatorOnboardingPage() {
             <span className="text-xs font-semibold uppercase tracking-wider text-indigo-600 dark:text-indigo-400">
               Step {step} of 3
             </span>
-            <span className="text-xs text-slate-500 dark:text-slate-400">
+            <span className="text-xs text-muted-foreground">
               {step === 1 && 'Profile Basics'}
               {step === 2 && 'Social Channels'}
               {step === 3 && 'Portfolio & Review'}
             </span>
           </div>
-          <div className="w-full bg-slate-200 dark:bg-slate-800 h-2 rounded-full overflow-hidden">
+          <div className="w-full bg-muted h-2 rounded-full overflow-hidden">
             <div
               className="bg-indigo-600 h-full transition-all duration-300"
               style={{ width: `${(step / 3) * 100}%` }}
@@ -124,9 +124,9 @@ export default function CreatorOnboardingPage() {
           </div>
         </div>
 
-        <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl p-6 sm:p-8 shadow-sm">
+        <div className="bg-card border border-border rounded-2xl p-6 sm:p-8 shadow-xs">
           {error && (
-            <div className="mb-6 p-3 text-sm rounded-lg bg-red-50 text-red-600 border border-red-200 dark:bg-red-950/30 dark:border-red-900/50 dark:text-red-400">
+            <div className="mb-6 p-3 text-sm rounded-lg bg-destructive/10 text-destructive border border-destructive/20">
               {error}
             </div>
           )}
@@ -134,14 +134,14 @@ export default function CreatorOnboardingPage() {
           {step === 1 && (
             <div className="space-y-5">
               <div>
-                <h2 className="text-2xl font-bold text-slate-900 dark:text-white">Creator Identity</h2>
-                <p className="text-sm text-slate-500 dark:text-slate-400 mt-1">
+                <h2 className="text-2xl font-bold text-foreground">Creator Identity</h2>
+                <p className="text-sm text-muted-foreground mt-1">
                   How should brands and sponsors recognize your creative brand?
                 </p>
               </div>
 
               <div>
-                <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">
+                <label className="block text-sm font-medium text-foreground mb-1">
                   Public Creator Name
                 </label>
                 <input
@@ -150,19 +150,19 @@ export default function CreatorOnboardingPage() {
                   value={formData.displayName}
                   onChange={handleChange}
                   placeholder="e.g. Alex Rivera or @alextech"
-                  className="w-full px-4 py-2.5 rounded-xl border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-900 dark:text-white focus:ring-2 focus:ring-indigo-600 outline-none"
+                  className="w-full px-4 py-2.5 rounded-xl border border-border bg-background text-foreground focus:ring-2 focus:ring-indigo-600 outline-none"
                 />
               </div>
 
               <div>
-                <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">
+                <label className="block text-sm font-medium text-foreground mb-1">
                   Primary Content Category
                 </label>
                 <select
                   name="category"
                   value={formData.category}
                   onChange={handleChange}
-                  className="w-full px-4 py-2.5 rounded-xl border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-900 dark:text-white focus:ring-2 focus:ring-indigo-600 outline-none"
+                  className="w-full px-4 py-2.5 rounded-xl border border-border bg-background text-foreground focus:ring-2 focus:ring-indigo-600 outline-none"
                 >
                   <option value="Influencer">Social Media Influencer</option>
                   <option value="Tech">Tech Reviewer / Software</option>
@@ -175,7 +175,7 @@ export default function CreatorOnboardingPage() {
               </div>
 
               <div>
-                <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">
+                <label className="block text-sm font-medium text-foreground mb-1">
                   Short Bio (Elevator Pitch)
                 </label>
                 <textarea
@@ -184,7 +184,7 @@ export default function CreatorOnboardingPage() {
                   value={formData.bio}
                   onChange={handleChange}
                   placeholder="Tell brands what sets your storytelling apart..."
-                  className="w-full px-4 py-2.5 rounded-xl border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-900 dark:text-white focus:ring-2 focus:ring-indigo-600 outline-none resize-none"
+                  className="w-full px-4 py-2.5 rounded-xl border border-border bg-background text-foreground focus:ring-2 focus:ring-indigo-600 outline-none resize-none"
                 />
               </div>
 
@@ -202,14 +202,14 @@ export default function CreatorOnboardingPage() {
           {step === 2 && (
             <div className="space-y-5">
               <div>
-                <h2 className="text-2xl font-bold text-slate-900 dark:text-white">Connect Channels</h2>
-                <p className="text-sm text-slate-500 dark:text-slate-400 mt-1">
-                  Link your primary channels for algorithmic analytics and discovery.
+                <h2 className="text-2xl font-bold text-foreground">Connect Channels</h2>
+                <p className="text-sm text-muted-foreground mt-1">
+                  Link your primary channels for analytics and discovery.
                 </p>
               </div>
 
               <div>
-                <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">
+                <label className="block text-sm font-medium text-foreground mb-1">
                   YouTube Channel URL
                 </label>
                 <input
@@ -218,12 +218,12 @@ export default function CreatorOnboardingPage() {
                   value={formData.youtube}
                   onChange={handleChange}
                   placeholder="https://youtube.com/@handle"
-                  className="w-full px-4 py-2.5 rounded-xl border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-900 dark:text-white focus:ring-2 focus:ring-indigo-600 outline-none"
+                  className="w-full px-4 py-2.5 rounded-xl border border-border bg-background text-foreground focus:ring-2 focus:ring-indigo-600 outline-none"
                 />
               </div>
 
               <div>
-                <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">
+                <label className="block text-sm font-medium text-foreground mb-1">
                   Instagram Handle
                 </label>
                 <input
@@ -232,12 +232,12 @@ export default function CreatorOnboardingPage() {
                   value={formData.instagram}
                   onChange={handleChange}
                   placeholder="@yourhandle"
-                  className="w-full px-4 py-2.5 rounded-xl border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-900 dark:text-white focus:ring-2 focus:ring-indigo-600 outline-none"
+                  className="w-full px-4 py-2.5 rounded-xl border border-border bg-background text-foreground focus:ring-2 focus:ring-indigo-600 outline-none"
                 />
               </div>
 
               <div>
-                <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">
+                <label className="block text-sm font-medium text-foreground mb-1">
                   TikTok Profile
                 </label>
                 <input
@@ -246,7 +246,7 @@ export default function CreatorOnboardingPage() {
                   value={formData.tiktok}
                   onChange={handleChange}
                   placeholder="@yourtiktok"
-                  className="w-full px-4 py-2.5 rounded-xl border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-900 dark:text-white focus:ring-2 focus:ring-indigo-600 outline-none"
+                  className="w-full px-4 py-2.5 rounded-xl border border-border bg-background text-foreground focus:ring-2 focus:ring-indigo-600 outline-none"
                 />
               </div>
 
@@ -254,7 +254,7 @@ export default function CreatorOnboardingPage() {
                 <button
                   type="button"
                   onClick={() => setStep(step - 1)}
-                  className="w-1/3 py-3 px-4 rounded-xl font-semibold border border-slate-300 dark:border-slate-700 text-slate-700 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-800 transition"
+                  className="w-1/3 py-3 px-4 rounded-xl font-semibold border border-border text-foreground hover:bg-muted transition"
                 >
                   ← Back
                 </button>
@@ -273,14 +273,14 @@ export default function CreatorOnboardingPage() {
           {step === 3 && (
             <div className="space-y-5">
               <div>
-                <h2 className="text-2xl font-bold text-slate-900 dark:text-white">Media Kit & Portfolio</h2>
-                <p className="text-sm text-slate-500 dark:text-slate-400 mt-1">
-                  Provide a showcase link to your past sponsored campaigns or press kit.
+                <h2 className="text-2xl font-bold text-foreground">Media Kit & Portfolio</h2>
+                <p className="text-sm text-muted-foreground mt-1">
+                  Provide a showcase link to your past creative work or press kit.
                 </p>
               </div>
 
               <div>
-                <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">
+                <label className="block text-sm font-medium text-foreground mb-1">
                   Portfolio / Website Link
                 </label>
                 <input
@@ -289,16 +289,16 @@ export default function CreatorOnboardingPage() {
                   value={formData.portfolioUrl}
                   onChange={handleChange}
                   placeholder="https://mycreativework.com"
-                  className="w-full px-4 py-2.5 rounded-xl border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-900 dark:text-white focus:ring-2 focus:ring-indigo-600 outline-none"
+                  className="w-full px-4 py-2.5 rounded-xl border border-border bg-background text-foreground focus:ring-2 focus:ring-indigo-600 outline-none"
                 />
               </div>
 
-              <div className="p-4 rounded-xl bg-indigo-50/50 dark:bg-indigo-950/20 border border-indigo-100 dark:border-indigo-900/50">
-                <h4 className="text-sm font-semibold text-indigo-900 dark:text-indigo-300 mb-1">
-                  You are all set!
+              <div className="p-4 rounded-xl bg-indigo-500/10 border border-indigo-500/20">
+                <h4 className="text-sm font-semibold text-indigo-600 dark:text-indigo-400 mb-1">
+                  Setup Complete
                 </h4>
-                <p className="text-xs text-indigo-700 dark:text-indigo-400">
-                  By completing setup, your profile will be indexed into the brand matchmaking engine with standard escrow payout protection.
+                <p className="text-xs text-muted-foreground">
+                  Your profile details will be saved to your creator account and indexed for brand searches.
                 </p>
               </div>
 
@@ -306,7 +306,7 @@ export default function CreatorOnboardingPage() {
                 <button
                   type="button"
                   onClick={() => setStep(step - 1)}
-                  className="w-1/3 py-3 px-4 rounded-xl font-semibold border border-slate-300 dark:border-slate-700 text-slate-700 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-800 transition"
+                  className="w-1/3 py-3 px-4 rounded-xl font-semibold border border-border text-foreground hover:bg-muted transition"
                 >
                   ← Back
                 </button>
@@ -314,9 +314,9 @@ export default function CreatorOnboardingPage() {
                   type="button"
                   onClick={() => handleNext(true)}
                   disabled={loading}
-                  className="w-2/3 py-3 px-4 rounded-xl font-semibold text-white bg-indigo-600 hover:bg-indigo-700 shadow-md hover:shadow-indigo-500/25 transition"
+                  className="w-2/3 py-3 px-4 rounded-xl font-semibold text-white bg-indigo-600 hover:bg-indigo-700 shadow-xs transition"
                 >
-                  {loading ? 'Completing Setup...' : 'Launch Creator Dashboard 🚀'}
+                  {loading ? 'Completing Setup...' : 'Launch Creator Dashboard'}
                 </button>
               </div>
             </div>

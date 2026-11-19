@@ -7,7 +7,6 @@ import { ShellIcon } from '@/components/creator/shell/shell-icons';
 export default function SettingsPage() {
   const [currency, setCurrency] = useState('INR');
   const [emailAlerts, setEmailAlerts] = useState(true);
-  const [whatsappAlerts, setWhatsappAlerts] = useState(true);
   const [isSaved, setIsSaved] = useState(false);
 
   const handleSave = () => {
@@ -23,7 +22,7 @@ export default function SettingsPage() {
         action={
           <button
             onClick={handleSave}
-            className="px-4 py-2 rounded-xl bg-indigo-600 hover:bg-indigo-700 text-white font-medium text-xs shadow-sm transition flex items-center gap-1.5"
+            className="px-4 py-2 rounded-xl bg-indigo-600 hover:bg-indigo-700 text-white font-medium text-xs shadow-xs transition flex items-center gap-1.5"
           >
             <ShellIcon name="Save" size={14} />
             {isSaved ? 'Settings Saved!' : 'Save Preferences'}
@@ -33,15 +32,15 @@ export default function SettingsPage() {
 
       <div className="grid grid-cols-1 desk:grid-cols-2 gap-6">
         {/* Payout & Currency */}
-        <div className="p-5 rounded-2xl bg-card border border-border shadow-sm space-y-4">
+        <div className="p-5 rounded-2xl bg-card border border-border shadow-xs space-y-4">
           <div className="flex items-center justify-between pb-2 border-b border-border">
             <h3 className="text-sm font-bold text-foreground">Currency & Financial Defaults</h3>
-            <StatusBadge variant="success" label="Active" />
+            <StatusBadge variant="neutral" label="Active" />
           </div>
 
           <div className="space-y-3 text-xs">
             <div>
-              <label className="font-semibold text-foreground block mb-1">Default Invoicing Currency</label>
+              <label className="font-semibold text-foreground block mb-1">Default Currency</label>
               <select
                 value={currency}
                 onChange={(e) => setCurrency(e.target.value)}
@@ -59,15 +58,15 @@ export default function SettingsPage() {
             </div>
 
             <div className="pt-2 border-t border-border">
-              <span className="font-semibold text-foreground block mb-1">Tax & KYC Identification</span>
+              <span className="font-semibold text-foreground block mb-1">Tax Identification</span>
               <div className="p-3 rounded-xl bg-muted/40 border border-border space-y-1">
                 <div className="flex items-center justify-between">
-                  <span className="text-muted-foreground">Permanent Account Number (PAN):</span>
-                  <span className="font-mono font-bold text-foreground">ABCDE****F</span>
+                  <span className="text-muted-foreground">Tax Identifier (PAN/Tax ID):</span>
+                  <span className="font-mono text-muted-foreground">Not provided</span>
                 </div>
                 <div className="flex items-center justify-between">
-                  <span className="text-muted-foreground">TDS Exemption / Category:</span>
-                  <span className="font-semibold text-foreground">Section 194J (Professional)</span>
+                  <span className="text-muted-foreground">Tax Verification Status:</span>
+                  <span className="font-semibold text-muted-foreground">Unverified</span>
                 </div>
               </div>
             </div>
@@ -75,17 +74,17 @@ export default function SettingsPage() {
         </div>
 
         {/* Notifications Routing */}
-        <div className="p-5 rounded-2xl bg-card border border-border shadow-sm space-y-4">
+        <div className="p-5 rounded-2xl bg-card border border-border shadow-xs space-y-4">
           <div className="flex items-center justify-between pb-2 border-b border-border">
-            <h3 className="text-sm font-bold text-foreground">Real-Time Deal Notifications</h3>
-            <span className="text-xs text-muted-foreground">Instant Alerts</span>
+            <h3 className="text-sm font-bold text-foreground">Deal Notifications</h3>
+            <span className="text-xs text-muted-foreground">Routing</span>
           </div>
 
           <div className="space-y-3 text-xs">
             <label className="flex items-center justify-between p-3 rounded-xl border border-border hover:bg-muted/30 transition cursor-pointer">
               <div>
                 <span className="font-semibold text-foreground block">Email Notifications</span>
-                <span className="text-muted-foreground text-[11px]">Receive deal offers, contract invites, and escrow release alerts.</span>
+                <span className="text-muted-foreground text-[11px]">Receive deal offers and contract alerts.</span>
               </div>
               <input
                 type="checkbox"
@@ -94,34 +93,21 @@ export default function SettingsPage() {
                 className="rounded text-indigo-600 focus:ring-indigo-500"
               />
             </label>
-
-            <label className="flex items-center justify-between p-3 rounded-xl border border-border hover:bg-muted/30 transition cursor-pointer">
-              <div>
-                <span className="font-semibold text-foreground block">WhatsApp Business Alerts</span>
-                <span className="text-muted-foreground text-[11px]">Instant ping when a brand funds escrow or requests deliverable review.</span>
-              </div>
-              <input
-                type="checkbox"
-                checked={whatsappAlerts}
-                onChange={(e) => setWhatsappAlerts(e.target.checked)}
-                className="rounded text-indigo-600 focus:ring-indigo-500"
-              />
-            </label>
           </div>
         </div>
 
         {/* Security & Sessions */}
-        <div className="desk:col-span-2 p-5 rounded-2xl bg-card border border-border shadow-sm space-y-4">
+        <div className="desk:col-span-2 p-5 rounded-2xl bg-card border border-border shadow-xs space-y-4">
           <div className="flex items-center justify-between pb-2 border-b border-border">
-            <h3 className="text-sm font-bold text-foreground">Security & Active Sessions</h3>
-            <StatusBadge variant="success" label="OIDC Protected" />
+            <h3 className="text-sm font-bold text-foreground">Security & Sessions</h3>
+            <StatusBadge variant="neutral" label="Active" />
           </div>
 
           <div className="flex flex-col desk:flex-row desk:items-center justify-between gap-4 text-xs">
             <div>
-              <span className="font-semibold text-foreground block">Google Single Sign-On Active</span>
+              <span className="font-semibold text-foreground block">Session Security</span>
               <p className="text-muted-foreground mt-0.5">
-                Your account is protected with Google OAuth 2.0 with PKCE and hardware 2FA keys.
+                Your session is authenticated via httpOnly cookies.
               </p>
             </div>
 
@@ -129,7 +115,7 @@ export default function SettingsPage() {
               onClick={() => alert('Signing out of all other remote device sessions...')}
               className="px-4 py-2 rounded-xl border border-border text-muted-foreground hover:bg-muted font-medium shrink-0"
             >
-              Sign Out All Other Sessions
+              Sign Out Other Sessions
             </button>
           </div>
         </div>

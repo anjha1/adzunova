@@ -1,156 +1,306 @@
 'use client';
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import Link from 'next/link';
-import { PageHeader, StatCard, StatusBadge } from '@/components/creator/ui';
+import { PageHeader, StatCard, EmptyState } from '@/components/creator/ui';
 import { ShellIcon } from '@/components/creator/shell/shell-icons';
+import { DerivedAudienceMetrics } from '@/lib/social/demographics-engine';
+
+interface AnalyticsData {
+  hasConnectedAccount: boolean;
+  account?: {
+    id: string;
+    username: string;
+    provider: string;
+    followersCount: number;
+    mediaCount: number;
+    status: string;
+    lastSyncedAt: string | null;
+    syncTier: string;
+  };
+  totalReach: number;
+  totalViews: number;
+  audienceScore: number | null;
+  qualityEvaluation: {
+    score: number | null;
+    status: 'COMPLETE' | 'PARTIAL' | 'NOT_AVAILABLE';
+    missingFactors: string[];
+    factors: { name: string; score: number | null; weight: number; description: string }[];
+  };
+  followersSeries: { timestamp: string; value: number }[];
+  viewsSeries: { timestamp: string; value: number }[];
+  demographics: DerivedAudienceMetrics | null;
+}
 
 export default function AnalyticsPage() {
   const [timeRange, setTimeRange] = useState<'30d' | '90d' | '12m'>('30d');
+  const [data, setData] = useState<AnalyticsData | null>(null);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    async function fetchAnalytics() {
+      setLoading(true);
+      try {
+        const res = await fetch(`/api/creator/analytics?range=${timeRange}`);
+        if (res.ok) {
+          const json = await res.json();
+          setData(json);
+        }
+      } catch (err) {
+        console.warn('Failed to load analytics:', err);
+      } finally {
+        setLoading(false);
+      }
+    }
+    fetchAnalytics();
+  }, [timeRange]);
+
+  if (loading) {
+    return (
+      <div className="space-y-6 animate-pulse">
+        <div className="h-8 w-64 bg-muted rounded-xl" />
+        <div className="grid grid-cols-1 desk:grid-cols-4 gap-4">
+          {[1, 2, 3, 4].map((i) => (
+            <div key={i} className="h-28 bg-card border border-border rounded-2xl" />
+          ))}
+        </div>
+      </div>
+    );
+  }
+
+  const hasConnected = data?.hasConnectedAccount;
+  const demographics = data?.demographics;
+  const quality = data?.qualityEvaluation;
 
   return (
     <div className="space-y-6 animate-in fade-in duration-300">
       <PageHeader
         title="Verified Audience Analytics"
-        description="First-party verified metrics ingested via Google YouTube & Meta Graph OAuth. Never manual or self-reported."
+        description="First-party verified metrics ingested via Meta Graph API OAuth. Never self-reported."
         action={
-          <div className="flex items-center gap-2">
-            <span className="text-xs text-muted-foreground">Range:</span>
-            <select
-              value={timeRange}
-              onChange={(e) => setTimeRange(e.target.value as any)}
-              className="text-xs rounded-lg border border-border bg-card px-2.5 py-1 text-foreground"
-            >
-              <option value="30d">Last 30 Days</option>
-              <option value="90d">Last 90 Days</option>
-              <option value="12m">Last 12 Months</option>
-            </select>
-          </div>
+          hasConnected ? (
+            <div className="flex items-center gap-2">
+              <span className="text-xs text-muted-foreground">Range:</span>
+              <select
+                value={timeRange}
+                onChange={(e) => setTimeRange(e.target.value as any)}
+                className="text-xs rounded-lg border border-border bg-card px-2.5 py-1.5 text-foreground"
+              >
+                <option value="30d">Last 30 Days</option>
+                <option value="90d">Last 90 Days</option>
+                <option value="12m">Last 12 Months</option>
+              </select>
+            </div>
+          ) : undefined
         }
       />
+
+      {/* Sync Status Banner */}
+      {hasConnected && data?.account && (
+        <div className="flex flex-wrap items-center justify-between gap-3 p-4 rounded-2xl bg-card border border-border text-xs">
+          <div className="flex items-center gap-2">
+            <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" />
+            <span className="font-bold text-foreground">@{data.account.username}</span>
+            <span className="text-muted-foreground">
+              &bull; Official Instagram Graph API ({data.account.syncTier} tier)
+            </span>
+          </div>
+          <div className="text-muted-foreground">
+            {data.account.lastSyncedAt ? (
+              <span>Last synced: {new Date(data.account.lastSyncedAt).toLocaleString()}</span>
+            ) : (
+              <span>Initial sync in progress</span>
+            )}
+          </div>
+        </div>
+      )}
 
       {/* Top Level Metric Cards */}
       <div className="grid grid-cols-1 desk:grid-cols-4 gap-4">
         <StatCard
           label="Total Verified Reach"
-          value="482.5K"
-          subValue="+8.4% vs last period"
+          value={hasConnected ? data?.totalReach.toLocaleString() : '—'}
+          subValue={hasConnected ? 'Live Instagram followers' : 'Connect account to verify'}
           icon={<ShellIcon name="Users" size={16} />}
         />
         <StatCard
-          label="Avg Engagement Rate"
-          value="4.92%"
-          subValue="Industry benchmark: 2.8%"
-          icon={<ShellIcon name="TrendingUp" size={16} />}
-        />
-        <StatCard
-          label="Total Monthly Views"
-          value="1.24M"
-          subValue="YouTube & Instagram combined"
+          label="24h View Impressions"
+          value={hasConnected && data?.totalViews ? data.totalViews.toLocaleString() : '—'}
+          subValue={hasConnected ? 'Total views in selected period' : 'Awaiting data sync'}
           icon={<ShellIcon name="Eye" size={16} />}
         />
         <StatCard
+          label="18+ Audience Share"
+          value={demographics ? `${Math.round(demographics.share_18_plus * 100)}%` : '—'}
+          subValue={
+            demographics
+              ? `Minor share (13–17): ${Math.round(demographics.share_13_17 * 100)}%`
+              : 'Requires demographics sync'
+          }
+          icon={<ShellIcon name="CheckCircle" size={16} />}
+        />
+        <StatCard
           label="Audience Quality Score"
-          value="94 / 100"
-          subValue="Top 5% authentic engagement"
-          icon={<ShellIcon name="Award" size={16} />}
+          value={quality?.score !== null && quality?.score !== undefined ? `${quality.score}/100` : '—'}
+          subValue={
+            quality?.status === 'PARTIAL'
+              ? 'Partial (some factors pending)'
+              : quality?.status === 'COMPLETE'
+              ? 'Verified organic audience'
+              : 'Not enough data'
+          }
+          icon={<ShellIcon name="Sparkles" size={16} />}
         />
       </div>
 
-      <div className="grid grid-cols-1 desk:grid-cols-3 gap-6">
-        {/* Audience Age & Gender Demographics */}
-        <div className="p-5 rounded-2xl bg-card border border-border shadow-sm space-y-4">
-          <div className="flex items-center justify-between pb-2 border-b border-border">
-            <h3 className="text-sm font-bold text-foreground">Age Distribution</h3>
-            <span className="text-[11px] text-muted-foreground">OAuth Ingested</span>
-          </div>
-
-          <div className="space-y-3 text-xs">
-            {[
-              { age: '18-24 years', percent: 42, color: 'bg-indigo-600' },
-              { age: '25-34 years', percent: 38, color: 'bg-indigo-500' },
-              { age: '35-44 years', percent: 14, color: 'bg-indigo-400' },
-              { age: '45+ years', percent: 6, color: 'bg-indigo-300' },
-            ].map((group) => (
-              <div key={group.age} className="space-y-1">
-                <div className="flex justify-between text-muted-foreground">
-                  <span>{group.age}</span>
-                  <span className="font-semibold text-foreground">{group.percent}%</span>
-                </div>
-                <div className="w-full h-2 rounded-full bg-muted overflow-hidden">
-                  <div
-                    className={`h-full rounded-full ${group.color}`}
-                    style={{ width: `${group.percent}%` }}
-                  />
-                </div>
+      {!hasConnected ? (
+        <EmptyState
+          icon={<ShellIcon name="BarChart2" size={28} className="text-indigo-600 dark:text-indigo-400" />}
+          title="No Verified Analytics Available Yet"
+          description="Connect your Instagram Professional account to ingest verified audience demographics, views, and reach statistics."
+          actionText="Connect Social Accounts"
+          actionHref="/creator/accounts"
+        />
+      ) : (
+        <div className="space-y-6">
+          {/* Quality Score Breakdown (Honest about partial state) */}
+          {quality && quality.status === 'PARTIAL' && (
+            <div className="p-4 rounded-2xl bg-amber-500/10 border border-amber-500/20 text-xs">
+              <div className="flex items-center gap-2 font-bold text-amber-800 dark:text-amber-300 mb-1">
+                <ShellIcon name="AlertCircle" size={14} />
+                <span>Audience Quality Score is Partial</span>
               </div>
-            ))}
-          </div>
-        </div>
+              <p className="text-amber-900/80 dark:text-amber-200/80">
+                Calculated only from available data points. Missing factors:{' '}
+                {quality.missingFactors.join(', ')}. Score will adjust as sync history builds.
+              </p>
+            </div>
+          )}
 
-        {/* Top Geographic Markets */}
-        <div className="p-5 rounded-2xl bg-card border border-border shadow-sm space-y-4">
-          <div className="flex items-center justify-between pb-2 border-b border-border">
-            <h3 className="text-sm font-bold text-foreground">Top Geographies</h3>
-            <span className="text-[11px] text-muted-foreground">Verified Country Split</span>
-          </div>
-
-          <div className="space-y-3 text-xs">
-            {[
-              { country: 'India (Tier 1 & 2 Metro)', percent: 64, flag: '🇮🇳' },
-              { country: 'United States', percent: 18, flag: '🇺🇸' },
-              { country: 'United Kingdom', percent: 9, flag: '🇬🇧' },
-              { country: 'United Arab Emirates', percent: 5, flag: '🇦🇪' },
-              { country: 'Other International', percent: 4, flag: '🌍' },
-            ].map((item) => (
-              <div key={item.country} className="flex items-center justify-between py-1">
-                <div className="flex items-center gap-2">
-                  <span>{item.flag}</span>
-                  <span className="text-foreground font-medium">{item.country}</span>
+          {/* Demographic Breakdown: Age Distribution */}
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+            {/* Age Distribution */}
+            <div className="p-6 rounded-3xl bg-card border border-border shadow-xs space-y-4">
+              <div className="flex items-center justify-between pb-3 border-b border-border">
+                <div>
+                  <h3 className="font-bold text-sm text-foreground">Follower Age Distribution</h3>
+                  <p className="text-xs text-muted-foreground">All 7 standard Meta demographic brackets</p>
                 </div>
-                <span className="font-bold text-foreground">{item.percent}%</span>
+                {demographics?.dominant_age_bucket && (
+                  <span className="px-2.5 py-1 rounded-full bg-indigo-500/10 text-indigo-600 dark:text-indigo-400 text-xs font-bold">
+                    Primary: {demographics.dominant_age_bucket}
+                  </span>
+                )}
               </div>
-            ))}
-          </div>
-        </div>
 
-        {/* Platform Breakdown */}
-        <div className="p-5 rounded-2xl bg-card border border-border shadow-sm space-y-4">
-          <div className="flex items-center justify-between pb-2 border-b border-border">
-            <h3 className="text-sm font-bold text-foreground">Platform Weight</h3>
-            <Link
-              href="/creator/accounts"
-              className="text-[11px] text-indigo-600 dark:text-indigo-400 hover:underline"
-            >
-              Sync Status →
-            </Link>
-          </div>
-
-          <div className="space-y-4 text-xs">
-            <div className="p-3 rounded-xl bg-muted/40 border border-border space-y-1">
-              <div className="flex items-center justify-between font-semibold text-foreground">
-                <div className="flex items-center gap-2">
-                  <ShellIcon name="Video" size={14} className="text-red-500" />
-                  <span>YouTube Channel</span>
+              {demographics?.ageDistribution ? (
+                <div className="space-y-3 pt-2">
+                  {demographics.ageDistribution.map((item) => (
+                    <div key={item.bucket} className="space-y-1">
+                      <div className="flex justify-between text-xs">
+                        <span className="font-semibold text-foreground">
+                          {item.bucket === '13-17' ? '13–17 (Meta estimate)' : item.bucket}
+                        </span>
+                        <span className="text-muted-foreground">
+                          {Math.round(item.percentage * 100)}% ({item.count.toLocaleString()})
+                        </span>
+                      </div>
+                      <div className="w-full h-2 rounded-full bg-muted overflow-hidden">
+                        <div
+                          className="h-full bg-indigo-600 dark:bg-indigo-400 rounded-full transition-all duration-500"
+                          style={{ width: `${Math.round(item.percentage * 100)}%` }}
+                        />
+                      </div>
+                    </div>
+                  ))}
                 </div>
-                <span>310K Subscribers</span>
-              </div>
-              <p className="text-[11px] text-muted-foreground">8.2m total views • 12.4m minutes watch time</p>
+              ) : (
+                <div className="py-8 text-center text-xs text-muted-foreground">
+                  Demographic age data pending weekly sync window.
+                </div>
+              )}
             </div>
 
-            <div className="p-3 rounded-xl bg-muted/40 border border-border space-y-1">
-              <div className="flex items-center justify-between font-semibold text-foreground">
-                <div className="flex items-center gap-2">
-                  <ShellIcon name="Share2" size={14} className="text-pink-500" />
-                  <span>Instagram Profile</span>
+            {/* Gender Distribution */}
+            <div className="p-6 rounded-3xl bg-card border border-border shadow-xs space-y-4">
+              <div className="flex items-center justify-between pb-3 border-b border-border">
+                <div>
+                  <h3 className="font-bold text-sm text-foreground">Follower Gender Distribution</h3>
+                  <p className="text-xs text-muted-foreground">Self-reported and modeled by Meta</p>
                 </div>
-                <span>172.5K Followers</span>
               </div>
-              <p className="text-[11px] text-muted-foreground">5.8% reel engagement • 24.5k avg story views</p>
+
+              {demographics?.genderDistribution ? (
+                <div className="space-y-4 pt-2">
+                  {demographics.genderDistribution.map((item) => (
+                    <div key={item.gender} className="p-3.5 rounded-2xl bg-muted/30 border border-border space-y-1.5">
+                      <div className="flex justify-between items-center text-xs">
+                        <div className="font-bold text-foreground flex items-center gap-2">
+                          <span>{item.label}</span>
+                          {item.gender === 'U' && (
+                            <span className="px-1.5 py-0.5 rounded text-[10px] bg-muted text-muted-foreground">
+                              Meta estimate
+                            </span>
+                          )}
+                        </div>
+                        <span className="font-semibold text-foreground">
+                          {Math.round(item.percentage * 100)}% ({item.count.toLocaleString()})
+                        </span>
+                      </div>
+                      <div className="w-full h-2 rounded-full bg-muted overflow-hidden">
+                        <div
+                          className={`h-full rounded-full transition-all duration-500 ${
+                            item.gender === 'F'
+                              ? 'bg-emerald-500'
+                              : item.gender === 'M'
+                              ? 'bg-indigo-600 dark:bg-indigo-400'
+                              : 'bg-muted-foreground/40'
+                          }`}
+                          style={{ width: `${Math.round(item.percentage * 100)}%` }}
+                        />
+                      </div>
+                      {item.note && (
+                        <p className="text-[11px] text-muted-foreground pt-1">{item.note}</p>
+                      )}
+                    </div>
+                  ))}
+                </div>
+              ) : (
+                <div className="py-8 text-center text-xs text-muted-foreground">
+                  Demographic gender data pending weekly sync window.
+                </div>
+              )}
             </div>
           </div>
+
+          {/* Geographic Breakdown: Country */}
+          <div className="p-6 rounded-3xl bg-card border border-border shadow-xs space-y-4">
+            <div className="flex items-center justify-between pb-3 border-b border-border">
+              <div>
+                <h3 className="font-bold text-sm text-foreground">Top Audience Geography</h3>
+                <p className="text-xs text-muted-foreground">Country breakdown from follower insights</p>
+              </div>
+            </div>
+
+            {demographics?.hasCountryBreakdown && demographics.countryDistribution.length > 0 ? (
+              <div className="grid grid-cols-2 desk:grid-cols-5 gap-3 pt-2">
+                {demographics.countryDistribution.map((c) => (
+                  <div key={c.countryCode} className="p-3 rounded-2xl bg-muted/30 border border-border text-center">
+                    <div className="font-black text-lg text-foreground">{c.countryCode}</div>
+                    <div className="text-xs text-muted-foreground mt-0.5">
+                      {Math.round(c.percentage * 100)}% ({c.count.toLocaleString()})
+                    </div>
+                  </div>
+                ))}
+              </div>
+            ) : (
+              <div className="p-6 rounded-2xl bg-muted/20 border border-dashed border-border text-center text-xs text-muted-foreground">
+                Country demographics breakdown is currently not exposed by this account&apos;s privacy settings.
+              </div>
+            )}
+          </div>
         </div>
-      </div>
+      )}
     </div>
   );
 }

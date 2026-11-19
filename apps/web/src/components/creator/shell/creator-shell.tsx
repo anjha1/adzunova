@@ -19,7 +19,7 @@ export function CreatorShell({ children, userEmail, displayName, avatarUrl, isVe
   const [isMoreOpen, setIsMoreOpen] = useState(false);
 
   return (
-    <div className="min-h-screen bg-slate-50 dark:bg-slate-950 flex flex-col desk:flex-row text-slate-900 dark:text-slate-100">
+    <div className="min-h-screen bg-background flex flex-col desk:flex-row text-foreground">
       {/* Desktop/Tablet Collapsible Sidebar */}
       <CreatorSidebar
         collapsed={collapsed}

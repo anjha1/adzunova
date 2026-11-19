@@ -32,9 +32,9 @@ export async function GET() {
         reason: !process.env.GOOGLE_CLIENT_ID ? 'Missing GOOGLE_CLIENT_ID in server configuration' : undefined,
       },
       metaInstagram: {
-        configured: Boolean(process.env.META_CLIENT_ID && process.env.META_CLIENT_SECRET),
-        status: process.env.META_CLIENT_ID ? 'ACTIVE' : 'NOT_CONFIGURED',
-        reason: 'Meta App Review pending for live Instagram Graph API access',
+        configured: Boolean(process.env.META_APP_ID && process.env.META_APP_SECRET),
+        status: (process.env.META_APP_ID && process.env.META_APP_SECRET) ? 'ACTIVE' : 'NOT_CONFIGURED',
+        reason: !(process.env.META_APP_ID && process.env.META_APP_SECRET) ? 'META_APP_ID or META_APP_SECRET not configured in server environment' : undefined,
       },
       tiktok: {
         configured: Boolean(process.env.TIKTOK_CLIENT_KEY),

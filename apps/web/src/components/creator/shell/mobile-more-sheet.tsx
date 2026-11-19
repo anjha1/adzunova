@@ -19,30 +19,30 @@ export function MobileMoreSheet({ isOpen, onClose, userEmail, displayName }: Mob
   if (!isOpen) return null;
 
   return (
-    <div className="fixed inset-0 z-50 desk:hidden flex flex-col justify-end bg-black/60 backdrop-blur-sm animate-in fade-in duration-200">
+    <div className="fixed inset-0 z-50 desk:hidden flex flex-col justify-end bg-background/80 backdrop-blur-sm animate-in fade-in duration-200">
       {/* Click outside backdrop */}
       <div className="flex-1" onClick={onClose} />
 
       {/* Sheet Content */}
-      <div className="bg-white dark:bg-slate-900 rounded-t-3xl max-h-[85vh] flex flex-col shadow-2xl border-t border-slate-200 dark:border-slate-800">
+      <div className="bg-card rounded-t-3xl max-h-[85vh] flex flex-col shadow-2xl border-t border-border">
         {/* Handle */}
         <div className="pt-3 pb-1 flex justify-center">
-          <div className="w-10 h-1.5 rounded-full bg-slate-300 dark:bg-slate-700" />
+          <div className="w-10 h-1.5 rounded-full bg-muted" />
         </div>
 
         {/* Profile preview header */}
-        <div className="px-6 py-4 border-b border-slate-200 dark:border-slate-800 flex items-center justify-between">
+        <div className="px-6 py-4 border-b border-border flex items-center justify-between">
           <div>
-            <div className="font-bold text-slate-900 dark:text-white text-base">
-              {displayName || 'Verified Creator'}
+            <div className="font-bold text-foreground text-base">
+              {displayName || 'Creator'}
             </div>
-            <div className="text-xs text-slate-500 dark:text-slate-400">
+            <div className="text-xs text-muted-foreground">
               {userEmail}
             </div>
           </div>
           <button
             onClick={onClose}
-            className="p-1.5 rounded-full bg-slate-100 dark:bg-slate-800 text-slate-500 hover:text-slate-900 dark:hover:text-white"
+            className="p-1.5 rounded-full bg-muted text-muted-foreground hover:text-foreground"
           >
             ✕
           </button>
@@ -60,8 +60,8 @@ export function MobileMoreSheet({ isOpen, onClose, userEmail, displayName }: Mob
                   onClick={onClose}
                   className={`flex items-center gap-3 p-3 rounded-2xl border text-left transition ${
                     isActive
-                      ? 'bg-indigo-50 border-indigo-200 dark:bg-indigo-950/50 dark:border-indigo-800 text-indigo-600 dark:text-indigo-400 font-bold'
-                      : 'bg-slate-50 dark:bg-slate-800/40 border-slate-200/60 dark:border-slate-800 text-slate-700 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800'
+                      ? 'bg-indigo-500/10 border-indigo-500/30 text-indigo-600 dark:text-indigo-400 font-bold'
+                      : 'bg-muted/40 border-border text-foreground hover:bg-muted'
                   }`}
                 >
                   <ShellIcon name={item.iconName} size={20} className="shrink-0" />
@@ -80,7 +80,7 @@ export function MobileMoreSheet({ isOpen, onClose, userEmail, displayName }: Mob
             <form action="/api/auth/logout?redirect=/auth/creator/sign-in" method="POST">
               <button
                 type="submit"
-                className="w-full py-3 rounded-xl border border-red-200 dark:border-red-900/50 text-red-600 dark:text-red-400 bg-red-50 dark:bg-red-950/20 text-sm font-semibold hover:bg-red-100 transition"
+                className="w-full py-3 rounded-xl border border-destructive/20 text-destructive bg-destructive/10 text-sm font-semibold hover:bg-destructive/20 transition"
               >
                 Sign Out
               </button>

@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState } from 'react';
+import React from 'react';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { CREATOR_NAV_ITEMS } from './nav-config';
@@ -36,7 +36,7 @@ export function CreatorSidebar({ collapsed, onToggleCollapse }: CreatorSidebarPr
   const renderSection = (title: string, items: typeof CREATOR_NAV_ITEMS) => (
     <div className="py-2">
       {!collapsed && (
-        <div className="px-3 pb-1.5 text-[10px] font-bold uppercase tracking-wider text-slate-400 dark:text-slate-500">
+        <div className="px-3 pb-1.5 text-[10px] font-bold uppercase tracking-wider text-muted-foreground">
           {title}
         </div>
       )}
@@ -50,11 +50,11 @@ export function CreatorSidebar({ collapsed, onToggleCollapse }: CreatorSidebarPr
                 title={collapsed ? item.title : undefined}
                 className={`flex items-center gap-3 px-3 py-2 rounded-xl text-sm font-medium transition-all duration-150 ${
                   isActive
-                    ? 'bg-indigo-600 text-white shadow-sm shadow-indigo-500/20'
-                    : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white hover:bg-slate-100 dark:hover:bg-slate-800/60'
+                    ? 'bg-indigo-600 text-white shadow-xs'
+                    : 'text-muted-foreground hover:text-foreground hover:bg-muted'
                 }`}
               >
-                <ShellIcon name={item.iconName} className={`shrink-0 ${isActive ? 'text-white' : 'text-slate-500 dark:text-slate-400'}`} />
+                <ShellIcon name={item.iconName} className={`shrink-0 ${isActive ? 'text-white' : 'text-muted-foreground'}`} />
                 {!collapsed && (
                   <span className="truncate flex-1">{item.title}</span>
                 )}
@@ -62,10 +62,10 @@ export function CreatorSidebar({ collapsed, onToggleCollapse }: CreatorSidebarPr
                   <span
                     className={`ml-auto text-[10px] font-bold px-1.5 py-0.5 rounded-full ${
                       item.badgeVariant === 'success'
-                        ? 'bg-emerald-100 text-emerald-700 dark:bg-emerald-950/60 dark:text-emerald-400'
+                        ? 'bg-emerald-500/10 text-emerald-800 dark:bg-emerald-400/15 dark:text-emerald-300'
                         : item.badgeVariant === 'warning'
-                        ? 'bg-amber-100 text-amber-700 dark:bg-amber-950/60 dark:text-amber-400'
-                        : 'bg-indigo-100 text-indigo-700 dark:bg-indigo-950/60 dark:text-indigo-400'
+                        ? 'bg-amber-500/10 text-amber-800 dark:bg-amber-400/15 dark:text-amber-300'
+                        : 'bg-indigo-500/10 text-indigo-800 dark:bg-indigo-400/15 dark:text-indigo-300'
                     }`}
                   >
                     {item.badge}
@@ -81,18 +81,18 @@ export function CreatorSidebar({ collapsed, onToggleCollapse }: CreatorSidebarPr
 
   return (
     <aside
-      className={`hidden desk:flex flex-col border-r border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 transition-all duration-300 z-30 sticky top-0 h-screen ${
+      className={`hidden desk:flex flex-col border-r border-border bg-card transition-all duration-300 z-30 sticky top-0 h-screen ${
         collapsed ? 'w-18' : 'w-64'
       }`}
     >
       {/* Brand header */}
-      <div className="h-16 flex items-center justify-between px-4 border-b border-slate-200 dark:border-slate-800">
+      <div className="h-16 flex items-center justify-between px-4 border-b border-border">
         {!collapsed && (
           <Link href="/creator/dashboard" className="flex items-center gap-2">
             <span className="font-black text-xl tracking-tight text-indigo-600 dark:text-indigo-400">
               ADZUNOVA
             </span>
-            <span className="text-[10px] font-bold px-1.5 py-0.5 rounded bg-indigo-50 text-indigo-600 dark:bg-indigo-950 dark:text-indigo-300 border border-indigo-200 dark:border-indigo-800">
+            <span className="text-[10px] font-bold px-1.5 py-0.5 rounded bg-indigo-500/10 text-indigo-600 dark:text-indigo-400 border border-indigo-500/20">
               CREATOR
             </span>
           </Link>
@@ -100,7 +100,7 @@ export function CreatorSidebar({ collapsed, onToggleCollapse }: CreatorSidebarPr
         <button
           onClick={onToggleCollapse}
           aria-label={collapsed ? 'Expand sidebar' : 'Collapse sidebar'}
-          className={`p-1.5 rounded-lg border border-slate-200 dark:border-slate-800 text-slate-500 hover:text-slate-900 dark:hover:text-white hover:bg-slate-100 dark:hover:bg-slate-800 transition ${
+          className={`p-1.5 rounded-lg border border-border text-muted-foreground hover:text-foreground hover:bg-muted transition ${
             collapsed ? 'mx-auto' : ''
           }`}
         >
@@ -116,20 +116,20 @@ export function CreatorSidebar({ collapsed, onToggleCollapse }: CreatorSidebarPr
         {renderSection('Preferences', accountItems)}
       </div>
 
-      {/* Trust & Verification Footer */}
+      {/* Workspace Status Footer */}
       {!collapsed ? (
-        <div className="p-3 m-3 rounded-xl bg-gradient-to-br from-indigo-50 to-violet-50 dark:from-slate-800/60 dark:to-slate-800/30 border border-indigo-100 dark:border-slate-700/60 text-xs">
-          <div className="flex items-center gap-2 font-bold text-slate-900 dark:text-white">
-            <ShellIcon name="ShieldCheck" className="text-emerald-600 dark:text-emerald-400" size={16} />
-            <span>Verified Escrow Guard</span>
+        <div className="p-3 m-3 rounded-xl bg-muted/40 border border-border text-xs">
+          <div className="flex items-center gap-2 font-bold text-foreground">
+            <ShellIcon name="Briefcase" className="text-indigo-600 dark:text-indigo-400" size={16} />
+            <span>Creator Workspace</span>
           </div>
-          <p className="mt-1 text-[11px] text-slate-600 dark:text-slate-400">
-            100% of brand payments are pre-funded in escrow before content production.
+          <p className="mt-1 text-[11px] text-muted-foreground">
+            ADZUNOVA Advertising Marketplace v2.0
           </p>
         </div>
       ) : (
-        <div className="p-3 flex justify-center text-emerald-500">
-          <ShellIcon name="ShieldCheck" size={20} />
+        <div className="p-3 flex justify-center text-muted-foreground">
+          <ShellIcon name="Briefcase" size={20} />
         </div>
       )}
     </aside>
