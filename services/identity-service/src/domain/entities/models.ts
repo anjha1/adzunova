@@ -10,6 +10,8 @@ export interface UserEntity {
   passwordHash?: string;
   role: UserRole;
   emailVerified: boolean;
+  avatarUrl?: string;
+  displayName?: string;
   status: UserStatus;
   createdAt: Date;
   updatedAt: Date;

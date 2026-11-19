@@ -7,6 +7,8 @@ export interface AuthUser {
   email: string;
   role: 'CREATOR' | 'BRAND' | 'ADMIN' | 'SUPER_ADMIN';
   emailVerified?: boolean;
+  avatarUrl?: string;
+  displayName?: string;
 }
 
 export interface CreatorProfileData {

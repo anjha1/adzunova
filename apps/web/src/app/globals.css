@@ -1,5 +1,11 @@
 @import "tailwindcss";
 
+@custom-variant dark (&:where([data-theme=dark], [data-theme=dark] *));
+
+@theme {
+  --breakpoint-desk: 40.0625rem; /* 641px (exact desktop switch per spec: mobile <= 640px, desktop >= 641px) */
+}
+
 /* ==========================================================================
    ADZUNOVA DESIGN SYSTEM — GLOBAL STYLES & TOKEN DEFINITIONS
    Tailwind CSS v4 CSS-first configuration.

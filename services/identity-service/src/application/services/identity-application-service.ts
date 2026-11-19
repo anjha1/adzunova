@@ -200,6 +200,7 @@ export class IdentityService {
     googleId: string;
     email: string;
     name: string;
+    avatarUrl?: string;
     role: UserRole;
   }): Promise<{ user: UserEntity; profile: any; sessionToken: string; isNewUser: boolean }> {
     const db = await getDatabase();
@@ -217,8 +218,14 @@ export class IdentityService {
         throw new Error('Account linkage corrupted. Please contact support.');
       }
 
-      // Note: When existing identity is found, seamlessly sign in with their existing role
-      // and let the downstream router direct them to their role-specific dashboard.
+      // Refresh avatar and displayName on every Google login
+      const updates: any = { lastLoginAt: new Date() };
+      if (input.avatarUrl) updates.avatarUrl = input.avatarUrl;
+      if (input.name) updates.displayName = input.name;
+
+      await db.collection('users').updateOne({ _id: user._id }, { $set: updates });
+      user.avatarUrl = input.avatarUrl || user.avatarUrl;
+      user.displayName = input.name || user.displayName;
 
       let profile: any = null;
       if (user.role === 'CREATOR') {
@@ -227,23 +234,19 @@ export class IdentityService {
         profile = await db.collection('brand_profiles').findOne({ userId: user._id });
       }
 
-      await db.collection('users').updateOne({ _id: user._id }, { $set: { lastLoginAt: new Date() } });
       const sessionToken = await this.createSession(user._id, user.role);
-
       return { user, profile, sessionToken, isNewUser: false };
     }
 
     // 2. Check if user with this email already exists
     const existingUser = await db.collection<UserEntity>('users').findOne({ normalizedEmail });
     if (existingUser) {
-      // Account linking verification
       if (input.role && existingUser.role !== input.role) {
         throw new Error(
           `This email is associated with a ${existingUser.role} account. Cannot convert to ${input.role}.`
         );
       }
 
-      // Link identity
       await db.collection<IdentityEntity>('identities').insertOne({
         userId: existingUser._id,
         provider: 'google',
@@ -252,11 +255,13 @@ export class IdentityService {
         createdAt: new Date(),
       } as any);
 
-      // Mark email as verified by Google
-      await db.collection('users').updateOne(
-        { _id: existingUser._id as any },
-        { $set: { emailVerified: true, lastLoginAt: new Date() } }
-      );
+      const updates: any = { emailVerified: true, lastLoginAt: new Date() };
+      if (input.avatarUrl) updates.avatarUrl = input.avatarUrl;
+      if (input.name) updates.displayName = input.name;
+
+      await db.collection('users').updateOne({ _id: existingUser._id as any }, { $set: updates });
+      existingUser.avatarUrl = input.avatarUrl || existingUser.avatarUrl;
+      existingUser.displayName = input.name || existingUser.displayName;
 
       let profile: any = null;
       if (existingUser.role === 'CREATOR') {
@@ -279,6 +284,8 @@ export class IdentityService {
       normalizedEmail,
       role: input.role,
       emailVerified: true,
+      avatarUrl: input.avatarUrl,
+      displayName: input.name,
       status: 'ACTIVE',
       createdAt: now,
       updatedAt: now,

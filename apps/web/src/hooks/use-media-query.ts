@@ -24,6 +24,10 @@ export function useIsMobile(): boolean {
   return useMediaQuery('(max-width: 640px)');
 }
 
+export function useIsDesktop(): boolean {
+  return useMediaQuery('(min-width: 641px)');
+}
+
 export function usePrefersReducedMotion(): boolean {
   return useMediaQuery('(prefers-reduced-motion: reduce)');
 }

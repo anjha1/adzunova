@@ -143,6 +143,8 @@ export function createAuthRouter(identityService: IdentityService): Router {
           email: session.user.email,
           role: session.user.role,
           emailVerified: session.user.emailVerified,
+          avatarUrl: session.user.avatarUrl,
+          displayName: session.user.displayName,
         },
         profile: session.profile,
       });
@@ -245,6 +247,7 @@ export function createAuthRouter(identityService: IdentityService): Router {
         googleId: googleUser.sub,
         email: googleUser.email,
         name: googleUser.name || 'Adzunova User',
+        avatarUrl: googleUser.picture,
         role: verifiedState.role,
       });
 
@@ -253,6 +256,8 @@ export function createAuthRouter(identityService: IdentityService): Router {
           id: result.user._id,
           email: result.user.email,
           role: result.user.role,
+          avatarUrl: result.user.avatarUrl,
+          displayName: result.user.displayName,
         },
         profile: result.profile,
         sessionToken: result.sessionToken,
