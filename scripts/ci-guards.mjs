@@ -143,6 +143,44 @@ if (numberViolations === 0) {
   console.error(`  FAIL: Found ${numberViolations} unexplained JSX number literal violations.\n`);
 }
 
+// Guard (e): Forbidden Meta Graph Messaging Endpoints & Webhooks
+console.log('--- Guard (e): Forbidden Meta Messaging Endpoints & Webhooks in apps/web/src/** ---');
+const allWebSourceFiles = getAllFiles(path.resolve('apps/web/src'), ['.ts', '.tsx', '.js', '.mjs']);
+const forbiddenMessagingPatterns = [
+  { name: 'Meta Graph Messaging Edge', regex: /graph\.facebook\.com\/[^'"`]*\/(conversations|messages|inbox|threads)\b/i },
+  { name: 'Meta Graph Messaging Edge Template', regex: /\/\$\{[^}]+\}\/(conversations|messages|threads)\b/ },
+  { name: 'Meta Messaging Webhook: message_reactions', regex: /\bmessage_reactions\b/ },
+  { name: 'Meta Messaging Webhook: messaging_postbacks', regex: /\bmessaging_postbacks\b/ },
+  { name: 'Meta Messaging Webhook: messaging_optins', regex: /\bmessaging_optins\b/ },
+  { name: 'Meta Messaging Webhook: messaging_referral', regex: /\bmessaging_referral\b/ },
+  { name: 'Meta Messaging Webhook: messaging_seen', regex: /\bmessaging_seen\b/ },
+  { name: 'Meta Messaging Webhook: message_reads', regex: /\bmessage_reads\b/ },
+  { name: 'Meta Messaging Webhook: message_echoes', regex: /\bmessage_echoes\b/ },
+  { name: 'Meta Standby Webhook: standby', regex: /\bstandby\b/ },
+];
+
+let messagingViolations = 0;
+for (const file of allWebSourceFiles) {
+  const content = fs.readFileSync(file, 'utf8');
+  const lines = content.split('\n');
+  lines.forEach((line, idx) => {
+    const trimmed = line.trim();
+    if (trimmed.startsWith('//') || trimmed.startsWith('*')) return;
+    for (const pattern of forbiddenMessagingPatterns) {
+      if (pattern.regex.test(line)) {
+        console.error(`  FAIL [Forbidden Messaging Reference "${pattern.name}"]: ${path.relative(process.cwd(), file)}:${idx + 1}: ${line.trim()}`);
+        messagingViolations++;
+        failed = true;
+      }
+    }
+  });
+}
+if (messagingViolations === 0) {
+  console.log(`  PASS: Zero forbidden Meta messaging references across ${allWebSourceFiles.length} files.\n`);
+} else {
+  console.error(`  FAIL: Found ${messagingViolations} forbidden Meta messaging references.\n`);
+}
+
 if (failed) {
   console.error('\n[CI Guard] FAILED. Fix violations above before proceeding.');
   process.exit(1);

@@ -33,6 +33,9 @@ export default function InstagramConsentPage() {
             <ShellIcon name="CheckCircle" size={16} />
             <span>What Adzunova Will Access</span>
           </div>
+          <p className="text-xs text-muted-foreground">
+            Adzunova reads profile counts, insights and audience demographics only; it does not read or send messages.
+          </p>
           <ul className="space-y-2 text-xs desk:text-sm text-muted-foreground pl-1">
             <li className="flex items-start gap-2">
               <span className="text-foreground font-bold">&bull;</span>
@@ -56,7 +59,7 @@ export default function InstagramConsentPage() {
             <span>Strict Privacy Safeguards (What We Never Access)</span>
           </div>
           <ul className="space-y-1.5 text-xs text-muted-foreground">
-            <li>&bull; No access to Direct Messages (DMs) or private chats.</li>
+            <li>&bull; <strong>No Messaging Access:</strong> Although Meta Login configuration requires the <code className="bg-muted px-1 py-0.5 rounded text-[11px]">instagram_manage_messages</code> permission, Adzunova never reads, sends, or processes direct messages (DMs) or inbox threads.</li>
             <li>&bull; No access to private drafts, passwords, or browsing activity.</li>
             <li>&bull; No access to individual follower usernames or personal contact info.</li>
             <li>&bull; We never post, publish, comment, or modify anything on your account.</li>

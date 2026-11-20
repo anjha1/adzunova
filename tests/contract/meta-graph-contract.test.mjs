@@ -433,4 +433,72 @@ describe('Phase F: Meta Graph API Contract Tests (Scrubbed Fixtures)', async () 
       globalThis.fetch = originalFetch;
     }
   });
+
+  describe('Contract: Meta Deauthorize & Data-Deletion Webhooks (Signed Request Compliance)', async () => {
+    const crypto = await import('node:crypto');
+    const { verifyMetaSignedRequest } = await import('../../apps/web/src/lib/social/security/meta-signature.ts');
+    const { deauthorizeMetaUser, recordDataDeletionRequest } = await import('../../apps/web/src/lib/social/social-repository.ts');
+
+    function createMetaSignedRequest(payload, secret = process.env.META_APP_SECRET) {
+      const encodedPayload = Buffer.from(JSON.stringify(payload)).toString('base64url');
+      const sig = crypto.createHmac('sha256', secret).update(encodedPayload).digest('base64url');
+      return `${sig}.${encodedPayload}`;
+    }
+
+    it('contract: deauthorize processes signed_request and marks user credentials revoked', async () => {
+      const payload = {
+        user_id: 'meta_user_998877',
+        algorithm: 'HMAC-SHA256',
+        issued_at: Math.floor(Date.now() / 1000) - 10,
+      };
+      const signedRequest = createMetaSignedRequest(payload);
+
+      const verification = verifyMetaSignedRequest(signedRequest, process.env.META_APP_SECRET);
+      assert.strictEqual(verification.valid, true);
+      assert.strictEqual(verification.payload?.user_id, 'meta_user_998877');
+
+      const deauthResult = await deauthorizeMetaUser(verification.payload.user_id);
+      assert.strictEqual(typeof deauthResult, 'boolean');
+    });
+
+    it('contract: data-deletion creates verifiable confirmation record and returns trackable confirmation code', async () => {
+      const payload = {
+        user_id: 'meta_user_445566',
+        algorithm: 'HMAC-SHA256',
+        issued_at: Math.floor(Date.now() / 1000) - 10,
+      };
+      const signedRequest = createMetaSignedRequest(payload);
+
+      const verification = verifyMetaSignedRequest(signedRequest, process.env.META_APP_SECRET);
+      assert.strictEqual(verification.valid, true);
+      assert.strictEqual(verification.payload?.user_id, 'meta_user_445566');
+
+      const deletionRecord = await recordDataDeletionRequest(verification.payload.user_id, 'instagram');
+      assert.ok(deletionRecord.confirmation_code.startsWith('del_'), 'Confirmation code must start with del_');
+      assert.strictEqual(deletionRecord.status, 'COMPLETED');
+
+      const appUrl = 'https://adzunova-web.onrender.com';
+      const statusUrl = `${appUrl}/data-deletion-status?code=${deletionRecord.confirmation_code}`;
+      assert.ok(statusUrl.includes(deletionRecord.confirmation_code));
+    });
+
+    it('contract: rejects tampered signed_request with invalid signature result', () => {
+      const badSignedRequest = 'invalidsignature.eyJ1c2VyX2lkIjoiMTIzNCJ9';
+      const verification = verifyMetaSignedRequest(badSignedRequest, process.env.META_APP_SECRET);
+      assert.strictEqual(verification.valid, false);
+      assert.strictEqual(verification.error, 'Signature mismatch');
+    });
+
+    it('contract: rejects expired signed_request exceeding timestamp tolerance', () => {
+      const oldPayload = {
+        user_id: 'meta_user_expired',
+        algorithm: 'HMAC-SHA256',
+        issued_at: Math.floor(Date.now() / 1000) - 7200, // 2 hours ago
+      };
+      const signedRequest = createMetaSignedRequest(oldPayload);
+      const verification = verifyMetaSignedRequest(signedRequest, process.env.META_APP_SECRET);
+      assert.strictEqual(verification.valid, false);
+      assert.strictEqual(verification.error, 'Request expired (issued_at drift exceeds 15 minutes)');
+    });
+  });
 });

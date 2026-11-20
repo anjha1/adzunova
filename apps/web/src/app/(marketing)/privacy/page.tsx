@@ -41,7 +41,7 @@ export default function PrivacyPolicyPage() {
             2. Social Platform Data (Instagram & Meta Graph API)
           </h2>
           <p className="text-muted-foreground">
-            When a creator connects an Instagram Professional Account via Meta Unified Login OAuth 2.0, we request only the minimal permissions required to verify sponsorship reach:
+            When a creator connects an Instagram Professional Account via Meta Unified Login OAuth 2.0, Adzunova reads profile counts, insights and audience demographics only; it does not read or send messages. We request only the minimal permissions required to verify sponsorship reach:
           </p>
           <ul className="list-disc pl-5 space-y-2 text-muted-foreground">
             <li>
@@ -54,8 +54,13 @@ export default function PrivacyPolicyPage() {
               <strong className="text-foreground">Aggregate Demographics:</strong> Macro-level age brackets (13–17, 18–24, 25–34, 35–44, 45–54, 55–64, 65+), gender distribution (including unknown gender segments), and top countries.
             </li>
           </ul>
-          <div className="p-4 rounded-xl bg-card border border-border mt-3 text-xs desk:text-sm">
-            <strong className="text-foreground">What We NEVER Access or Store:</strong> We do not request, read, or store private direct messages (DMs), user passwords, unpublished drafts, individual follower identities, or contacts.
+          <div className="p-4 rounded-xl bg-card border border-border mt-3 text-xs desk:text-sm space-y-2">
+            <div>
+              <strong className="text-foreground">Strict Messaging Boundary:</strong> While Meta Unified Login configuration bundles the <code className="text-xs bg-muted px-1 py-0.5 rounded">instagram_manage_messages</code> permission, Adzunova strictly and explicitly does not access, read, send, or store private direct messages (DMs), conversation threads, message reactions, or inbox contents. Our platform does not subscribe to any messaging webhooks or invoke any Graph API messaging endpoints.
+            </div>
+            <div>
+              <strong className="text-foreground">What We NEVER Access or Store:</strong> We do not request, read, or store private direct messages (DMs), user passwords, unpublished drafts, individual follower identities, or contacts.
+            </div>
           </div>
         </section>
 

@@ -14,7 +14,7 @@ export default defineConfig({
     trace: 'on-first-retry',
   },
   webServer: {
-    command: 'npx next start apps/web -p 3000 -H 127.0.0.1',
+    command: 'node apps/web/node_modules/next/dist/bin/next start apps/web -p 3000 -H 127.0.0.1',
     url: 'http://127.0.0.1:3000',
     reuseExistingServer: true,
     timeout: 120 * 1000,
