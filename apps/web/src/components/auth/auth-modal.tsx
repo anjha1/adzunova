@@ -2,6 +2,7 @@
 
 import React, { useState, useRef, useEffect } from 'react';
 import { useAuthModal } from './auth-modal-context';
+import { Logo } from '@/components/brand/Logo';
 
 export function AuthModal() {
   const { isOpen, closeAuth, role, setRole, mode, setMode } = useAuthModal();
@@ -92,6 +93,9 @@ export function AuthModal() {
           <div className="flex flex-col gap-5">
             {/* Title & Role switch */}
             <div>
+              <div className="mb-2">
+                <Logo variant="full" size="sm" href={false} />
+              </div>
               <span className="text-[0.6875rem] font-bold uppercase tracking-wider text-brand-600 dark:text-brand-400 block mb-1">
                 {mode === 'signup' ? 'Fast 1-Click Access' : 'Sign In to Workspace'}
               </span>

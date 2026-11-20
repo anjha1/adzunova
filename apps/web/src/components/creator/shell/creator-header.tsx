@@ -4,6 +4,7 @@ import React, { useState, useEffect, useRef } from 'react';
 import Link from 'next/link';
 import { ThemeToggle } from '@/components/layout/theme-toggle';
 import { ShellIcon } from './shell-icons';
+import { Logo } from '@/components/brand/Logo';
 
 interface CreatorHeaderProps {
   userEmail?: string;
@@ -96,9 +97,7 @@ export function CreatorHeader({
       {/* Mobile brand & search trigger */}
       <div className="flex items-center gap-3 flex-1 max-w-md">
         <div className="desk:hidden flex items-center gap-2">
-          <span className="font-extrabold text-lg text-indigo-600 dark:text-indigo-400">
-            ADZUNOVA
-          </span>
+          <Logo variant="full" size="sm" href="/creator/dashboard" />
         </div>
 
         {/* Global Search Bar */}

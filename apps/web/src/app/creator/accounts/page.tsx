@@ -4,6 +4,7 @@ import React, { useState, useEffect } from 'react';
 import Link from 'next/link';
 import { PageHeader, StatCard } from '@/components/creator/ui';
 import { ShellIcon } from '@/components/creator/shell/shell-icons';
+import { SocialPlatformIcon } from '@/components/creator/ui/social-platform-icon';
 import { getSocialErrorDetails, SocialErrorDetails } from '@/lib/social/error-taxonomy';
 
 interface SocialAccountItem {
@@ -317,8 +318,8 @@ export default function ConnectedAccountsPage() {
           <div>
             <div className="flex items-start justify-between">
               <div className="flex items-center gap-3">
-                <div className="w-10 h-10 rounded-xl bg-primary text-primary-foreground flex items-center justify-center font-bold text-sm">
-                  IG
+                <div className="w-10 h-10 rounded-xl overflow-hidden flex items-center justify-center shrink-0 shadow-xs">
+                  <SocialPlatformIcon platform="instagram" size={40} />
                 </div>
                 <div>
                   <h3 className="font-bold text-sm text-foreground">Instagram</h3>
@@ -481,8 +482,8 @@ export default function ConnectedAccountsPage() {
         <div className="p-5 rounded-2xl bg-card border border-border flex flex-col justify-between">
           <div className="flex items-start justify-between">
             <div className="flex items-center gap-3">
-              <div className="w-10 h-10 rounded-xl bg-destructive text-destructive-foreground flex items-center justify-center font-bold text-sm">
-                YT
+              <div className="w-10 h-10 rounded-xl overflow-hidden flex items-center justify-center shrink-0 shadow-xs">
+                <SocialPlatformIcon platform="youtube" size={40} />
               </div>
               <div>
                 <h3 className="font-bold text-sm text-foreground">YouTube</h3>
@@ -508,8 +509,8 @@ export default function ConnectedAccountsPage() {
         <div className="p-5 rounded-2xl bg-card border border-border flex flex-col justify-between">
           <div className="flex items-start justify-between">
             <div className="flex items-center gap-3">
-              <div className="w-10 h-10 rounded-xl bg-muted text-foreground flex items-center justify-center font-bold text-sm">
-                TT
+              <div className="w-10 h-10 rounded-xl overflow-hidden flex items-center justify-center shrink-0 shadow-xs">
+                <SocialPlatformIcon platform="tiktok" size={40} />
               </div>
               <div>
                 <h3 className="font-bold text-sm text-foreground">TikTok</h3>
@@ -536,8 +537,8 @@ export default function ConnectedAccountsPage() {
         <div className="p-5 rounded-2xl bg-card border border-border flex flex-col justify-between">
           <div className="flex items-start justify-between">
             <div className="flex items-center gap-3">
-              <div className="w-10 h-10 rounded-xl bg-muted text-foreground flex items-center justify-center font-bold text-sm">
-                X
+              <div className="w-10 h-10 rounded-xl overflow-hidden flex items-center justify-center shrink-0 shadow-xs">
+                <SocialPlatformIcon platform="x" size={40} />
               </div>
               <div>
                 <h3 className="font-bold text-sm text-foreground">X (Twitter)</h3>
@@ -553,6 +554,62 @@ export default function ConnectedAccountsPage() {
             <button
               disabled
               title="X API client credentials not configured"
+              className="px-3 py-1.5 rounded-xl bg-muted text-muted-foreground text-xs font-semibold cursor-not-allowed"
+            >
+              Not Available
+            </button>
+          </div>
+        </div>
+
+        {/* Facebook */}
+        <div className="p-5 rounded-2xl bg-card border border-border flex flex-col justify-between">
+          <div className="flex items-start justify-between">
+            <div className="flex items-center gap-3">
+              <div className="w-10 h-10 rounded-xl overflow-hidden flex items-center justify-center shrink-0 shadow-xs">
+                <SocialPlatformIcon platform="facebook" size={40} />
+              </div>
+              <div>
+                <h3 className="font-bold text-sm text-foreground">Facebook</h3>
+                <p className="text-xs text-muted-foreground">Page likes, reach & engagement analytics</p>
+              </div>
+            </div>
+            <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-muted text-muted-foreground border border-border">
+              Not Available
+            </span>
+          </div>
+          <div className="mt-5 pt-4 border-t border-border flex items-center justify-between">
+            <span className="text-xs text-muted-foreground">Meta Graph API v21.0</span>
+            <button
+              disabled
+              title="Facebook Page integration not configured"
+              className="px-3 py-1.5 rounded-xl bg-muted text-muted-foreground text-xs font-semibold cursor-not-allowed"
+            >
+              Not Available
+            </button>
+          </div>
+        </div>
+
+        {/* LinkedIn */}
+        <div className="p-5 rounded-2xl bg-card border border-border flex flex-col justify-between">
+          <div className="flex items-start justify-between">
+            <div className="flex items-center gap-3">
+              <div className="w-10 h-10 rounded-xl overflow-hidden flex items-center justify-center shrink-0 shadow-xs">
+                <SocialPlatformIcon platform="linkedin" size={40} />
+              </div>
+              <div>
+                <h3 className="font-bold text-sm text-foreground">LinkedIn</h3>
+                <p className="text-xs text-muted-foreground">Professional network connections & post impressions</p>
+              </div>
+            </div>
+            <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-muted text-muted-foreground border border-border">
+              Not Available
+            </span>
+          </div>
+          <div className="mt-5 pt-4 border-t border-border flex items-center justify-between">
+            <span className="text-xs text-muted-foreground">Official LinkedIn OAuth 2.0</span>
+            <button
+              disabled
+              title="LinkedIn API client not configured"
               className="px-3 py-1.5 rounded-xl bg-muted text-muted-foreground text-xs font-semibold cursor-not-allowed"
             >
               Not Available

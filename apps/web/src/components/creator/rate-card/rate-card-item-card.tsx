@@ -2,6 +2,7 @@
 
 import React, { useState } from 'react';
 import { ShellIcon } from '@/components/creator/shell/shell-icons';
+import { SocialPlatformIcon } from '@/components/creator/ui/social-platform-icon';
 import { RateCardItem, RateCardStatus } from '@/lib/rate-card/types';
 import {
   PLATFORM_METADATA,
@@ -99,9 +100,10 @@ export function RateCardItemCard({
             {/* Badges row */}
             <div className="flex flex-wrap items-center gap-1.5 mb-1.5">
               <span
-                className={`text-[10px] font-bold uppercase tracking-wider px-2 py-0.5 rounded-full border ${platformMeta.badgeColor}`}
+                className={`text-[10px] font-bold uppercase tracking-wider px-2 py-0.5 rounded-full border inline-flex items-center gap-1 ${platformMeta.badgeColor}`}
               >
-                {platformMeta.label}
+                <SocialPlatformIcon platform={item.platform} size={12} className="shrink-0" />
+                <span>{platformMeta.label}</span>
               </span>
               <span className="text-[10px] font-medium px-2 py-0.5 rounded-full bg-muted text-foreground border border-border">
                 {formatMeta?.label || item.contentFormat}

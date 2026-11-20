@@ -6,6 +6,7 @@ import { motion, AnimatePresence } from 'motion/react';
 import { NAV_ITEMS } from './nav-data';
 import { ThemeToggle } from './theme-toggle';
 import { useAuthModal } from '@/components/auth/auth-modal-context';
+import { Logo } from '@/components/brand/Logo';
 
 function MenuIcon() {
   return (
@@ -133,12 +134,7 @@ export function MobileNavigation() {
               className="flex items-center justify-between h-16 px-5 border-b border-[var(--color-border)] shrink-0"
             >
               <div className="flex items-center gap-2">
-                <div className="w-8 h-8 rounded-lg bg-gradient-to-br from-brand-500 to-indigo-600 flex items-center justify-center text-white font-extrabold text-base shadow-sm">
-                  A
-                </div>
-                <span className="font-bold text-lg text-[var(--color-fg-primary)] tracking-tight">
-                  Adzunova
-                </span>
+                <Logo variant="full" size="sm" onClick={() => setIsOpen(false)} />
               </div>
 
               <div className="flex items-center gap-2">

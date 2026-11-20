@@ -2,6 +2,7 @@
 
 import React, { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
+import { Logo } from '@/components/brand/Logo';
 
 export default function CreatorOnboardingPage() {
   const router = useRouter();
@@ -104,6 +105,11 @@ export default function CreatorOnboardingPage() {
   return (
     <div className="min-h-screen bg-background py-12 px-4 sm:px-6 lg:px-8 pb-32">
       <div className="max-w-xl mx-auto">
+        {/* Brand Logo Header */}
+        <div className="flex justify-center mb-6">
+          <Logo variant="full" size="md" href="/" badgeText="CREATOR ONBOARDING" />
+        </div>
+
         {/* Step indicator */}
         <div className="mb-8">
           <div className="flex items-center justify-between mb-2">

@@ -4,6 +4,7 @@ import React, { useState, useEffect } from 'react';
 import Link from 'next/link';
 import { PageHeader, EmptyState } from '@/components/creator/ui';
 import { ShellIcon } from '@/components/creator/shell/shell-icons';
+import { SocialPlatformIcon } from '@/components/creator/ui/social-platform-icon';
 import { DerivedAudienceMetrics } from '@/lib/social/demographics-engine';
 
 interface MediaKitData {
@@ -103,8 +104,8 @@ export default function MediaKitPage() {
           {/* Header Card */}
           <div className="flex flex-col desk:flex-row desk:items-center justify-between gap-4 pb-6 border-b border-border">
             <div className="flex items-center gap-4">
-              <div className="w-16 h-16 rounded-2xl bg-primary text-primary-foreground flex items-center justify-center font-black text-xl shadow-md">
-                IG
+              <div className="w-16 h-16 rounded-2xl overflow-hidden flex items-center justify-center shrink-0 shadow-md">
+                <SocialPlatformIcon platform={account?.provider || 'instagram'} size={64} />
               </div>
               <div>
                 <div className="flex items-center gap-2">

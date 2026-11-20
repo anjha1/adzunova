@@ -5,6 +5,7 @@ import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { CREATOR_NAV_ITEMS } from './nav-config';
 import { ShellIcon } from './shell-icons';
+import { Logo } from '@/components/brand/Logo';
 
 interface CreatorSidebarProps {
   collapsed: boolean;
@@ -86,26 +87,19 @@ export function CreatorSidebar({ collapsed, onToggleCollapse }: CreatorSidebarPr
       }`}
     >
       {/* Brand header */}
-      <div className="h-16 flex items-center justify-between px-4 border-b border-border">
-        {!collapsed && (
-          <Link href="/creator/dashboard" className="flex items-center gap-2">
-            <span className="font-black text-xl tracking-tight text-indigo-600 dark:text-indigo-400">
-              ADZUNOVA
-            </span>
-            <span className="text-[10px] font-bold px-1.5 py-0.5 rounded bg-indigo-500/10 text-indigo-600 dark:text-indigo-400 border border-indigo-500/20">
-              CREATOR
-            </span>
-          </Link>
+      <div className={`h-16 flex items-center border-b border-border ${collapsed ? 'justify-between px-2 gap-1' : 'justify-between px-4'}`}>
+        {!collapsed ? (
+          <Logo variant="full" size="sm" href="/creator/dashboard" badgeText="CREATOR" />
+        ) : (
+          <Logo variant="mark" size={26} href="/creator/dashboard" ariaLabel="Adzunova Creator Dashboard" />
         )}
         <button
           data-variant="ghost"
           onClick={onToggleCollapse}
           aria-label={collapsed ? 'Expand sidebar' : 'Collapse sidebar'}
-          className={`p-1.5 rounded-lg border border-border text-muted-foreground hover:text-foreground hover:bg-muted transition ${
-            collapsed ? 'mx-auto' : ''
-          }`}
+          className="p-1.5 rounded-lg border border-border text-muted-foreground hover:text-foreground hover:bg-muted transition cursor-pointer shrink-0"
         >
-          <ShellIcon name={collapsed ? 'ChevronRight' : 'ChevronLeft'} size={18} />
+          <ShellIcon name={collapsed ? 'ChevronRight' : 'ChevronLeft'} size={16} />
         </button>
       </div>
 

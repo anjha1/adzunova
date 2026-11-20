@@ -1,5 +1,6 @@
 import React from 'react';
 import Link from 'next/link';
+import { Logo } from '@/components/brand/Logo';
 
 export function AuthCard({
   title,
@@ -15,16 +16,11 @@ export function AuthCard({
   return (
     <div className="min-h-[85vh] flex items-center justify-center py-12 px-4 sm:px-6">
       <div className="w-full max-w-md">
-        {/* Adzunova Brand Header */}
-        <div className="text-center mb-8">
-          <Link href="/" className="inline-flex items-center gap-2 mb-4 group">
-            <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-brand-500 to-indigo-600 flex items-center justify-center text-white font-black text-xl shadow-md group-hover:scale-105 transition-transform">
-              A
-            </div>
-            <span className="font-extrabold text-2xl text-[var(--color-fg-primary)] tracking-tight">
-              Adzunova
-            </span>
-          </Link>
+        {/* Adzunova Brand Header with Official Logo */}
+        <div className="text-center mb-8 flex flex-col items-center">
+          <div className="mb-4">
+            <Logo variant="full" size="lg" />
+          </div>
 
           {badgeText && (
             <div className="mb-3">

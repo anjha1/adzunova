@@ -2,6 +2,7 @@ import React from 'react';
 import Link from 'next/link';
 import { redirect } from 'next/navigation';
 import { getSession } from '@/lib/auth';
+import { Logo } from '@/components/brand/Logo';
 
 export const instant = false;
 
@@ -24,12 +25,7 @@ export default async function BrandDashboardPage() {
       <header className="border-b border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 sticky top-0 z-30">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-16 flex items-center justify-between">
           <div className="flex items-center gap-3">
-            <span className="font-extrabold text-xl tracking-tight text-slate-900 dark:text-white">
-              ADZUNOVA
-            </span>
-            <span className="text-xs px-2.5 py-0.5 rounded-full font-semibold bg-slate-100 text-slate-800 dark:bg-slate-800 dark:text-slate-200 border border-slate-300 dark:border-slate-700">
-              Brand Enterprise
-            </span>
+            <Logo variant="full" size="md" href="/brand/dashboard" badgeText="ENTERPRISE" />
           </div>
 
           <div className="flex items-center gap-4">

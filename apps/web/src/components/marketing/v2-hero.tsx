@@ -3,6 +3,7 @@
 import React from 'react';
 import Link from 'next/link';
 import dynamic from 'next/dynamic';
+import { SocialPlatformIcon } from '@/components/creator/ui/social-platform-icon';
 
 // Dynamically import 3D scene (client-only, no SSR)
 const HeroNetworkScene = dynamic(
@@ -101,9 +102,10 @@ export function V2Hero() {
               {PLATFORM_CHIPS.map((platform) => (
                 <span
                   key={platform}
-                  className="px-2.5 py-0.5 text-xs font-medium rounded-md bg-[var(--color-surface-2)] text-[var(--color-fg-secondary)] border border-[var(--color-border)]"
+                  className="inline-flex items-center gap-1.5 px-2.5 py-1 text-xs font-medium rounded-lg bg-[var(--color-surface-2)] text-[var(--color-fg-secondary)] border border-[var(--color-border)] shadow-2xs hover:border-brand-500/40 transition"
                 >
-                  {platform}
+                  <SocialPlatformIcon platform={platform} size={14} className="shrink-0" />
+                  <span>{platform}</span>
                 </span>
               ))}
             </div>

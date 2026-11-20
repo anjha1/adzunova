@@ -2,6 +2,7 @@ import React from 'react';
 import Link from 'next/link';
 import { getSession } from '@/lib/auth';
 import { ShellIcon } from '@/components/creator/shell/shell-icons';
+import { SocialPlatformIcon } from '@/components/creator/ui/social-platform-icon';
 import { getSocialAccountLatest } from '@/lib/social/latest-state';
 
 export default async function CreatorDashboardPage() {
@@ -231,8 +232,8 @@ export default async function CreatorDashboardPage() {
                   className="p-4 rounded-2xl bg-muted/30 border border-border flex items-center justify-between"
                 >
                   <div className="flex items-center gap-3">
-                    <div className="w-10 h-10 rounded-xl bg-gradient-to-tr from-amber-500 to-rose-500 text-white flex items-center justify-center font-bold text-xs">
-                      IG
+                    <div className="w-10 h-10 rounded-xl overflow-hidden flex items-center justify-center shrink-0 shadow-xs">
+                      <SocialPlatformIcon platform={acc.provider || 'instagram'} size={40} />
                     </div>
                     <div>
                       <div className="font-bold text-sm text-foreground">@{acc.username}</div>
