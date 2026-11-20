@@ -167,3 +167,82 @@ model PasswordResetToken {
   @@index([expiresAt])
   @@map("password_reset_tokens")
 }
+
+model PublicProfile {
+  id                 String    @id @default(auto()) @map("_id") @db.ObjectId
+  creatorId          String    @unique
+  slug               String    @unique
+  previousSlugs      String[]  @default([])
+  isPublished        Boolean   @default(false)
+  allowIndexing      Boolean   @default(true)
+  displayName        String
+  bio                String?
+  tags               String[]  @default([])
+  languages          String[]  @default([])
+  location           String?
+  avatarUrl          String?
+  coverUrl           String?
+  sectionVisibility  Json?
+  hiddenPlatformIds  String[]  @default([])
+  pinnedContentIds   String[]  @default([])
+  hidePricesPerItem  Json?
+  consentRecordedAt  DateTime?
+  publishedAt        DateTime?
+  updatedAt          DateTime  @updatedAt
+  version            Int       @default(1)
+
+  @@index([slug])
+  @@index([creatorId])
+  @@map("public_profiles")
+}
+
+model PlatformSnapshot {
+  id                 String    @id @default(auto()) @map("_id") @db.ObjectId
+  creatorId          String
+  platform           String
+  handle             String
+  profileUrl         String?
+  followers          Int       @default(0)
+  avgViews           Int       @default(0)
+  engagementRate     Float     @default(0.0)
+  contentCount       Int       @default(0)
+  verificationStatus String    @default("UNVERIFIED")
+  verifiedAt         DateTime?
+  source             String?
+  trendSeries        Json?
+  fetchedAt          DateTime  @default(now())
+
+  @@index([creatorId, platform])
+  @@index([fetchedAt])
+  @@map("platform_snapshots")
+}
+
+model ProfileViewEvent {
+  id          String   @id @default(auto()) @map("_id") @db.ObjectId
+  profileId   String
+  timestamp   DateTime @default(now())
+  referrer    String?
+  country     String?
+  deviceType  String?
+  sessionHash String
+  eventType   String
+  metadata    Json?
+
+  @@index([profileId, timestamp])
+  @@index([profileId, eventType])
+  @@map("profile_view_events")
+}
+
+model ProfileReport {
+  id           String   @id @default(auto()) @map("_id") @db.ObjectId
+  profileId    String
+  slug         String
+  reason       String
+  details      String
+  reporterHash String
+  status       String   @default("PENDING")
+  createdAt    DateTime @default(now())
+
+  @@index([profileId, createdAt])
+  @@map("profile_reports")
+}
