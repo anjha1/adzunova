@@ -1,0 +1,31 @@
+{
+  "data": {
+    "app_id": "1476081104709396",
+    "type": "SYSTEM_USER",
+    "application": "Adzunova",
+    "data_access_expires_at": 1772180000,
+    "expires_at": 0,
+    "is_valid": true,
+    "scopes": [
+      "instagram_basic",
+      "instagram_manage_insights",
+      "instagram_manage_messages",
+      "public_profile"
+    ],
+    "granular_scopes": [
+      {
+        "scope": "instagram_basic",
+        "target_ids": []
+      },
+      {
+        "scope": "instagram_manage_insights",
+        "target_ids": []
+      },
+      {
+        "scope": "instagram_manage_messages",
+        "target_ids": []
+      }
+    ],
+    "user_id": "1023****4567"
+  }
+}

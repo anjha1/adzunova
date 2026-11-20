@@ -44,6 +44,46 @@ describe('Phase F: Meta Graph API Contract Tests (Scrubbed Fixtures)', async () 
       followers_count: 1240,
       media_count: 42,
     },
+    // Real debug_token shape for SYSTEM_USER (Unified Login / Facebook Login for Business)
+    // Target_ids are EMPTY for SYSTEM_USER tokens — this is the actual observed behavior
+    debugTokenSystemUser: {
+      data: {
+        app_id: '1476081104709396',
+        type: 'SYSTEM_USER',
+        application: 'Adzunova',
+        is_valid: true,
+        user_id: '12345678901234567',
+        scopes: ['instagram_basic', 'instagram_manage_insights', 'instagram_manage_messages', 'public_profile'],
+        granular_scopes: [
+          { scope: 'instagram_basic', target_ids: [] },
+          { scope: 'instagram_manage_insights', target_ids: [] },
+          { scope: 'instagram_manage_messages', target_ids: [] },
+        ],
+      },
+    },
+    // Response from GET /me/assigned_instagram_accounts for SYSTEM_USER
+    assignedInstagramAccountsSuccess: {
+      data: [
+        {
+          id: '17841433187658828',
+          username: 'a_n_jha1',
+          name: 'Achhuta Nand Jha',
+          profile_picture_url: null,
+          followers_count: 1240,
+          media_count: 42,
+        },
+      ],
+    },
+    // Response from GET /me/businesses for SYSTEM_USER (expected 400)
+    meBusinessesError400: {
+      error: {
+        message: '(#100) Tried accessing nonexisting field (businesses) on node type (SystemUser)',
+        type: 'OAuthException',
+        code: 100,
+        error_subcode: 33,
+        fbtrace_id: 'AzK_79hL2kP',
+      },
+    },
     viewsSuccess: {
       data: [
         {
@@ -291,6 +331,89 @@ describe('Phase F: Meta Graph API Contract Tests (Scrubbed Fixtures)', async () 
       assert.strictEqual(result.discoveryMethod, 'legacy_pages');
       assert.strictEqual(result.accounts.length, 1);
       assert.strictEqual(result.accounts[0].username, 'fallback_creator');
+    } finally {
+      globalThis.fetch = originalFetch;
+    }
+  });
+
+  it('contract: SYSTEM_USER token discovers account via GET /me/assigned_instagram_accounts (Discovery SU)', async () => {
+    const originalFetch = globalThis.fetch;
+    const requests = [];
+
+    globalThis.fetch = async (url) => {
+      const urlStr = decodeURIComponent(url.toString());
+      requests.push(urlStr);
+
+      if (urlStr.includes('/debug_token')) {
+        return new Response(JSON.stringify(FIXTURES.debugTokenSystemUser), { status: 200 });
+      }
+      if (urlStr.includes('/me/assigned_instagram_accounts') || urlStr.includes('/assigned_instagram_accounts')) {
+        return new Response(JSON.stringify(FIXTURES.assignedInstagramAccountsSuccess), { status: 200 });
+      }
+      if (urlStr.includes('/me/businesses')) {
+        return new Response(JSON.stringify(FIXTURES.meBusinessesError400), { status: 400 });
+      }
+      if (urlStr.includes('/me/accounts')) {
+        return new Response(JSON.stringify({ data: [] }), { status: 200 });
+      }
+      return new Response(JSON.stringify({ error: { message: 'Unexpected call' } }), { status: 400 });
+    };
+
+    try {
+      const result = await resolveInstagramAccountsUnified('EAAB_system_user_token');
+
+      // Must use assigned_instagram_accounts discovery method
+      assert.strictEqual(result.discoveryMethod, 'assigned_instagram_accounts');
+      assert.strictEqual(result.accounts.length, 1);
+      assert.strictEqual(result.accounts[0].id, '17841433187658828');
+      assert.strictEqual(result.accounts[0].username, 'a_n_jha1');
+      assert.strictEqual(result.accounts[0].followers_count, 1240);
+      assert.strictEqual(result.accounts[0].media_count, 42);
+
+      // Verified token type is captured
+      assert.strictEqual(result.debugToken.tokenType, 'SYSTEM_USER');
+      assert.strictEqual(result.debugToken.isValid, true);
+
+      // Should NOT have called /me/businesses or /me/accounts (stopped early)
+      const calledBusinesses = requests.some((r) => r.includes('/me/businesses'));
+      const calledPages = requests.some((r) => r.includes('/me/accounts'));
+      assert.strictEqual(calledBusinesses, false, 'Should not call /me/businesses when assigned_instagram_accounts succeeds');
+      assert.strictEqual(calledPages, false, 'Should not call /me/accounts when assigned_instagram_accounts succeeds');
+    } finally {
+      globalThis.fetch = originalFetch;
+    }
+  });
+
+  it('contract: SYSTEM_USER token with empty assigned_instagram_accounts falls back to granular_scopes then other methods', async () => {
+    const originalFetch = globalThis.fetch;
+    const requests = [];
+
+    globalThis.fetch = async (url) => {
+      const urlStr = decodeURIComponent(url.toString());
+      requests.push(urlStr);
+
+      if (urlStr.includes('/debug_token')) {
+        return new Response(JSON.stringify(FIXTURES.debugTokenSystemUser), { status: 200 });
+      }
+      if (urlStr.includes('/assigned_instagram_accounts')) {
+        return new Response(JSON.stringify({ data: [] }), { status: 200 });
+      }
+      if (urlStr.includes('/me/businesses')) {
+        return new Response(JSON.stringify(FIXTURES.meBusinessesError400), { status: 400 });
+      }
+      if (urlStr.includes('/me/accounts')) {
+        return new Response(JSON.stringify({ data: [] }), { status: 200 });
+      }
+      return new Response(JSON.stringify({ error: { message: 'Unexpected call' } }), { status: 400 });
+    };
+
+    try {
+      const result = await resolveInstagramAccountsUnified('EAAB_system_user_token_empty');
+
+      // Should fall through all methods and return no_instagram_account_granted
+      assert.strictEqual(result.discoveryMethod, 'none');
+      assert.strictEqual(result.accounts.length, 0);
+      assert.strictEqual(result.errorReason, 'no_instagram_account_granted');
     } finally {
       globalThis.fetch = originalFetch;
     }

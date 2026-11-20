@@ -55,3 +55,13 @@ export function stripTokenFromPagingUrl(url?: string | null): string | null {
     return url.replace(/([?&]access_token=)[^&]+/i, '').replace(/([?&]appsecret_proof=)[^&]+/i, '');
   }
 }
+
+/**
+ * Masks an asset or user ID showing only first 4 and last 4 characters.
+ */
+export function maskId(id?: string | null): string {
+  if (!id) return '<none>';
+  if (id.length <= 8) return '****';
+  return `${id.slice(0, 4)}...${id.slice(-4)}`;
+}
+

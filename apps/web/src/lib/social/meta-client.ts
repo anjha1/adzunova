@@ -1,5 +1,5 @@
 import { createAppSecretProof } from './security/meta-signature';
-import { stripTokenFromPagingUrl, scrubSensitiveData } from './security/log-scrubber';
+import { stripTokenFromPagingUrl, scrubSensitiveData, maskId } from './security/log-scrubber';
 
 const GRAPH_API_VERSION = process.env.GRAPH_API_VERSION || 'v27.0';
 const GRAPH_BASE_URL = `https://graph.facebook.com/${GRAPH_API_VERSION}`;
@@ -52,11 +52,12 @@ export interface CapabilityProbeResult {
 
 export interface DiscoveryResult {
   accounts: InstagramBusinessAccount[];
-  discoveryMethod: 'granular_scopes' | 'business_assets' | 'legacy_pages' | 'none';
+  discoveryMethod: 'assigned_instagram_accounts' | 'granular_scopes' | 'business_assets' | 'legacy_pages' | 'none';
   debugToken: {
     isValid: boolean;
     appId?: string;
     userId?: string;
+    tokenType?: string;
     scopes: string[];
     granularScopeCount: number;
     targetIdCount: number;
@@ -190,6 +191,31 @@ export async function debugToken(inputToken: string): Promise<{ data: MetaDebugT
     throw err;
   }
 
+  // Phase 1 Diagnosis: Under DEBUG_OAUTH=true, log full scrubbed JSON shape of debug_token
+  if (process.env.DEBUG_OAUTH === 'true') {
+    const d = data.data;
+    console.log('[DEBUG_OAUTH] Raw debug_token data shape:', {
+      all_keys: Object.keys(d),
+      type: d.type,
+      application: d.application,
+      app_id: maskId(d.app_id),
+      user_id: maskId(d.user_id),
+      is_valid: d.is_valid,
+      scopes: d.scopes,
+      expires_at: d.expires_at,
+      data_access_expires_at: d.data_access_expires_at,
+      issued_at: d.issued_at,
+      granular_scopes: Array.isArray(d.granular_scopes)
+        ? d.granular_scopes.map((gs: any) => ({
+            scope: gs.scope,
+            keys_present: Object.keys(gs),
+            target_ids_count: Array.isArray(gs.target_ids) ? gs.target_ids.length : 0,
+            target_ids_masked: Array.isArray(gs.target_ids) ? gs.target_ids.map(maskId) : [],
+          }))
+        : [],
+    });
+  }
+
   return { data: data.data as MetaDebugTokenData, status: res.status };
 }
 
@@ -244,6 +270,158 @@ export async function fetchInstagramAccountProfile(
       error: err instanceof Error ? err.message : 'Network error fetching profile',
     };
   }
+}
+
+export interface DiagnosticProbeEntry {
+  probe: string;
+  endpointTemplate: string;
+  httpStatus: number;
+  resultCount?: number;
+  errorCode?: number;
+  errorType?: string;
+  errorSubcode?: number;
+  notes: string;
+}
+
+/**
+ * Phase 1 Diagnostic Probes: runs probe matrix P1 to P6 to identify where
+ * the granted Instagram account lives for this token type.
+ * Only activated when DEBUG_OAUTH=true. Never logs tokens or raw secrets.
+ */
+export async function runDiagnosticProbes(
+  userAccessToken: string,
+  tokenInfo: MetaDebugTokenData
+): Promise<DiagnosticProbeEntry[]> {
+  const appSecret = process.env.META_APP_SECRET;
+  if (!appSecret) return [];
+
+  const appsecretProof = createAppSecretProof(userAccessToken, appSecret);
+  const results: DiagnosticProbeEntry[] = [];
+
+  const doProbe = async (name: string, template: string, url: string) => {
+    try {
+      const res = await fetch(url);
+      const data = await res.json();
+      const entry: DiagnosticProbeEntry = {
+        probe: name,
+        endpointTemplate: template,
+        httpStatus: res.status,
+        notes: '',
+      };
+
+      if (data.error) {
+        entry.errorCode = data.error.code;
+        entry.errorType = data.error.type;
+        entry.errorSubcode = data.error.error_subcode;
+        entry.notes = scrubSensitiveData(data.error.message || '');
+      } else if (Array.isArray(data.data)) {
+        entry.resultCount = data.data.length;
+        if (data.data.length > 0) {
+          const ids = data.data.map((d: any) => maskId(d.id)).join(', ');
+          entry.notes = `Found ${data.data.length} item(s): [${ids}]`;
+        } else {
+          entry.notes = 'Returned empty data array []';
+        }
+      } else if (data.id) {
+        entry.resultCount = 1;
+        entry.notes = `Single node: id=${maskId(data.id)}, name=${data.name || '<none>'}`;
+      } else {
+        entry.notes = `Keys: [${Object.keys(data).join(', ')}]`;
+      }
+
+      results.push(entry);
+      return data;
+    } catch (err: any) {
+      results.push({
+        probe: name,
+        endpointTemplate: template,
+        httpStatus: 0,
+        notes: `Network failure: ${err.message}`,
+      });
+      return null;
+    }
+  };
+
+  console.log('[DEBUG_OAUTH] === Running Phase 1 Diagnostic Probe Matrix ===');
+
+  // P1: /me identity & business binding
+  const meData = await doProbe(
+    'P1: Token Subject Identity',
+    'GET /me?fields=id,name,client_business_id',
+    `${GRAPH_BASE_URL}/me?fields=id,name,client_business_id&access_token=${userAccessToken}&appsecret_proof=${appsecretProof}`
+  );
+  const clientBizId = meData?.client_business_id;
+  const systemUserId = tokenInfo.user_id || meData?.id;
+
+  // P2: System-user asset edges: /me/assigned_instagram_accounts
+  await doProbe(
+    'P2a: System-User Assigned IG Accounts',
+    'GET /me/assigned_instagram_accounts?fields=id,username,name',
+    `${GRAPH_BASE_URL}/me/assigned_instagram_accounts?fields=id,username,name&access_token=${userAccessToken}&appsecret_proof=${appsecretProof}`
+  );
+
+  if (systemUserId) {
+    await doProbe(
+      'P2b: Assigned IG Accounts via System User ID',
+      `GET /{system_user_id}/assigned_instagram_accounts`,
+      `${GRAPH_BASE_URL}/${systemUserId}/assigned_instagram_accounts?fields=id,username,name&access_token=${userAccessToken}&appsecret_proof=${appsecretProof}`
+    );
+  }
+
+  // P3: Business-level Instagram edges
+  if (clientBizId) {
+    await doProbe(
+      'P3a: Business Owned Instagram Accounts',
+      `GET /{client_business_id}/owned_instagram_accounts`,
+      `${GRAPH_BASE_URL}/${clientBizId}/owned_instagram_accounts?fields=id,username,name&access_token=${userAccessToken}&appsecret_proof=${appsecretProof}`
+    );
+    await doProbe(
+      'P3b: Business Client Instagram Accounts',
+      `GET /{client_business_id}/client_instagram_accounts`,
+      `${GRAPH_BASE_URL}/${clientBizId}/client_instagram_accounts?fields=id,username,name&access_token=${userAccessToken}&appsecret_proof=${appsecretProof}`
+    );
+    await doProbe(
+      'P3c: Business Instagram Accounts',
+      `GET /{client_business_id}/instagram_accounts`,
+      `${GRAPH_BASE_URL}/${clientBizId}/instagram_accounts?fields=id,username,name&access_token=${userAccessToken}&appsecret_proof=${appsecretProof}`
+    );
+  }
+
+  // P4: Direct instagram_accounts fields on subject
+  await doProbe(
+    'P4: /me/instagram_accounts',
+    'GET /me/instagram_accounts?fields=id,username',
+    `${GRAPH_BASE_URL}/me/instagram_accounts?fields=id,username&access_token=${userAccessToken}&appsecret_proof=${appsecretProof}`
+  );
+
+  // P5: Granular scopes check
+  const igGranular = (tokenInfo.granular_scopes || []).filter((g) => g.scope.startsWith('instagram_'));
+  const targetIds = Array.from(new Set(igGranular.flatMap((g) => g.target_ids || [])));
+  results.push({
+    probe: 'P5: debug_token granular_scopes target_ids',
+    endpointTemplate: 'GET /debug_token -> granular_scopes[].target_ids',
+    httpStatus: 200,
+    resultCount: targetIds.length,
+    notes: targetIds.length > 0 ? `Found target IDs: [${targetIds.map(maskId).join(', ')}]` : 'target_ids array is empty',
+  });
+
+  // P6: Known controls
+  await doProbe(
+    'P6a: /me/businesses (Known Control)',
+    'GET /me/businesses?fields=id,name',
+    `${GRAPH_BASE_URL}/me/businesses?fields=id,name&access_token=${userAccessToken}&appsecret_proof=${appsecretProof}`
+  );
+  await doProbe(
+    'P6b: /me/accounts (Known Control)',
+    'GET /me/accounts?fields=id,name',
+    `${GRAPH_BASE_URL}/me/accounts?fields=id,name&access_token=${userAccessToken}&appsecret_proof=${appsecretProof}`
+  );
+
+  console.log('[DEBUG_OAUTH] Probe matrix summary table:\n' +
+    results.map((r) => `  | ${r.probe.padEnd(42)} | HTTP ${String(r.httpStatus).padEnd(3)} | Count: ${String(r.resultCount ?? '-').padEnd(3)} | ${r.notes}`).join('\n')
+  );
+
+  return results;
 }
 
 /**
@@ -309,6 +487,7 @@ export async function resolveInstagramAccountsUnified(
     isValid: tokenInfo.is_valid,
     appId: tokenInfo.app_id,
     userId: tokenInfo.user_id,
+    tokenType: tokenInfo.type,
     scopes,
     granularScopeCount: granularScopes.length,
     targetIdCount: targetIds.length,
@@ -324,6 +503,15 @@ export async function resolveInstagramAccountsUnified(
     };
   }
 
+  // Phase 1 Diagnosis: Run probe matrix when DEBUG_OAUTH=true
+  if (process.env.DEBUG_OAUTH === 'true') {
+    try {
+      await runDiagnosticProbes(userAccessToken, tokenInfo);
+    } catch (err: any) {
+      console.warn('[DEBUG_OAUTH] Error executing diagnostic probes:', err.message);
+    }
+  }
+
   // Check if any Instagram scopes were granted at all
   const hasInstagramScopes = scopes.some((s) => s.startsWith('instagram_'));
   if (!hasInstagramScopes && targetIds.length === 0) {
@@ -334,6 +522,106 @@ export async function resolveInstagramAccountsUnified(
       debugToken: debugSummary,
       errorReason: 'no_instagram_account_granted',
     };
+  }
+
+  // --------------------------------------------------------------------------
+  // Discovery (SU): For SYSTEM_USER tokens (Unified Login / Facebook Login for Business)
+  // The documented endpoint is GET /me/assigned_instagram_accounts
+  // Ref: https://developers.facebook.com/docs/instagram-platform/instagram-api-with-facebook-login
+  // --------------------------------------------------------------------------
+  if (tokenInfo.type === 'SYSTEM_USER') {
+    console.log('[OAuthDiscovery] (SU) Token type is SYSTEM_USER — trying GET /me/assigned_instagram_accounts');
+    try {
+      const assignedEndpoint = `${GRAPH_BASE_URL}/me/assigned_instagram_accounts`;
+      const assignedParams = new URLSearchParams({
+        fields: 'id,username,name,profile_picture_url,followers_count,media_count',
+        access_token: userAccessToken,
+        appsecret_proof: appsecretProof,
+      });
+
+      const assignedRes = await fetch(`${assignedEndpoint}?${assignedParams.toString()}`);
+      const assignedData = await assignedRes.json();
+
+      console.log(`[OAuthDiscovery] (SU) /me/assigned_instagram_accounts status: ${assignedRes.status}`, {
+        hasData: !!(assignedData.data),
+        count: Array.isArray(assignedData.data) ? assignedData.data.length : 0,
+        errorCode: assignedData.error?.code,
+        errorType: assignedData.error?.type,
+      });
+
+      if (assignedRes.ok && Array.isArray(assignedData.data) && assignedData.data.length > 0) {
+        const suAccounts: InstagramBusinessAccount[] = assignedData.data
+          .filter((item: any) => item.id)
+          .map((item: any) => ({
+            id: item.id,
+            username: item.username || item.name || 'instagram_user',
+            name: item.name,
+            profile_picture_url: item.profile_picture_url || null,
+            followers_count: Number(item.followers_count || 0),
+            media_count: Number(item.media_count || 0),
+          }));
+
+        if (suAccounts.length > 0) {
+          console.log('[OAuthDiscovery] (SU) SUCCESS: Resolved accounts via assigned_instagram_accounts:', {
+            count: suAccounts.length,
+            usernames: suAccounts.map((a) => a.username),
+          });
+          return {
+            accounts: suAccounts,
+            discoveryMethod: 'assigned_instagram_accounts',
+            debugToken: debugSummary,
+          };
+        }
+      }
+
+      // If endpoint is valid but returned empty, also try /{system_user_id}/assigned_instagram_accounts
+      if (tokenInfo.user_id) {
+        console.log(`[OAuthDiscovery] (SU) Trying /{system_user_id}/assigned_instagram_accounts`);
+        const suIdEndpoint = `${GRAPH_BASE_URL}/${tokenInfo.user_id}/assigned_instagram_accounts`;
+        const suIdParams = new URLSearchParams({
+          fields: 'id,username,name,profile_picture_url,followers_count,media_count',
+          access_token: userAccessToken,
+          appsecret_proof: appsecretProof,
+        });
+
+        const suIdRes = await fetch(`${suIdEndpoint}?${suIdParams.toString()}`);
+        const suIdData = await suIdRes.json();
+
+        console.log(`[OAuthDiscovery] (SU) /{su_id}/assigned_instagram_accounts status: ${suIdRes.status}`, {
+          hasData: !!(suIdData.data),
+          count: Array.isArray(suIdData.data) ? suIdData.data.length : 0,
+        });
+
+        if (suIdRes.ok && Array.isArray(suIdData.data) && suIdData.data.length > 0) {
+          const suIdAccounts: InstagramBusinessAccount[] = suIdData.data
+            .filter((item: any) => item.id)
+            .map((item: any) => ({
+              id: item.id,
+              username: item.username || item.name || 'instagram_user',
+              name: item.name,
+              profile_picture_url: item.profile_picture_url || null,
+              followers_count: Number(item.followers_count || 0),
+              media_count: Number(item.media_count || 0),
+            }));
+
+          if (suIdAccounts.length > 0) {
+            console.log('[OAuthDiscovery] (SU) SUCCESS: Resolved via /{su_id}/assigned_instagram_accounts:', {
+              count: suIdAccounts.length,
+              usernames: suIdAccounts.map((a) => a.username),
+            });
+            return {
+              accounts: suIdAccounts,
+              discoveryMethod: 'assigned_instagram_accounts',
+              debugToken: debugSummary,
+            };
+          }
+        }
+      }
+
+      console.log('[OAuthDiscovery] (SU) assigned_instagram_accounts returned 0 results — falling through to other discovery methods');
+    } catch (err: any) {
+      console.warn('[OAuthDiscovery] (SU) assigned_instagram_accounts error:', err.message);
+    }
   }
 
   // --------------------------------------------------------------------------

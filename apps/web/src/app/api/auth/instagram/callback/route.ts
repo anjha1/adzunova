@@ -75,9 +75,10 @@ export async function GET(req: NextRequest) {
     console.log('[OAuthCallback] Step 4: Exchanging for long-lived access token...');
     const longTokenRes = await exchangeForLongLivedToken(shortTokenRes.data.access_token);
     const longLivedToken = longTokenRes.data.access_token;
+    // System-user tokens may not return expires_in; handle nullable expiry
     const expiresAt = longTokenRes.data.expires_in
       ? new Date(Date.now() + longTokenRes.data.expires_in * 1000)
-      : new Date(Date.now() + 60 * 24 * 60 * 60 * 1000);
+      : null; // null = token does not have a defined expiry (system-user tokens)
 
     console.log('[OAuthCallback] Step 4 Complete: Long-lived token exchange result', {
       status: longTokenRes.status,
@@ -88,9 +89,10 @@ export async function GET(req: NextRequest) {
     });
 
     // 6. Resolve Instagram accounts using unified priority discovery:
-    //    (a) debug_token granular_scopes -> target_ids
-    //    (b) Business Portfolio assets (/me/businesses)
-    //    (c) Legacy fallback: Facebook Page -> instagram_business_account
+    //    For SYSTEM_USER: (SU) /me/assigned_instagram_accounts first
+    //    Then: (a) debug_token granular_scopes -> target_ids
+    //    Then: (b) Business Portfolio assets (/me/businesses)
+    //    Then: (c) Legacy fallback: Facebook Page -> instagram_business_account
     console.log('[OAuthCallback] Step 5: Resolving Instagram accounts across discovery methods...');
     const discovery = await resolveInstagramAccountsUnified(longLivedToken);
 
@@ -157,7 +159,7 @@ export async function GET(req: NextRequest) {
           token_ciphertext: encrypted.ciphertext,
           token_nonce: encrypted.nonce,
           key_id: encrypted.keyId,
-          token_type: 'long_lived_user',
+          token_type: discovery.debugToken.tokenType === 'SYSTEM_USER' ? 'system_user' : 'long_lived_user',
           expires_at: expiresAt,
           created_at: new Date(),
           rotated_at: null,
