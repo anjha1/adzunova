@@ -10,7 +10,7 @@ export interface NavItem {
 export const CREATOR_NAV_ITEMS: NavItem[] = [
   // Main
   { title: 'Overview', href: '/creator/dashboard', iconName: 'Home', section: 'main' },
-  { title: 'Offers & Deals', href: '/creator/offers', iconName: 'Inbox', badge: 'New', badgeVariant: 'success', section: 'main' },
+  { title: 'Offers & Deals', href: '/creator/offers', iconName: 'Inbox', section: 'main' },
   { title: 'Campaigns', href: '/creator/campaigns', iconName: 'Briefcase', section: 'main' },
   { title: 'Messages', href: '/creator/messages', iconName: 'MessageSquare', section: 'main' },
 
@@ -26,7 +26,7 @@ export const CREATOR_NAV_ITEMS: NavItem[] = [
   // Insights & Intelligence
   { title: 'Analytics', href: '/creator/analytics', iconName: 'BarChart2', section: 'insights' },
   { title: 'Trend Explorer', href: '/creator/analytics/trends', iconName: 'Flame', section: 'insights' },
-  { title: 'Growth & AI', href: '/creator/growth', iconName: 'Sparkles', badge: 'AI', badgeVariant: 'warning', section: 'insights' },
+  { title: 'Growth & Optimization', href: '/creator/growth', iconName: 'TrendingUp', section: 'insights' },
   { title: 'Reviews & Trust', href: '/creator/trust', iconName: 'ShieldCheck', section: 'insights' },
   { title: 'Auto Media Kit', href: '/creator/media-kit', iconName: 'Share2', section: 'insights' },
 
@@ -38,7 +38,7 @@ export const CREATOR_NAV_ITEMS: NavItem[] = [
 
 export const MOBILE_PRIMARY_TABS = [
   { title: 'Home', href: '/creator/dashboard', iconName: 'Home' },
-  { title: 'Offers', href: '/creator/offers', iconName: 'Inbox', badge: 2 },
+  { title: 'Offers', href: '/creator/offers', iconName: 'Inbox' },
   { title: 'Campaigns', href: '/creator/campaigns', iconName: 'Briefcase' },
   { title: 'Wallet', href: '/creator/earnings', iconName: 'CreditCard' },
   { title: 'More', href: '#more', iconName: 'Menu' },

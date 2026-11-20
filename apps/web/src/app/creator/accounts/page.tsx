@@ -37,6 +37,7 @@ interface CapabilityState {
 
 export default function ConnectedAccountsPage() {
   const [accounts, setAccounts] = useState<SocialAccountItem[]>([]);
+  const [latestData, setLatestData] = useState<any>(null);
   const [selectedIgId, setSelectedIgId] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
   const [disconnecting, setDisconnecting] = useState(false);
@@ -91,14 +92,15 @@ export default function ConnectedAccountsPage() {
     }
   }, []);
 
-  // Fetch capabilities and connected accounts
+  // Fetch capabilities, connected accounts, and latest read model
   useEffect(() => {
     async function loadData() {
       try {
         setLoading(true);
-        const [capRes, accRes] = await Promise.all([
+        const [capRes, accRes, latestRes] = await Promise.all([
           fetch('/api/capabilities'),
           fetch('/api/creator/social-accounts'),
+          fetch('/api/creator/social-account-latest').catch(() => null),
         ]);
 
         if (capRes.ok) {
@@ -111,6 +113,11 @@ export default function ConnectedAccountsPage() {
         if (accRes.ok) {
           const accData = await accRes.json();
           setAccounts(accData.accounts || []);
+        }
+
+        if (latestRes && latestRes.ok) {
+          const lData = await latestRes.json();
+          setLatestData(lData);
         }
       } catch (err) {
         console.warn('Failed to load accounts data:', err);
@@ -297,8 +304,8 @@ export default function ConnectedAccountsPage() {
         />
         <StatCard
           label="Audience Quality Score"
-          value={accounts.length === 0 ? '—' : 'Available with sync'}
-          subValue="Calculated from real API events"
+          value={accounts.length === 0 ? '—' : (latestData?.audienceScoreDisplay || 'Not enough data')}
+          subValue={latestData?.isScoreComplete ? 'Verified organic audience' : 'Calculated from real API events'}
           icon={<ShellIcon name="Sparkles" size={16} />}
         />
       </div>
@@ -393,13 +400,21 @@ export default function ConnectedAccountsPage() {
                   <div>
                     <span className="text-muted-foreground">Views Insights: </span>
                     <span className="font-semibold text-foreground">
-                      {instagramAccount.capabilities?.views_insights ? 'Supported' : 'Unavailable'}
+                      {instagramAccount.capabilities?.views_insights || (latestData?.totalViews24h !== null && latestData?.totalViews24h !== undefined)
+                        ? `Supported (${latestData?.totalViews24h ?? 0} views/24h)`
+                        : (instagramAccount.capabilities?.errors?.views_insights
+                            ? `Unavailable (${instagramAccount.capabilities.errors.views_insights})`
+                            : 'Unavailable')}
                     </span>
                   </div>
                   <div>
                     <span className="text-muted-foreground">Demographics: </span>
                     <span className="font-semibold text-foreground">
-                      {instagramAccount.capabilities?.demographics_gender_age ? 'Supported' : 'Unavailable'}
+                      {instagramAccount.capabilities?.demographics_gender_age || latestData?.demographics
+                        ? 'Supported'
+                        : (instagramAccount.capabilities?.errors?.demographics_gender_age
+                            ? `Unavailable (${instagramAccount.capabilities.errors.demographics_gender_age})`
+                            : 'Unavailable')}
                     </span>
                   </div>
                   <div className="col-span-2">

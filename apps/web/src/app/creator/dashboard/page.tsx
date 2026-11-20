@@ -2,8 +2,7 @@ import React from 'react';
 import Link from 'next/link';
 import { getSession } from '@/lib/auth';
 import { ShellIcon } from '@/components/creator/shell/shell-icons';
-import { getSocialAccountsByCreatorId } from '@/lib/social/social-repository';
-import { getLatestAudienceSnapshot } from '@/lib/social/metrics-store';
+import { getSocialAccountLatest } from '@/lib/social/latest-state';
 
 export default async function CreatorDashboardPage() {
   const session = await getSession();
@@ -11,34 +10,28 @@ export default async function CreatorDashboardPage() {
   const user = session?.user;
   const creatorId = user?.id;
 
-  // Real data from DB
-  const socialAccounts = creatorId ? await getSocialAccountsByCreatorId(creatorId) : [];
-  const primaryAccount = socialAccounts.find((a) => a.provider === 'instagram' && a.status === 'ACTIVE') || socialAccounts[0];
-  const audienceSnapshot = primaryAccount ? await getLatestAudienceSnapshot(primaryAccount.id) : null;
+  // Real data from DB through single source of truth read model
+  const latest = creatorId ? await getSocialAccountLatest(creatorId) : null;
+  const hasConnectedAccount = latest?.hasConnectedAccount ?? false;
+  const primaryAccount = latest?.account ?? null;
+  const totalFollowers = latest?.totalReach ?? 0;
+  const socialAccounts = latest?.accounts ?? [];
 
   // Real computed totals
-  const totalFollowers = socialAccounts.reduce((sum, a) => sum + Number(a.followers_count || 0), 0);
   const totalEarnings = 0;
   const pendingEscrow = 0;
   const activeCampaigns = 0;
 
-  // Audience score computed strictly from real snapshot
-  const audienceScore = audienceSnapshot && audienceSnapshot.totalAudienceSampled > 0
-    ? Math.round(audienceSnapshot.share_18_plus * 80 + audienceSnapshot.gender_known_share * 20)
-    : null;
-
   // Real action items generated from platform states
   const actionItems: { id: string; title: string; brandName: string; type: 'warning' | 'info'; href: string }[] = [];
-  for (const acc of socialAccounts) {
-    if (acc.status === 'RECONNECT_REQUIRED') {
-      actionItems.push({
-        id: `reconnect_${acc.id}`,
-        title: `Instagram token expired: Reconnect @${acc.username} to restore live analytics sync`,
-        brandName: 'System Notice',
-        type: 'warning',
-        href: '/creator/accounts',
-      });
-    }
+  if (primaryAccount && primaryAccount.status === 'RECONNECT_REQUIRED') {
+    actionItems.push({
+      id: `reconnect_${primaryAccount.id}`,
+      title: `Instagram token expired: Reconnect @${primaryAccount.username} to restore live analytics sync`,
+      brandName: 'System Notice',
+      type: 'warning',
+      href: '/creator/accounts',
+    });
   }
 
   const displayName = user?.displayName || profile?.displayName || user?.email?.split('@')[0] || 'Creator';
@@ -177,11 +170,15 @@ export default async function CreatorDashboardPage() {
               <ShellIcon name="Sparkles" size={16} />
             </div>
           </div>
-          <div className="text-2xl desk:text-3xl font-black text-foreground mt-3">
-            {audienceScore !== null ? `${audienceScore}/100` : '—'}
+          <div className="text-xl desk:text-2xl font-black text-foreground mt-3">
+            {hasConnectedAccount ? latest?.audienceScoreDisplay : '—'}
           </div>
           <div className="text-xs text-muted-foreground mt-1">
-            {audienceScore !== null ? 'Verified organic audience' : 'Pending social account sync'}
+            {hasConnectedAccount
+              ? latest?.isScoreComplete
+                ? 'Verified organic audience'
+                : 'Minimum history required'
+              : 'Connect account to verify'}
           </div>
         </div>
       </div>
@@ -195,7 +192,7 @@ export default async function CreatorDashboardPage() {
                 Connected Social Accounts
               </h2>
               <p className="text-xs text-muted-foreground">
-                {socialAccounts.length > 0
+                {hasConnectedAccount
                   ? `Total Verified Reach: ${totalFollowers.toLocaleString()} followers`
                   : 'Official OAuth API status & verified follower metrics'}
               </p>

@@ -125,7 +125,7 @@ export function CreatorSidebar({ collapsed, onToggleCollapse }: CreatorSidebarPr
             <span>Creator Workspace</span>
           </div>
           <p className="text-[11px] text-muted-foreground">
-            ADZUNOVA Advertising Marketplace v2.0
+            ADZUNOVA Creator Workspace
           </p>
           <div className="pt-2 border-t border-border">
             <form action="/api/auth/logout?redirect=/auth/creator/sign-in" method="POST">

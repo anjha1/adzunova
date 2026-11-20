@@ -20,7 +20,11 @@ interface AnalyticsData {
   };
   totalReach: number;
   totalViews: number;
+  totalViews24h?: number | null;
   audienceScore: number | null;
+  audienceScoreDisplay?: string;
+  isScoreComplete?: boolean;
+  verificationLabel?: string;
   qualityEvaluation: {
     score: number | null;
     status: 'COMPLETE' | 'PARTIAL' | 'NOT_AVAILABLE';
@@ -30,10 +34,13 @@ interface AnalyticsData {
   followersSeries: { timestamp: string; value: number }[];
   viewsSeries: { timestamp: string; value: number }[];
   demographics: DerivedAudienceMetrics | null;
+  enrichedDemographics?: {
+    countries?: Array<{ countryCode: string; countryName: string; percentage: number; count: number }>;
+    genderUnknownShare?: number;
+  } | null;
 }
 
 export default function AnalyticsPage() {
-  const [timeRange, setTimeRange] = useState<'30d' | '90d' | '12m'>('30d');
   const [data, setData] = useState<AnalyticsData | null>(null);
   const [loading, setLoading] = useState(true);
 
@@ -41,7 +48,7 @@ export default function AnalyticsPage() {
     async function fetchAnalytics() {
       setLoading(true);
       try {
-        const res = await fetch(`/api/creator/analytics?range=${timeRange}`);
+        const res = await fetch('/api/creator/analytics');
         if (res.ok) {
           const json = await res.json();
           setData(json);
@@ -53,7 +60,7 @@ export default function AnalyticsPage() {
       }
     }
     fetchAnalytics();
-  }, [timeRange]);
+  }, []);
 
   if (loading) {
     return (
@@ -80,16 +87,9 @@ export default function AnalyticsPage() {
         action={
           hasConnected ? (
             <div className="flex items-center gap-2">
-              <span className="text-xs text-muted-foreground">Range:</span>
-              <select
-                value={timeRange}
-                onChange={(e) => setTimeRange(e.target.value as any)}
-                className="text-xs rounded-lg border border-border bg-card px-2.5 py-1.5 text-foreground"
-              >
-                <option value="30d">Last 30 Days</option>
-                <option value="90d">Last 90 Days</option>
-                <option value="12m">Last 12 Months</option>
-              </select>
+              <span className="text-xs font-semibold px-3 py-1.5 rounded-xl bg-card border border-border text-foreground shadow-xs">
+                Period: Last 24h (Meta API)
+              </span>
             </div>
           ) : undefined
         }
@@ -125,8 +125,8 @@ export default function AnalyticsPage() {
         />
         <StatCard
           label="24h View Impressions"
-          value={hasConnected && data?.totalViews ? data.totalViews.toLocaleString() : '—'}
-          subValue={hasConnected ? 'Total views in selected period' : 'Awaiting data sync'}
+          value={hasConnected && data?.totalViews !== undefined && data?.totalViews !== null ? data.totalViews.toLocaleString() : '—'}
+          subValue={hasConnected ? 'Last 24h (Meta API)' : 'Awaiting data sync'}
           icon={<ShellIcon name="Eye" size={16} />}
         />
         <StatCard
@@ -141,13 +141,11 @@ export default function AnalyticsPage() {
         />
         <StatCard
           label="Audience Quality Score"
-          value={quality?.score !== null && quality?.score !== undefined ? `${quality.score}/100` : '—'}
+          value={data?.audienceScoreDisplay || 'Not enough data'}
           subValue={
-            quality?.status === 'PARTIAL'
-              ? 'Partial (some factors pending)'
-              : quality?.status === 'COMPLETE'
+            quality?.status === 'COMPLETE'
               ? 'Verified organic audience'
-              : 'Not enough data'
+              : 'Minimum history required'
           }
           icon={<ShellIcon name="Sparkles" size={16} />}
         />
@@ -168,11 +166,10 @@ export default function AnalyticsPage() {
             <div className="p-4 rounded-2xl bg-amber-500/10 border border-amber-500/20 text-xs">
               <div className="flex items-center gap-2 font-bold text-amber-800 dark:text-amber-300 mb-1">
                 <ShellIcon name="AlertCircle" size={14} />
-                <span>Audience Quality Score is Partial</span>
+                <span>Audience Quality Score is Pending Minimum History</span>
               </div>
-              <p className="text-amber-900/80 dark:text-amber-200/80">
-                Calculated only from available data points. Missing factors:{' '}
-                {quality.missingFactors.join(', ')}. Score will adjust as sync history builds.
+              <p className="text-amber-900/80 dark:text-amber-200/80 leading-relaxed">
+                Adzunova requires a full demographics snapshot, 24h view impressions, and at least 3 historical progression points before publishing a score. Pending: {quality.missingFactors.join(', ')}.
               </p>
             </div>
           )}
@@ -278,17 +275,22 @@ export default function AnalyticsPage() {
             <div className="flex items-center justify-between pb-3 border-b border-border">
               <div>
                 <h3 className="font-bold text-sm text-foreground">Top Audience Geography</h3>
-                <p className="text-xs text-muted-foreground">Country breakdown from follower insights</p>
+                <p className="text-xs text-muted-foreground">Share of followers with a known country, Meta estimate</p>
               </div>
             </div>
 
-            {demographics?.hasCountryBreakdown && demographics.countryDistribution.length > 0 ? (
+            {demographics?.hasCountryBreakdown && (data?.enrichedDemographics?.countries?.length || demographics.countryDistribution.length > 0) ? (
               <div className="grid grid-cols-2 desk:grid-cols-5 gap-3 pt-2">
-                {demographics.countryDistribution.map((c) => (
-                  <div key={c.countryCode} className="p-3 rounded-2xl bg-muted/30 border border-border text-center">
-                    <div className="font-black text-lg text-foreground">{c.countryCode}</div>
-                    <div className="text-xs text-muted-foreground mt-0.5">
-                      {Math.round(c.percentage * 100)}% ({c.count.toLocaleString()})
+                {(data?.enrichedDemographics?.countries || demographics.countryDistribution).map((c: any) => (
+                  <div key={c.countryCode} className="p-3.5 rounded-2xl bg-muted/30 border border-border text-center">
+                    <div className="font-bold text-sm text-foreground truncate" title={c.countryName || c.countryCode}>
+                      {c.countryName ? `${c.countryName} (${c.countryCode})` : c.countryCode}
+                    </div>
+                    <div className="text-xs font-semibold text-primary mt-1">
+                      {Math.round(c.percentage * 100)}%
+                    </div>
+                    <div className="text-[11px] text-muted-foreground mt-0.5">
+                      {c.count.toLocaleString()} followers
                     </div>
                   </div>
                 ))}

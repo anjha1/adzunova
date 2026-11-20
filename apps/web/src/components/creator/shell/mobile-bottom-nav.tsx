@@ -16,7 +16,7 @@ export function MobileBottomNav({ onOpenMore }: MobileBottomNavProps) {
   return (
     <nav className="desk:hidden fixed bottom-0 left-0 right-0 z-40 bg-card/95 backdrop-blur-md border-t border-border pb-safe">
       <div className="flex items-center justify-around h-16 px-1">
-        {MOBILE_PRIMARY_TABS.map((tab) => {
+        {MOBILE_PRIMARY_TABS.map((tab: any) => {
           const isMore = tab.href === '#more';
           const isActive = !isMore && (pathname === tab.href || (tab.href !== '/creator/dashboard' && pathname?.startsWith(tab.href)));
 

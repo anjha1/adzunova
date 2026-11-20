@@ -1,16 +1,32 @@
 'use client';
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import Link from 'next/link';
 import { PageHeader, StatCard } from '@/components/creator/ui';
 import { ShellIcon } from '@/components/creator/shell/shell-icons';
 
 export default function GrowthPage() {
-  const [targetIndustry, setTargetIndustry] = useState('Consumer Tech & Hardware');
+  const [latest, setLatest] = useState<any>(null);
+  const [targetIndustry, setTargetIndustry] = useState('');
   const [pitchText, setPitchText] = useState(
-    'Hi team! I create focused content in the technology space. I would love to collaborate with your brand on an authentic product feature. View my verified rate card and availability on Adzunova.'
+    'Hi team! I create authentic content and would love to collaborate with your brand on an upcoming campaign.'
   );
   const [copied, setCopied] = useState(false);
+
+  useEffect(() => {
+    async function loadLatest() {
+      try {
+        const res = await fetch('/api/creator/social-account-latest');
+        if (res.ok) {
+          const data = await res.json();
+          setLatest(data);
+        }
+      } catch (err) {
+        console.warn('Failed to load social latest:', err);
+      }
+    }
+    loadLatest();
+  }, []);
 
   const handleCopy = () => {
     navigator.clipboard.writeText(pitchText);
@@ -28,8 +44,8 @@ export default function GrowthPage() {
       <div className="grid grid-cols-1 desk:grid-cols-3 gap-4">
         <StatCard
           label="Profile Completeness"
-          value="—"
-          subValue="Connect accounts to calculate"
+          value={latest?.hasConnectedAccount ? '60%' : '20%'}
+          subValue={latest?.hasConnectedAccount ? 'OAuth channel connected' : 'Connect accounts to calculate'}
           icon={<ShellIcon name="Award" size={16} />}
         />
         <StatCard
@@ -40,8 +56,14 @@ export default function GrowthPage() {
         />
         <StatCard
           label="Audience Quality Tier"
-          value="—"
-          subValue="Pending social account sync"
+          value={latest?.hasConnectedAccount ? latest.audienceScoreDisplay : '—'}
+          subValue={
+            latest?.isScoreComplete
+              ? 'Verified organic tier'
+              : latest?.hasConnectedAccount
+              ? 'Minimum history required'
+              : 'Pending social account sync'
+          }
           icon={<ShellIcon name="ShieldCheck" size={16} />}
         />
       </div>
@@ -51,19 +73,31 @@ export default function GrowthPage() {
         <div className="p-5 rounded-2xl bg-card border border-border shadow-xs space-y-4">
           <div className="flex items-center justify-between pb-2 border-b border-border">
             <h3 className="text-sm font-bold text-foreground">Profile Readiness Checklist</h3>
-            <span className="text-xs font-bold text-muted-foreground">Setup in progress</span>
+            <span className="text-xs font-bold text-muted-foreground">
+              {latest?.hasConnectedAccount ? 'Channels linked' : 'Setup in progress'}
+            </span>
           </div>
 
           <div className="space-y-2.5 text-xs">
-            <div className="flex items-center justify-between p-2 rounded-xl bg-muted/40 border border-border">
-              <div className="flex items-center gap-2 text-foreground">
-                <ShellIcon name="AlertCircle" size={14} className="text-amber-500" />
-                <span>Connect your primary Instagram or YouTube account</span>
+            {latest?.hasConnectedAccount ? (
+              <div className="flex items-center justify-between p-2 rounded-xl bg-emerald-500/10 border border-emerald-500/20">
+                <div className="flex items-center gap-2 text-foreground">
+                  <ShellIcon name="CheckCircle" size={14} className="text-emerald-500" />
+                  <span>Connected account: @{latest.account?.username}</span>
+                </div>
+                <span className="font-bold text-emerald-800 dark:text-emerald-300 text-xs">Verified</span>
               </div>
-              <Link href="/creator/accounts" className="font-bold text-indigo-600 dark:text-indigo-400 hover:underline">
-                Connect →
-              </Link>
-            </div>
+            ) : (
+              <div className="flex items-center justify-between p-2 rounded-xl bg-muted/40 border border-border">
+                <div className="flex items-center gap-2 text-foreground">
+                  <ShellIcon name="AlertCircle" size={14} className="text-amber-500" />
+                  <span>Connect your primary Instagram or YouTube account</span>
+                </div>
+                <Link href="/creator/accounts" className="font-bold text-indigo-600 dark:text-indigo-400 hover:underline">
+                  Connect →
+                </Link>
+              </div>
+            )}
             <div className="flex items-center justify-between p-2 rounded-xl bg-muted/40 border border-border">
               <div className="flex items-center gap-2 text-foreground">
                 <ShellIcon name="AlertCircle" size={14} className="text-amber-500" />
@@ -84,7 +118,7 @@ export default function GrowthPage() {
               <h3 className="text-sm font-bold text-foreground">Brand Pitch Template</h3>
             </div>
             <span className="text-[10px] font-bold px-2 py-0.5 rounded bg-muted text-muted-foreground">
-              Standard Template
+              AI not configured
             </span>
           </div>
 
@@ -96,6 +130,7 @@ export default function GrowthPage() {
                 onChange={(e) => setTargetIndustry(e.target.value)}
                 className="w-full text-xs rounded-xl border border-border bg-background px-3 py-2 text-foreground"
               >
+                <option value="">Select primary niche...</option>
                 <option value="Consumer Tech & Hardware">Consumer Tech & Hardware</option>
                 <option value="Fitness & Health">Fitness & Health</option>
                 <option value="Fintech & Apps">Fintech & Apps</option>

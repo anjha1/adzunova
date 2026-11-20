@@ -324,10 +324,19 @@ export async function syncInstagramAccount(
     // 7. Calculate Next Sync Date with Jitter and Reset Failures
     const nextSyncAt = calculateNextSyncDate(account.sync_tier, 0);
 
+    const updatedCapabilities = {
+      ...(account.capabilities || {}),
+      basic_profile: true,
+      views_insights: views24h !== undefined ? true : !!account.capabilities?.views_insights,
+      demographics_gender_age: demographicsRan ? true : !!account.capabilities?.demographics_gender_age,
+      demographics_country: demographicsRan ? true : !!account.capabilities?.demographics_country,
+    };
+
     // 8. Update Social Account State
     await updateSocialAccountSyncState(accountId, {
       followers_count: newFollowers,
       media_count: newMediaCount,
+      capabilities: updatedCapabilities,
       last_synced_at: now,
       next_sync_at: nextSyncAt,
       failure_count: 0,

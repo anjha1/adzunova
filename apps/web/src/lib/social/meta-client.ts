@@ -663,22 +663,24 @@ export async function probeAccountCapabilities(
     if (res.ok && data.username) {
       result.basic_profile = true;
     } else if (data.error) {
-      errors.basic_profile = scrubSensitiveData(data.error.message || 'Profile check failed');
+      const errCode = data.error.code ? ` (Code ${data.error.code})` : '';
+      errors.basic_profile = `Meta API error${errCode}: ${scrubSensitiveData(data.error.message || 'Profile check failed')}`;
     }
   } catch {
     errors.basic_profile = 'Network error during basic_profile probe';
   }
 
-  // 2. Probe views insights
+  // 2. Probe views insights (requires metric_type=total_value for views)
   try {
-    const viewsUrl = `${GRAPH_BASE_URL}/${igAccountId}/insights?metric=views&period=day&access_token=${accessToken}&appsecret_proof=${appsecretProof}`;
+    const viewsUrl = `${GRAPH_BASE_URL}/${igAccountId}/insights?metric=views&metric_type=total_value&period=day&access_token=${accessToken}&appsecret_proof=${appsecretProof}`;
     const res = await fetch(viewsUrl);
     const data = await res.json();
     if (res.ok && Array.isArray(data.data) && data.data.length > 0) {
       result.views_insights = true;
       result.views_sample = data.data[0]?.total_value?.value ?? null;
     } else if (data.error) {
-      errors.views_insights = scrubSensitiveData(data.error.message || 'Views insights failed');
+      const errCode = data.error.code ? ` (Code ${data.error.code}${data.error.error_subcode ? `, Subcode ${data.error.error_subcode}` : ''})` : '';
+      errors.views_insights = `Meta API error${errCode}: ${scrubSensitiveData(data.error.message || 'Views insights failed')}`;
     }
   } catch {
     errors.views_insights = 'Network error during views_insights probe';
@@ -693,7 +695,8 @@ export async function probeAccountCapabilities(
       result.demographics_gender_age = true;
       result.gender_sample_found = true;
     } else if (data.error) {
-      errors.demographics_gender_age = scrubSensitiveData(data.error.message || 'Demographics gender_age failed');
+      const errCode = data.error.code ? ` (Code ${data.error.code}${data.error.error_subcode ? `, Subcode ${data.error.error_subcode}` : ''})` : '';
+      errors.demographics_gender_age = `Meta API error${errCode}: ${scrubSensitiveData(data.error.message || 'Demographics gender_age failed')}`;
     }
   } catch {
     errors.demographics_gender_age = 'Network error during demographics_gender_age probe';
@@ -707,7 +710,8 @@ export async function probeAccountCapabilities(
     if (res.ok && Array.isArray(data.data) && data.data.length > 0) {
       result.demographics_country = true;
     } else if (data.error) {
-      errors.demographics_country = scrubSensitiveData(data.error.message || 'Demographics country failed');
+      const errCode = data.error.code ? ` (Code ${data.error.code}${data.error.error_subcode ? `, Subcode ${data.error.error_subcode}` : ''})` : '';
+      errors.demographics_country = `Meta API error${errCode}: ${scrubSensitiveData(data.error.message || 'Demographics country failed')}`;
     }
   } catch {
     errors.demographics_country = 'Network error during demographics_country probe';

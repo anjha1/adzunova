@@ -20,7 +20,13 @@ interface MediaKitData {
   totalReach: number;
   totalViews: number;
   audienceScore: number | null;
+  audienceScoreDisplay?: string;
+  isScoreComplete?: boolean;
+  verificationLabel?: string;
   demographics: DerivedAudienceMetrics | null;
+  enrichedDemographics?: {
+    countries?: Array<{ countryCode: string; countryName: string; percentage: number; count: number }>;
+  } | null;
 }
 
 export default function MediaKitPage() {
@@ -97,7 +103,7 @@ export default function MediaKitPage() {
           {/* Header Card */}
           <div className="flex flex-col desk:flex-row desk:items-center justify-between gap-4 pb-6 border-b border-border">
             <div className="flex items-center gap-4">
-              <div className="w-16 h-16 rounded-2xl bg-gradient-to-tr from-amber-500 to-rose-500 text-white flex items-center justify-center font-black text-xl shadow-md">
+              <div className="w-16 h-16 rounded-2xl bg-primary text-primary-foreground flex items-center justify-center font-black text-xl shadow-md">
                 IG
               </div>
               <div>
@@ -108,10 +114,9 @@ export default function MediaKitPage() {
                   </span>
                 </div>
                 <p className="text-xs text-muted-foreground mt-1">
-                  Verified via Meta Graph API OAuth &bull;{' '}
-                  {account?.lastSyncedAt
-                    ? `Verified on ${new Date(account.lastSyncedAt).toLocaleDateString()}`
-                    : 'Initial sync active'}
+                  {data?.verificationLabel || (account?.lastSyncedAt
+                    ? `Verified via Instagram API on ${new Date(account.lastSyncedAt).toLocaleDateString()}`
+                    : 'Verified via Instagram API')}
                 </p>
               </div>
             </div>
@@ -157,10 +162,10 @@ export default function MediaKitPage() {
             <div className="p-4 rounded-2xl bg-muted/30 border border-border">
               <span className="text-xs text-muted-foreground font-semibold">Audience Quality</span>
               <div className="text-2xl font-black text-foreground mt-1">
-                {data?.audienceScore ? `${data.audienceScore}/100` : '—'}
+                {data?.audienceScoreDisplay || (data?.isScoreComplete && data?.audienceScore ? `${data.audienceScore}/100` : 'Not enough data')}
               </div>
               <span className="text-[11px] text-muted-foreground">
-                {data?.audienceScore ? 'Meta Verified' : 'Pending sync'}
+                {data?.isScoreComplete ? 'Verified organic audience' : 'Minimum history required'}
               </span>
             </div>
           </div>
@@ -200,12 +205,15 @@ export default function MediaKitPage() {
                 <h3 className="font-bold text-xs uppercase tracking-wider text-foreground">
                   Top Audience Geography
                 </h3>
-                {demographics.hasCountryBreakdown && demographics.countryDistribution.length > 0 ? (
+                <p className="text-[11px] text-muted-foreground">Share of followers with a known country, Meta estimate</p>
+                {demographics.hasCountryBreakdown && (data?.enrichedDemographics?.countries?.length || demographics.countryDistribution.length > 0) ? (
                   <div className="grid grid-cols-2 gap-2 pt-1">
-                    {demographics.countryDistribution.slice(0, 6).map((c) => (
+                    {(data?.enrichedDemographics?.countries || demographics.countryDistribution).slice(0, 6).map((c: any) => (
                       <div key={c.countryCode} className="p-2.5 rounded-xl bg-card border border-border flex justify-between items-center text-xs">
-                        <span className="font-bold text-foreground">{c.countryCode}</span>
-                        <span className="text-muted-foreground">{Math.round(c.percentage * 100)}%</span>
+                        <span className="font-bold text-foreground truncate" title={c.countryName || c.countryCode}>
+                          {c.countryName ? `${c.countryName} (${c.countryCode})` : c.countryCode}
+                        </span>
+                        <span className="text-muted-foreground ml-2">{Math.round(c.percentage * 100)}%</span>
                       </div>
                     ))}
                   </div>

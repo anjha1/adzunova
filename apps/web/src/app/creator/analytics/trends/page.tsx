@@ -66,8 +66,8 @@ export default function TrendsPage() {
         {trends.length === 0 ? (
           <EmptyState
             icon={<ShellIcon name="Flame" size={28} className="text-indigo-600 dark:text-indigo-400" />}
-            title="Trend Signals Not Available Yet"
-            description="Advertiser inquiry signals and surging creator topics are aggregated weekly once campaign inquiry volume reaches statistical significance."
+            title="Trend data is not available yet"
+            description="Market demand signals will be shown once sufficient marketplace volume is recorded."
           />
         ) : (
           <div className="space-y-4">

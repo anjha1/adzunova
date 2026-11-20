@@ -21,34 +21,41 @@ export function CreatorHeader({
   const [userEmail, setUserEmail] = useState<string | undefined>(initialEmail);
   const [displayName, setDisplayName] = useState<string | undefined>(initialDisplayName);
   const [avatarUrl, setAvatarUrl] = useState<string | undefined>(initialAvatarUrl);
-  const [isVerified, setIsVerified] = useState<boolean>(initialVerified ?? true);
+  const [verificationLabel, setVerificationLabel] = useState<string | null>(null);
+  const [unreadNotifications, setUnreadNotifications] = useState<number>(0);
   const [imgError, setImgError] = useState(false);
   const [isMenuOpen, setIsMenuOpen] = useState(false);
   const menuRef = useRef<HTMLDivElement>(null);
 
   // Load real Google/OAuth profile data client-side if not supplied via props
   useEffect(() => {
-    if (initialEmail || initialDisplayName || initialAvatarUrl) {
-      setUserEmail(initialEmail);
-      setDisplayName(initialDisplayName);
-      setAvatarUrl(initialAvatarUrl);
-      setIsVerified(initialVerified ?? true);
-      return;
-    }
-
     let isMounted = true;
     async function loadUserSession() {
       try {
-        const res = await fetch('/api/auth/me');
-        if (!res.ok) return;
-        const data = await res.json();
-        if (isMounted && data?.user) {
-          const u = data.user;
-          const p = data.profile;
-          setUserEmail(u.email);
-          setDisplayName(p?.displayName || u.displayName);
-          setAvatarUrl(p?.avatarUrl || u.avatarUrl);
-          setIsVerified(u.emailVerified ?? true);
+        const [authRes, socialRes] = await Promise.all([
+          fetch('/api/auth/me'),
+          fetch('/api/creator/social-account-latest').catch(() => null),
+        ]);
+
+        if (authRes.ok && isMounted) {
+          const data = await authRes.json();
+          if (data?.user) {
+            const u = data.user;
+            const p = data.profile;
+            setUserEmail(u.email);
+            setDisplayName(p?.displayName || u.displayName);
+            setAvatarUrl(p?.avatarUrl || u.avatarUrl);
+          }
+        }
+
+        if (socialRes && socialRes.ok && isMounted) {
+          const sData = await socialRes.json();
+          if (sData.hasConnectedAccount) {
+            setVerificationLabel('Instagram verified');
+          } else {
+            setVerificationLabel(null);
+          }
+          setUnreadNotifications(sData.unreadNotificationsCount || 0);
         }
       } catch {
         // Fallback gracefully
@@ -112,7 +119,9 @@ export function CreatorHeader({
           className="relative p-2 rounded-xl text-muted-foreground hover:text-foreground hover:bg-muted transition"
         >
           <ShellIcon name="Bell" size={20} />
-          <span className="absolute top-1.5 right-1.5 w-2 h-2 rounded-full bg-indigo-600 ring-2 ring-card" />
+          {unreadNotifications > 0 && (
+            <span className="absolute top-1.5 right-1.5 w-2 h-2 rounded-full bg-indigo-600 ring-2 ring-card" />
+          )}
         </button>
 
         {/* Dark/Light Theme Toggle */}
@@ -133,10 +142,12 @@ export function CreatorHeader({
               <div className="text-xs font-bold text-foreground truncate max-w-[140px]">
                 {displayName || userEmail || 'Creator'}
               </div>
-              <div className="text-[10px] flex items-center justify-end gap-1 font-semibold text-emerald-700 dark:text-emerald-400">
-                <span className="w-1.5 h-1.5 rounded-full bg-emerald-500" />
-                <span>{isVerified ? 'Verified Creator' : 'Verification Active'}</span>
-              </div>
+              {verificationLabel && (
+                <div className="text-[10px] flex items-center justify-end gap-1 font-semibold text-emerald-700 dark:text-emerald-400">
+                  <span className="w-1.5 h-1.5 rounded-full bg-emerald-500" />
+                  <span>{verificationLabel}</span>
+                </div>
+              )}
             </div>
 
             {avatarUrl && !imgError ? (
