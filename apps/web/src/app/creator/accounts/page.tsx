@@ -1,8 +1,10 @@
 'use client';
 
 import React, { useState, useEffect } from 'react';
+import Link from 'next/link';
 import { PageHeader, StatCard } from '@/components/creator/ui';
 import { ShellIcon } from '@/components/creator/shell/shell-icons';
+import { getSocialErrorDetails, SocialErrorDetails } from '@/lib/social/error-taxonomy';
 
 interface SocialAccountItem {
   id: string;
@@ -39,7 +41,11 @@ export default function ConnectedAccountsPage() {
   const [loading, setLoading] = useState(true);
   const [disconnecting, setDisconnecting] = useState(false);
   const [syncing, setSyncing] = useState(false);
-  const [feedback, setFeedback] = useState<{ type: 'success' | 'error'; message: string } | null>(null);
+  const [feedback, setFeedback] = useState<{
+    type: 'success' | 'error';
+    message: string;
+    details?: SocialErrorDetails;
+  } | null>(null);
 
   const [instagramCap, setInstagramCap] = useState<CapabilityState>({
     configured: false,
@@ -70,21 +76,16 @@ export default function ConnectedAccountsPage() {
           message: `Successfully connected ${count} Instagram professional accounts (active: @${username || 'selected'}). Initial sync complete.`,
         });
       } else if (error) {
-        let msg = message ? decodeURIComponent(message) : `Connection error: ${error}`;
-        if (error === 'user_denied') {
-          msg = 'Meta connection was cancelled or permission was denied.';
-        } else if (error === 'no_instagram_account_granted') {
-          msg = 'No Instagram account was selected during Meta consent. Please reconnect and select your Instagram account.';
-        } else if (error === 'account_not_professional') {
-          msg = 'The selected Instagram account is not a Professional (Creator or Business) account. In your Instagram app, go to Settings > Account type and switch to Professional.';
-        } else if (error === 'meta_api_error') {
-          msg = message ? decodeURIComponent(message) : 'Meta Graph API returned an error. Please try again.';
-        } else if (error === 'server_error') {
-          msg = message ? decodeURIComponent(message) : 'Server error while finalizing connection. Please try again.';
-        }
+        const details = getSocialErrorDetails(error, {
+          message: message ? decodeURIComponent(message) : undefined,
+          incidentId: params.get('incident_id'),
+          metaCode: params.get('meta_code'),
+          metaSubcode: params.get('meta_subcode'),
+        });
         setFeedback({
           type: 'error',
-          message: msg,
+          message: details.message,
+          details,
         });
       }
     }
@@ -209,21 +210,74 @@ export default function ConnectedAccountsPage() {
         <div
           data-testid="feedback-banner"
           role="alert"
-          aria-live="polite"
-          className={`p-4 rounded-2xl flex items-center justify-between text-xs font-semibold ${
+          aria-live="assertive"
+          className={`p-4 rounded-2xl border transition-all ${
             feedback.type === 'success'
-              ? 'bg-emerald-500/10 text-emerald-800 dark:text-emerald-300 border border-emerald-500/20'
-              : 'bg-destructive/10 text-destructive border border-destructive/20'
+              ? 'bg-emerald-500/10 text-emerald-800 dark:text-emerald-300 border-emerald-500/20 flex items-center justify-between text-xs font-semibold'
+              : 'bg-destructive/10 text-destructive border-destructive/25 dark:bg-destructive/15 dark:border-destructive/30 space-y-3'
           }`}
         >
-          <span>{feedback.message}</span>
-          <button
-            onClick={() => setFeedback(null)}
-            className="p-1 hover:opacity-75 transition font-bold text-xs"
-            aria-label="Dismiss alert"
-          >
-            ✕
-          </button>
+          {feedback.type === 'success' ? (
+            <>
+              <div className="flex items-center gap-2">
+                <ShellIcon name="CheckCircle" size={16} />
+                <span>{feedback.message}</span>
+              </div>
+              <button
+                type="button"
+                onClick={() => setFeedback(null)}
+                className="p-1 hover:opacity-75 transition font-bold text-xs"
+                aria-label="Dismiss alert"
+              >
+                ✕
+              </button>
+            </>
+          ) : (
+            <>
+              <div className="flex items-start justify-between gap-3">
+                <div className="flex items-start gap-2.5">
+                  <div className="mt-0.5 text-destructive">
+                    <ShellIcon name="AlertCircle" size={18} />
+                  </div>
+                  <div className="space-y-1">
+                    <h4 className="text-xs font-bold uppercase tracking-wider text-destructive">
+                      {feedback.details?.title || 'Connection Alert'}
+                    </h4>
+                    <p className="text-xs leading-relaxed text-destructive/90 dark:text-destructive-foreground">
+                      {feedback.message}
+                    </p>
+                  </div>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => setFeedback(null)}
+                  className="p-1 text-destructive hover:opacity-75 transition font-bold text-xs"
+                  aria-label="Dismiss alert"
+                >
+                  ✕
+                </button>
+              </div>
+
+              {feedback.details && (
+                <div className="pt-2 border-t border-destructive/15 flex flex-wrap items-center justify-between gap-2 text-xs">
+                  {feedback.details.incidentId && (
+                    <span className="font-mono text-[11px] px-2 py-0.5 rounded bg-muted/60 border border-border text-foreground">
+                      ID: {feedback.details.incidentId}
+                    </span>
+                  )}
+                  {feedback.details.actionHref && (
+                    <Link
+                      href={feedback.details.actionHref}
+                      className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-destructive text-destructive-foreground hover:opacity-90 font-bold text-xs shadow-xs transition"
+                    >
+                      <span>{feedback.details.actionText}</span>
+                      <ShellIcon name="ExternalLink" size={12} />
+                    </Link>
+                  )}
+                </div>
+              )}
+            </>
+          )}
         </div>
       )}
 

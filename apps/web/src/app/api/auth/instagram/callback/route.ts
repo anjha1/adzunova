@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
+import crypto from 'crypto';
 import { getSession } from '@/lib/auth';
 import { getPublicOrigin } from '@/lib/config';
 import { validateAndConsumeOAuthState } from '@/lib/social/oauth-state';
@@ -37,12 +38,7 @@ export async function GET(req: NextRequest) {
       errorDescription: errorDescription ? scrubSensitiveData(errorDescription) : undefined,
     });
     return NextResponse.redirect(
-      new URL(
-        `/creator/accounts?error=user_denied&message=${encodeURIComponent(
-          'Meta connection was cancelled or permission was denied.'
-        )}`,
-        origin
-      )
+      new URL('/creator/accounts?error=consent_denied', origin)
     );
   }
 
@@ -55,9 +51,8 @@ export async function GET(req: NextRequest) {
   });
 
   if (!stateCheck.valid) {
-    const reason = encodeURIComponent(stateCheck.reason || 'Invalid or expired state parameter');
     return NextResponse.redirect(
-      new URL(`/creator/accounts?error=invalid_state&message=${reason}`, origin)
+      new URL('/creator/accounts?error=state_invalid_or_expired', origin)
     );
   }
 
@@ -107,26 +102,19 @@ export async function GET(req: NextRequest) {
     });
 
     if (discovery.accounts.length === 0) {
-      // Map distinct, honest error messages without mentioning Facebook Pages unless that was the attempted path
-      let redirectError = 'no_instagram_account_granted';
-      let message = 'No Instagram account was granted during Meta connection. Please ensure you select your Instagram account.';
-
       if (discovery.errorReason === 'account_not_professional') {
-        redirectError = 'account_not_professional';
-        message = 'The connected Instagram account is not a Professional (Creator or Business) account. Please convert your account to Professional in the Instagram app Settings > Account type.';
-      } else if (discovery.errorReason === 'meta_api_error') {
-        redirectError = 'meta_api_error';
-        message = `Meta Graph API returned an error (code: ${discovery.errorCode || 'unknown'}). Please try connecting again.`;
-      } else if (discovery.discoveryMethod === 'legacy_pages') {
-        redirectError = 'no_instagram_business_account';
-        message = 'No Instagram Professional account found linked to your Facebook page.';
+        return NextResponse.redirect(
+          new URL('/creator/accounts?error=account_not_professional', origin)
+        );
       }
-
+      if (discovery.errorReason === 'meta_api_error') {
+        const metaCodeParam = discovery.errorCode ? `&meta_code=${encodeURIComponent(discovery.errorCode)}` : '';
+        return NextResponse.redirect(
+          new URL(`/creator/accounts?error=meta_api_error${metaCodeParam}`, origin)
+        );
+      }
       return NextResponse.redirect(
-        new URL(
-          `/creator/accounts?error=${redirectError}&message=${encodeURIComponent(message)}`,
-          origin
-        )
+        new URL('/creator/accounts?error=no_account_granted', origin)
       );
     }
 
@@ -140,35 +128,53 @@ export async function GET(req: NextRequest) {
       console.log(`[OAuthCallback] Step 6: Probing capabilities for @${targetAccount.username} (${targetAccount.id})...`);
       const capabilities = await probeAccountCapabilities(targetAccount.id, longLivedToken);
 
-      const { accountId } = await saveSocialAccountAndCredentials(
-        {
-          creator_id: session.user.id,
-          provider: 'instagram',
-          provider_user_id: targetAccount.id,
-          username: targetAccount.username,
-          account_type: 'BUSINESS',
-          profile_picture_url: targetAccount.profile_picture_url || null,
-          followers_count: targetAccount.followers_count,
-          media_count: targetAccount.media_count,
-          status: 'ACTIVE',
-          scopes: discovery.debugToken.scopes.length > 0 ? discovery.debugToken.scopes : ['instagram_basic', 'instagram_manage_insights'],
-          capabilities,
-          connected_at: new Date(),
-          last_synced_at: new Date(),
-          next_sync_at: new Date(Date.now() + 6 * 60 * 60 * 1000), // HOT tier: sync in 6h
-          sync_tier: 'HOT',
-          failure_count: 0,
-        },
-        {
-          token_ciphertext: encrypted.ciphertext,
-          token_nonce: encrypted.nonce,
-          key_id: encrypted.keyId,
-          token_type: discovery.debugToken.tokenType === 'SYSTEM_USER' ? 'system_user' : 'long_lived_user',
-          expires_at: expiresAt,
-          created_at: new Date(),
-          rotated_at: null,
+      let accountId: string;
+      try {
+        const saved = await saveSocialAccountAndCredentials(
+          {
+            creator_id: session.user.id,
+            provider: 'instagram',
+            provider_user_id: targetAccount.id,
+            username: targetAccount.username,
+            account_type: 'BUSINESS',
+            profile_picture_url: targetAccount.profile_picture_url || null,
+            followers_count: targetAccount.followers_count,
+            media_count: targetAccount.media_count,
+            status: 'ACTIVE',
+            scopes: discovery.debugToken.scopes.length > 0 ? discovery.debugToken.scopes : ['instagram_basic', 'instagram_manage_insights'],
+            capabilities,
+            connected_at: new Date(),
+            last_synced_at: new Date(),
+            next_sync_at: new Date(Date.now() + 6 * 60 * 60 * 1000), // HOT tier: sync in 6h
+            sync_tier: 'HOT',
+            failure_count: 0,
+          },
+          {
+            token_ciphertext: encrypted.ciphertext,
+            token_nonce: encrypted.nonce,
+            key_id: encrypted.keyId,
+            token_type: discovery.debugToken.tokenType === 'SYSTEM_USER' ? 'system_user' : 'long_lived_user',
+            expires_at: expiresAt,
+            created_at: new Date(),
+            rotated_at: null,
+          }
+        );
+        accountId = saved.accountId;
+      } catch (saveErr: any) {
+        if (
+          saveErr?.status === 409 ||
+          saveErr?.code === 'ACCOUNT_ALREADY_LINKED' ||
+          (saveErr?.message && saveErr.message.includes('already claimed'))
+        ) {
+          console.warn('[OAuthCallback] Account already linked to another creator profile:', {
+            igId: targetAccount.id,
+          });
+          return NextResponse.redirect(
+            new URL('/creator/accounts?error=account_already_linked', origin)
+          );
         }
-      );
+        throw saveErr;
+      }
 
       // Trigger initial sync cycle (profile counts, views, demographics)
       try {
@@ -215,15 +221,21 @@ export async function GET(req: NextRequest) {
       )
     );
   } catch (err: any) {
-    console.error('[OAuthCallback] Step Failed: Exception during OAuth exchange/discovery:', {
+    const incidentId = `srv_${crypto.randomBytes(4).toString('hex')}`;
+    console.error(`[OAuthCallback] Step Failed: Exception during OAuth exchange/discovery [${incidentId}]:`, {
+      incidentId,
       message: err?.message ? scrubSensitiveData(err.message) : 'Unknown error',
       code: err?.code,
     });
-    const errorMsg = encodeURIComponent(
-      err?.code ? `Meta API error (${err.code})` : 'An internal server error occurred while connecting your account.'
-    );
+
+    if (err?.code && (typeof err.code === 'number' || typeof err.code === 'string')) {
+      return NextResponse.redirect(
+        new URL(`/creator/accounts?error=meta_api_error&meta_code=${encodeURIComponent(err.code)}`, origin)
+      );
+    }
+
     return NextResponse.redirect(
-      new URL(`/creator/accounts?error=server_error&message=${errorMsg}`, origin)
+      new URL(`/creator/accounts?error=discovery_failed_server&incident_id=${incidentId}`, origin)
     );
   }
 }
