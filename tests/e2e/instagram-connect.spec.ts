@@ -24,7 +24,7 @@ test.describe('Phase B: Instagram Connect & Compliance Flow', () => {
       {
         name: 'adzunova_session',
         value: token,
-        domain: 'localhost',
+        domain: '127.0.0.1',
         path: '/',
       },
     ]);
@@ -77,6 +77,35 @@ test.describe('Phase B: Instagram Connect & Compliance Flow', () => {
       data: { signed_request: 'forged_signature.eyJ1c2VyX2lkIjoiMTIzIn0' },
     });
     expect(deletionRes.status()).toBe(401);
+  });
+
+  test('Displays distinct error banner when user denies consent', async ({ page }) => {
+    await page.goto('/creator/accounts?error=user_denied');
+    const alert = page.getByTestId('feedback-banner');
+    await expect(alert).toBeVisible();
+    await expect(alert).toContainText('Meta connection was cancelled or permission was denied.');
+  });
+
+  test('Displays distinct error banner when no Instagram account was granted', async ({ page }) => {
+    await page.goto('/creator/accounts?error=no_instagram_account_granted');
+    const alert = page.getByTestId('feedback-banner');
+    await expect(alert).toBeVisible();
+    await expect(alert).toContainText('No Instagram account was selected during Meta consent.');
+  });
+
+  test('Displays distinct error banner when account is not Professional', async ({ page }) => {
+    await page.goto('/creator/accounts?error=account_not_professional');
+    const alert = page.getByTestId('feedback-banner');
+    await expect(alert).toBeVisible();
+    await expect(alert).toContainText('The selected Instagram account is not a Professional (Creator or Business) account.');
+  });
+
+  test('Displays success banner when multiple Instagram accounts are connected', async ({ page }) => {
+    await page.goto('/creator/accounts?success=multiple_accounts_connected&count=2&username=a_n_jha1');
+    const alert = page.getByTestId('feedback-banner');
+    await expect(alert).toBeVisible();
+    await expect(alert).toContainText('Successfully connected 2 Instagram professional accounts');
+    await expect(alert).toContainText('@a_n_jha1');
   });
 
 });

@@ -35,6 +35,7 @@ interface CapabilityState {
 
 export default function ConnectedAccountsPage() {
   const [accounts, setAccounts] = useState<SocialAccountItem[]>([]);
+  const [selectedIgId, setSelectedIgId] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
   const [disconnecting, setDisconnecting] = useState(false);
   const [syncing, setSyncing] = useState(false);
@@ -62,10 +63,28 @@ export default function ConnectedAccountsPage() {
             ? `Successfully connected Instagram professional account @${username}. Initial sync complete.`
             : 'Successfully connected Instagram account.',
         });
+      } else if (success === 'multiple_accounts_connected') {
+        const count = params.get('count') || 'multiple';
+        setFeedback({
+          type: 'success',
+          message: `Successfully connected ${count} Instagram professional accounts (active: @${username || 'selected'}). Initial sync complete.`,
+        });
       } else if (error) {
+        let msg = message ? decodeURIComponent(message) : `Connection error: ${error}`;
+        if (error === 'user_denied') {
+          msg = 'Meta connection was cancelled or permission was denied.';
+        } else if (error === 'no_instagram_account_granted') {
+          msg = 'No Instagram account was selected during Meta consent. Please reconnect and select your Instagram account.';
+        } else if (error === 'account_not_professional') {
+          msg = 'The selected Instagram account is not a Professional (Creator or Business) account. In your Instagram app, go to Settings > Account type and switch to Professional.';
+        } else if (error === 'meta_api_error') {
+          msg = message ? decodeURIComponent(message) : 'Meta Graph API returned an error. Please try again.';
+        } else if (error === 'server_error') {
+          msg = message ? decodeURIComponent(message) : 'Server error while finalizing connection. Please try again.';
+        }
         setFeedback({
           type: 'error',
-          message: message ? decodeURIComponent(message) : `Connection error: ${error}`,
+          message: msg,
         });
       }
     }
@@ -101,7 +120,8 @@ export default function ConnectedAccountsPage() {
     loadData();
   }, []);
 
-  const instagramAccount = accounts.find((a) => a.provider === 'instagram' && a.status === 'ACTIVE');
+  const instagramAccounts = accounts.filter((a) => a.provider === 'instagram' && a.status === 'ACTIVE');
+  const instagramAccount = (selectedIgId ? instagramAccounts.find((a) => a.id === selectedIgId) : null) || instagramAccounts[0];
 
   const totalFollowers = accounts.reduce((sum, acc) => sum + Number(acc.followers_count || 0), 0);
 
@@ -118,6 +138,7 @@ export default function ConnectedAccountsPage() {
 
       if (res.ok) {
         setAccounts((prev) => prev.filter((a) => a.provider !== provider));
+        setSelectedIgId(null);
         setFeedback({
           type: 'success',
           message: `Successfully disconnected ${provider}. Credentials and active sync revoked.`,
@@ -148,6 +169,7 @@ export default function ConnectedAccountsPage() {
         body: JSON.stringify({ provider }),
       });
       const data = await res.json();
+
       if (res.ok) {
         setFeedback({
           type: 'success',
@@ -185,6 +207,9 @@ export default function ConnectedAccountsPage() {
 
       {feedback && (
         <div
+          data-testid="feedback-banner"
+          role="alert"
+          aria-live="polite"
           className={`p-4 rounded-2xl flex items-center justify-between text-xs font-semibold ${
             feedback.type === 'success'
               ? 'bg-emerald-500/10 text-emerald-800 dark:text-emerald-300 border border-emerald-500/20'
@@ -231,7 +256,7 @@ export default function ConnectedAccountsPage() {
           <div>
             <div className="flex items-start justify-between">
               <div className="flex items-center gap-3">
-                <div className="w-10 h-10 rounded-xl bg-indigo-600 text-white flex items-center justify-center font-bold">
+                <div className="w-10 h-10 rounded-xl bg-primary text-primary-foreground flex items-center justify-center font-bold text-sm">
                   IG
                 </div>
                 <div>
@@ -244,7 +269,7 @@ export default function ConnectedAccountsPage() {
                   instagramAccount
                     ? 'bg-emerald-500/10 text-emerald-800 dark:bg-emerald-400/15 dark:text-emerald-300 border border-emerald-500/20'
                     : instagramCap.configured
-                    ? 'bg-indigo-500/10 text-indigo-800 dark:bg-indigo-400/15 dark:text-indigo-300 border border-indigo-500/20'
+                    ? 'bg-primary/10 text-primary border border-primary/20'
                     : 'bg-muted text-muted-foreground border border-border'
                 }`}
               >
@@ -255,6 +280,35 @@ export default function ConnectedAccountsPage() {
                   : 'Not Configured'}
               </span>
             </div>
+
+            {/* Multi-account Chooser */}
+            {instagramAccounts.length > 1 && (
+              <div className="mt-4 p-3 rounded-xl bg-muted/60 border border-border space-y-2">
+                <div className="text-[11px] font-semibold text-foreground flex items-center justify-between">
+                  <span>Connected Profiles ({instagramAccounts.length})</span>
+                  <span className="text-[10px] text-muted-foreground">Select to view</span>
+                </div>
+                <div className="flex flex-wrap gap-1.5">
+                  {instagramAccounts.map((acc) => {
+                    const isSelected = acc.id === instagramAccount?.id;
+                    return (
+                      <button
+                        key={acc.id}
+                        type="button"
+                        onClick={() => setSelectedIgId(acc.id)}
+                        className={`px-2.5 py-1 rounded-lg text-xs font-semibold transition ${
+                          isSelected
+                            ? 'bg-primary text-primary-foreground shadow-xs'
+                            : 'bg-background text-muted-foreground border border-border hover:text-foreground'
+                        }`}
+                      >
+                        @{acc.username}
+                      </button>
+                    );
+                  })}
+                </div>
+              </div>
+            )}
 
             {instagramAccount ? (
               <div className="mt-4 p-4 rounded-xl bg-muted/40 border border-border space-y-3">
@@ -314,7 +368,7 @@ export default function ConnectedAccountsPage() {
                 {instagramAccount.status === 'RECONNECT_REQUIRED' ? (
                   <a
                     href="/creator/me/social-accounts/instagram/connect"
-                    className="px-3 py-1.5 rounded-xl bg-amber-500 hover:bg-amber-600 text-white text-xs font-bold transition"
+                    className="px-3 py-1.5 rounded-xl bg-amber-500 hover:bg-amber-600 text-foreground text-xs font-bold transition"
                   >
                     Reconnect Token
                   </a>
@@ -322,7 +376,7 @@ export default function ConnectedAccountsPage() {
                   <button
                     onClick={() => handleSyncNow('instagram')}
                     disabled={syncing}
-                    className="px-3 py-1.5 rounded-xl bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-bold transition disabled:opacity-50"
+                    className="px-3 py-1.5 rounded-xl bg-primary hover:opacity-90 text-primary-foreground text-xs font-bold transition disabled:opacity-50"
                   >
                     {syncing ? 'Syncing...' : 'Sync Now'}
                   </button>
@@ -338,7 +392,7 @@ export default function ConnectedAccountsPage() {
             ) : instagramCap.configured ? (
               <a
                 href="/creator/me/social-accounts/instagram/connect"
-                className="px-3 py-1.5 rounded-xl bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-bold shadow-xs transition"
+                className="px-3 py-1.5 rounded-xl bg-primary hover:opacity-90 text-primary-foreground text-xs font-bold shadow-xs transition"
               >
                 Connect Instagram
               </a>
@@ -358,7 +412,7 @@ export default function ConnectedAccountsPage() {
         <div className="p-5 rounded-2xl bg-card border border-border flex flex-col justify-between">
           <div className="flex items-start justify-between">
             <div className="flex items-center gap-3">
-              <div className="w-10 h-10 rounded-xl bg-destructive text-destructive-foreground flex items-center justify-center font-bold">
+              <div className="w-10 h-10 rounded-xl bg-destructive text-destructive-foreground flex items-center justify-center font-bold text-sm">
                 YT
               </div>
               <div>
@@ -385,7 +439,7 @@ export default function ConnectedAccountsPage() {
         <div className="p-5 rounded-2xl bg-card border border-border flex flex-col justify-between">
           <div className="flex items-start justify-between">
             <div className="flex items-center gap-3">
-              <div className="w-10 h-10 rounded-xl bg-muted text-foreground flex items-center justify-center font-bold">
+              <div className="w-10 h-10 rounded-xl bg-muted text-foreground flex items-center justify-center font-bold text-sm">
                 TT
               </div>
               <div>
@@ -413,7 +467,7 @@ export default function ConnectedAccountsPage() {
         <div className="p-5 rounded-2xl bg-card border border-border flex flex-col justify-between">
           <div className="flex items-start justify-between">
             <div className="flex items-center gap-3">
-              <div className="w-10 h-10 rounded-xl bg-muted text-foreground flex items-center justify-center font-bold">
+              <div className="w-10 h-10 rounded-xl bg-muted text-foreground flex items-center justify-center font-bold text-sm">
                 X
               </div>
               <div>

@@ -10,6 +10,26 @@ export interface MetaTokenResponse {
   expires_in?: number;
 }
 
+export interface MetaDebugTokenData {
+  app_id: string;
+  type: string;
+  application?: string;
+  is_valid: boolean;
+  expires_at?: number;
+  data_access_expires_at?: number;
+  scopes: string[];
+  granular_scopes?: Array<{
+    scope: string;
+    target_ids?: string[];
+  }>;
+  user_id: string;
+  error?: {
+    code: number;
+    message: string;
+    subcode?: number;
+  };
+}
+
 export interface InstagramBusinessAccount {
   id: string;
   username: string;
@@ -28,6 +48,21 @@ export interface CapabilityProbeResult {
   views_sample?: number | null;
   gender_sample_found?: boolean;
   errors?: Record<string, string>;
+}
+
+export interface DiscoveryResult {
+  accounts: InstagramBusinessAccount[];
+  discoveryMethod: 'granular_scopes' | 'business_assets' | 'legacy_pages' | 'none';
+  debugToken: {
+    isValid: boolean;
+    appId?: string;
+    userId?: string;
+    scopes: string[];
+    granularScopeCount: number;
+    targetIdCount: number;
+  };
+  errorReason?: 'user_denied' | 'no_instagram_account_granted' | 'account_not_professional' | 'meta_api_error' | 'server_error';
+  errorCode?: number;
 }
 
 /**
@@ -55,7 +90,7 @@ export function getMetaUnifiedLoginUrl(state: string): string {
 /**
  * Exchanges OAuth authorization code for short-lived user access token
  */
-export async function exchangeCodeForShortLivedToken(code: string): Promise<MetaTokenResponse> {
+export async function exchangeCodeForShortLivedToken(code: string): Promise<{ data: MetaTokenResponse; status: number; keys: string[] }> {
   const appId = process.env.META_APP_ID;
   const appSecret = process.env.META_APP_SECRET;
   const redirectUri = process.env.INSTAGRAM_REDIRECT_URI;
@@ -78,18 +113,22 @@ export async function exchangeCodeForShortLivedToken(code: string): Promise<Meta
   });
 
   const data = await res.json();
+  const keys = data && typeof data === 'object' ? Object.keys(data) : [];
+
   if (!res.ok || data.error) {
     const errorMsg = scrubSensitiveData(data.error?.message || 'Failed to exchange OAuth code for access token');
-    throw new Error(errorMsg);
+    const err = new Error(errorMsg) as Error & { code?: number };
+    err.code = data.error?.code;
+    throw err;
   }
 
-  return data as MetaTokenResponse;
+  return { data: data as MetaTokenResponse, status: res.status, keys };
 }
 
 /**
  * Exchanges short-lived token for long-lived user token (valid for ~60 days)
  */
-export async function exchangeForLongLivedToken(shortLivedToken: string): Promise<MetaTokenResponse> {
+export async function exchangeForLongLivedToken(shortLivedToken: string): Promise<{ data: MetaTokenResponse; status: number; keys: string[] }> {
   const appId = process.env.META_APP_ID;
   const appSecret = process.env.META_APP_SECRET;
 
@@ -111,137 +150,408 @@ export async function exchangeForLongLivedToken(shortLivedToken: string): Promis
   });
 
   const data = await res.json();
+  const keys = data && typeof data === 'object' ? Object.keys(data) : [];
+
   if (!res.ok || data.error) {
     const errorMsg = scrubSensitiveData(data.error?.message || 'Failed to exchange for long-lived access token');
-    throw new Error(errorMsg);
+    const err = new Error(errorMsg) as Error & { code?: number };
+    err.code = data.error?.code;
+    throw err;
   }
 
-  return data as MetaTokenResponse;
+  return { data: data as MetaTokenResponse, status: res.status, keys };
 }
 
 /**
- * Finds Instagram business accounts associated with the user's Facebook pages or Business Portfolio
+ * Calls GET /debug_token to inspect token scopes and granular_scopes
+ * Never returns or logs access tokens.
  */
-export async function fetchInstagramAccounts(userAccessToken: string): Promise<InstagramBusinessAccount[]> {
+export async function debugToken(inputToken: string): Promise<{ data: MetaDebugTokenData; status: number }> {
+  const appId = process.env.META_APP_ID;
+  const appSecret = process.env.META_APP_SECRET;
+  if (!appId || !appSecret) throw new Error('META_APP_ID and META_APP_SECRET are required');
+
+  const endpoint = `${GRAPH_BASE_URL}/debug_token`;
+  const params = new URLSearchParams({
+    input_token: inputToken,
+    access_token: `${appId}|${appSecret}`,
+  });
+
+  const res = await fetch(`${endpoint}?${params.toString()}`, {
+    method: 'GET',
+    headers: { Accept: 'application/json' },
+  });
+
+  const data = await res.json();
+  if (!res.ok || !data.data) {
+    const errorMsg = scrubSensitiveData(data?.error?.message || 'Failed to debug token');
+    const err = new Error(errorMsg) as Error & { code?: number };
+    err.code = data?.error?.code;
+    throw err;
+  }
+
+  return { data: data.data as MetaDebugTokenData, status: res.status };
+}
+
+/**
+ * Fetches single Instagram account profile by ID
+ */
+export async function fetchInstagramAccountProfile(
+  igAccountId: string,
+  userAccessToken: string
+): Promise<{ account: InstagramBusinessAccount | null; status: number; error?: string; errorCode?: number }> {
+  const appSecret = process.env.META_APP_SECRET;
+  const appsecretProof = appSecret ? createAppSecretProof(userAccessToken, appSecret) : '';
+
+  const endpoint = `${GRAPH_BASE_URL}/${igAccountId}`;
+  const params = new URLSearchParams({
+    fields: 'id,username,name,profile_picture_url,followers_count,media_count',
+    access_token: userAccessToken,
+    appsecret_proof: appsecretProof,
+  });
+
+  try {
+    const res = await fetch(`${endpoint}?${params.toString()}`, {
+      method: 'GET',
+      headers: { Accept: 'application/json' },
+    });
+    const data = await res.json();
+
+    if (res.ok && data.id && (data.username || data.name)) {
+      return {
+        status: res.status,
+        account: {
+          id: data.id,
+          username: data.username || data.name || 'instagram_user',
+          name: data.name,
+          profile_picture_url: data.profile_picture_url || null,
+          followers_count: Number(data.followers_count || 0),
+          media_count: Number(data.media_count || 0),
+        },
+      };
+    }
+
+    return {
+      status: res.status,
+      account: null,
+      error: data?.error?.message ? scrubSensitiveData(data.error.message) : 'Account profile not accessible',
+      errorCode: data?.error?.code,
+    };
+  } catch (err) {
+    return {
+      status: 500,
+      account: null,
+      error: err instanceof Error ? err.message : 'Network error fetching profile',
+    };
+  }
+}
+
+/**
+ * Resolves Instagram accounts in the exact required priority order:
+ * (a) debug_token granular_scopes -> target_ids for instagram_basic / instagram_manage_insights
+ * (b) Documented business-asset listing for this token type (/me/businesses -> owned/client instagram assets)
+ * (c) Legacy fallback: Facebook Page -> instagram_business_account
+ *
+ * Emits token-scrubbed structured logs at each step.
+ */
+export async function resolveInstagramAccountsUnified(
+  userAccessToken: string,
+  debugTokenData?: MetaDebugTokenData
+): Promise<DiscoveryResult> {
   const appSecret = process.env.META_APP_SECRET;
   if (!appSecret) throw new Error('META_APP_SECRET is required');
 
   const appsecretProof = createAppSecretProof(userAccessToken, appSecret);
-  const accounts: InstagramBusinessAccount[] = [];
-  const seenIds = new Set<string>();
 
-  function addAccount(ig: any) {
-    if (!ig || !ig.id || seenIds.has(ig.id)) return;
-    seenIds.add(ig.id);
-    accounts.push({
-      id: ig.id,
-      username: ig.username || 'instagram_creator',
-      name: ig.name,
-      profile_picture_url: ig.profile_picture_url || null,
-      followers_count: Number(ig.followers_count || 0),
-      media_count: Number(ig.media_count || 0),
-    });
+  // 1. Obtain debug_token if not passed in
+  let tokenInfo = debugTokenData;
+  if (!tokenInfo) {
+    try {
+      const debugRes = await debugToken(userAccessToken);
+      tokenInfo = debugRes.data;
+    } catch (err: any) {
+      console.error('[OAuthDiscovery] GET /debug_token failed:', {
+        message: err.message,
+        code: err.code,
+      });
+      return {
+        accounts: [],
+        discoveryMethod: 'none',
+        debugToken: { isValid: false, scopes: [], granularScopeCount: 0, targetIdCount: 0 },
+        errorReason: 'meta_api_error',
+        errorCode: err.code || 500,
+      };
+    }
   }
 
-  // Path A: Check /me/accounts (Facebook Pages) with Page Access Token resolution
+  const scopes = tokenInfo.scopes || [];
+  const granularScopes = tokenInfo.granular_scopes || [];
+
+  // Extract all target_ids from instagram granular scopes
+  const igGranularScopes = granularScopes.filter((g) =>
+    g.scope.startsWith('instagram_') || g.scope.includes('instagram')
+  );
+  const targetIds = Array.from(
+    new Set(igGranularScopes.flatMap((g) => g.target_ids || []))
+  );
+
+  console.log('[OAuthDiscovery] GET /debug_token summary:', {
+    isValid: tokenInfo.is_valid,
+    type: tokenInfo.type,
+    appId: tokenInfo.app_id,
+    userId: tokenInfo.user_id,
+    scopes,
+    granularScopeCount: granularScopes.length,
+    targetIdsFound: targetIds.length,
+  });
+
+  const debugSummary = {
+    isValid: tokenInfo.is_valid,
+    appId: tokenInfo.app_id,
+    userId: tokenInfo.user_id,
+    scopes,
+    granularScopeCount: granularScopes.length,
+    targetIdCount: targetIds.length,
+  };
+
+  if (!tokenInfo.is_valid) {
+    return {
+      accounts: [],
+      discoveryMethod: 'none',
+      debugToken: debugSummary,
+      errorReason: 'meta_api_error',
+      errorCode: tokenInfo.error?.code || 190,
+    };
+  }
+
+  // Check if any Instagram scopes were granted at all
+  const hasInstagramScopes = scopes.some((s) => s.startsWith('instagram_'));
+  if (!hasInstagramScopes && targetIds.length === 0) {
+    console.log('[OAuthDiscovery] No Instagram scopes or target_ids granted in token');
+    return {
+      accounts: [],
+      discoveryMethod: 'none',
+      debugToken: debugSummary,
+      errorReason: 'no_instagram_account_granted',
+    };
+  }
+
+  // --------------------------------------------------------------------------
+  // Discovery (a): debug_token granular_scopes -> target_ids
+  // --------------------------------------------------------------------------
+  console.log('[OAuthDiscovery] (a) Attempting granular_scopes target_ids discovery:', {
+    targetIdsCount: targetIds.length,
+  });
+
+  if (targetIds.length > 0) {
+    const resolvedAccounts: InstagramBusinessAccount[] = [];
+    let hadProfessionalError = false;
+    let lastErrorCode: number | undefined;
+
+    for (const id of targetIds) {
+      const profile = await fetchInstagramAccountProfile(id, userAccessToken);
+      console.log(`[OAuthDiscovery] (a) Target ID ${id} profile fetch status: ${profile.status}`, {
+        found: !!profile.account,
+        error: profile.error,
+        errorCode: profile.errorCode,
+      });
+
+      if (profile.account) {
+        resolvedAccounts.push(profile.account);
+      } else {
+        lastErrorCode = profile.errorCode;
+        if (profile.errorCode === 100 || profile.error?.includes('business') || profile.error?.includes('professional')) {
+          hadProfessionalError = true;
+        }
+      }
+    }
+
+    if (resolvedAccounts.length > 0) {
+      console.log('[OAuthDiscovery] (a) SUCCESS: Resolved accounts via granular_scopes:', {
+        count: resolvedAccounts.length,
+        usernames: resolvedAccounts.map((a) => a.username),
+      });
+      return {
+        accounts: resolvedAccounts,
+        discoveryMethod: 'granular_scopes',
+        debugToken: debugSummary,
+      };
+    }
+
+    if (hadProfessionalError) {
+      return {
+        accounts: [],
+        discoveryMethod: 'none',
+        debugToken: debugSummary,
+        errorReason: 'account_not_professional',
+        errorCode: lastErrorCode,
+      };
+    }
+  }
+
+  // --------------------------------------------------------------------------
+  // Discovery (b): Documented business-asset / Instagram account listing
+  // --------------------------------------------------------------------------
+  console.log('[OAuthDiscovery] (b) Attempting Business Portfolio assets discovery...');
   try {
-    const endpoint = `${GRAPH_BASE_URL}/me/accounts`;
-    const params = new URLSearchParams({
+    const bizEndpoint = `${GRAPH_BASE_URL}/me/businesses`;
+    const bizParams = new URLSearchParams({
+      fields: 'id,name',
+      access_token: userAccessToken,
+      appsecret_proof: appsecretProof,
+    });
+
+    const bizRes = await fetch(`${bizEndpoint}?${bizParams.toString()}`);
+    const bizData = await bizRes.json();
+    const businesses = Array.isArray(bizData.data) ? bizData.data : [];
+
+    console.log(`[OAuthDiscovery] (b) /me/businesses status: ${bizRes.status}, count: ${businesses.length}`);
+
+    if (bizRes.ok && businesses.length > 0) {
+      const bizAccounts: InstagramBusinessAccount[] = [];
+      const seenBizIds = new Set<string>();
+
+      for (const biz of businesses) {
+        for (const edge of ['owned_instagram_accounts', 'client_instagram_accounts', 'instagram_accounts']) {
+          try {
+            const edgeEndpoint = `${GRAPH_BASE_URL}/${biz.id}/${edge}`;
+            const edgeParams = new URLSearchParams({
+              fields: 'id,username,name,profile_picture_url,followers_count,media_count',
+              access_token: userAccessToken,
+              appsecret_proof: appsecretProof,
+            });
+
+            const edgeRes = await fetch(`${edgeEndpoint}?${edgeParams.toString()}`);
+            const edgeData = await edgeRes.json();
+
+            if (edgeRes.ok && Array.isArray(edgeData.data)) {
+              for (const item of edgeData.data) {
+                if (item.id && !seenBizIds.has(item.id)) {
+                  seenBizIds.add(item.id);
+                  bizAccounts.push({
+                    id: item.id,
+                    username: item.username || item.name || 'instagram_user',
+                    name: item.name,
+                    profile_picture_url: item.profile_picture_url || null,
+                    followers_count: Number(item.followers_count || 0),
+                    media_count: Number(item.media_count || 0),
+                  });
+                }
+              }
+            }
+          } catch {
+            // Ignore edge unsupported
+          }
+        }
+      }
+
+      if (bizAccounts.length > 0) {
+        console.log('[OAuthDiscovery] (b) SUCCESS: Resolved accounts via Business Portfolio:', {
+          count: bizAccounts.length,
+          usernames: bizAccounts.map((a) => a.username),
+        });
+        return {
+          accounts: bizAccounts,
+          discoveryMethod: 'business_assets',
+          debugToken: debugSummary,
+        };
+      }
+    }
+  } catch (err: any) {
+    console.warn('[OAuthDiscovery] (b) Business discovery error:', err.message);
+  }
+
+  // --------------------------------------------------------------------------
+  // Discovery (c): Legacy fallback: Facebook Page -> instagram_business_account
+  // --------------------------------------------------------------------------
+  console.log('[OAuthDiscovery] (c) Attempting legacy Pages discovery...');
+  try {
+    const pageEndpoint = `${GRAPH_BASE_URL}/me/accounts`;
+    const pageParams = new URLSearchParams({
       fields: 'id,name,access_token,instagram_business_account{id,username,name,profile_picture_url,followers_count,media_count}',
       access_token: userAccessToken,
       appsecret_proof: appsecretProof,
     });
 
-    const res = await fetch(`${endpoint}?${params.toString()}`, {
-      method: 'GET',
-      headers: { Accept: 'application/json' },
-    });
+    const pageRes = await fetch(`${pageEndpoint}?${pageParams.toString()}`);
+    const pageData = await pageRes.json();
+    const pages = Array.isArray(pageData.data) ? pageData.data : [];
 
-    const data = await res.json();
-    console.log('[fetchInstagramAccounts] /me/accounts status:', res.status, 'pages count:', data.data?.length ?? 0);
+    console.log(`[OAuthDiscovery] (c) /me/accounts status: ${pageRes.status}, count: ${pages.length}`);
 
-    if (res.ok && Array.isArray(data.data)) {
-      for (const page of data.data) {
-        if (page.instagram_business_account) {
-          addAccount(page.instagram_business_account);
-        } else if (page.id && page.access_token) {
-          // Attempt deep resolution using the Page Access Token
+    if (pageRes.ok && pages.length > 0) {
+      const pageAccounts: InstagramBusinessAccount[] = [];
+
+      for (const p of pages) {
+        if (p.instagram_business_account) {
+          const ig = p.instagram_business_account;
+          pageAccounts.push({
+            id: ig.id,
+            username: ig.username || ig.name || 'instagram_user',
+            name: ig.name,
+            profile_picture_url: ig.profile_picture_url || null,
+            followers_count: Number(ig.followers_count || 0),
+            media_count: Number(ig.media_count || 0),
+          });
+        } else if (p.id && p.access_token) {
+          // Page access token deep inspect
           try {
-            const pageProof = createAppSecretProof(page.access_token, appSecret);
-            const pageEndpoint = `${GRAPH_BASE_URL}/${page.id}`;
-            const pageParams = new URLSearchParams({
-              fields: 'instagram_business_account{id,username,name,profile_picture_url,followers_count,media_count}',
-              access_token: page.access_token,
-              appsecret_proof: pageProof,
-            });
-            const pageRes = await fetch(`${pageEndpoint}?${pageParams.toString()}`);
-            if (pageRes.ok) {
-              const pageData = await pageRes.json();
-              if (pageData.instagram_business_account) {
-                addAccount(pageData.instagram_business_account);
+            const pageProof = createAppSecretProof(p.access_token, appSecret);
+            const deepRes = await fetch(
+              `${GRAPH_BASE_URL}/${p.id}?fields=instagram_business_account{id,username,name,profile_picture_url,followers_count,media_count}&access_token=${p.access_token}&appsecret_proof=${pageProof}`
+            );
+            if (deepRes.ok) {
+              const deepData = await deepRes.json();
+              if (deepData.instagram_business_account) {
+                const ig = deepData.instagram_business_account;
+                pageAccounts.push({
+                  id: ig.id,
+                  username: ig.username || ig.name || 'instagram_user',
+                  name: ig.name,
+                  profile_picture_url: ig.profile_picture_url || null,
+                  followers_count: Number(ig.followers_count || 0),
+                  media_count: Number(ig.media_count || 0),
+                });
               }
             }
-          } catch (pageErr) {
-            console.warn('[fetchInstagramAccounts] Page token inspection failed for', page.id, pageErr);
+          } catch {
+            // Ignore
           }
         }
       }
-    }
-  } catch (err) {
-    console.warn('[fetchInstagramAccounts] /me/accounts query error:', err);
-  }
 
-  // Path B: Check Meta Business Portfolio assets (/me/businesses -> owned/client instagram accounts)
-  if (accounts.length === 0) {
-    try {
-      const bizEndpoint = `${GRAPH_BASE_URL}/me/businesses`;
-      const bizParams = new URLSearchParams({
-        fields: 'id,name',
-        access_token: userAccessToken,
-        appsecret_proof: appsecretProof,
-      });
-
-      const bizRes = await fetch(`${bizEndpoint}?${bizParams.toString()}`, {
-        method: 'GET',
-        headers: { Accept: 'application/json' },
-      });
-
-      const bizData = await bizRes.json();
-      console.log('[fetchInstagramAccounts] /me/businesses status:', bizRes.status, 'biz count:', bizData.data?.length ?? 0);
-
-      if (bizRes.ok && Array.isArray(bizData.data)) {
-        for (const biz of bizData.data) {
-          // Check owned Instagram accounts
-          for (const edge of ['owned_instagram_accounts', 'client_instagram_accounts', 'instagram_accounts']) {
-            try {
-              const igEndpoint = `${GRAPH_BASE_URL}/${biz.id}/${edge}`;
-              const igParams = new URLSearchParams({
-                fields: 'id,username,name,profile_picture_url,followers_count,media_count',
-                access_token: userAccessToken,
-                appsecret_proof: appsecretProof,
-              });
-              const igRes = await fetch(`${igEndpoint}?${igParams.toString()}`);
-              if (igRes.ok) {
-                const igData = await igRes.json();
-                if (Array.isArray(igData.data)) {
-                  for (const item of igData.data) {
-                    addAccount(item);
-                  }
-                }
-              }
-            } catch {
-              // Ignore non-applicable edge
-            }
-          }
-        }
+      if (pageAccounts.length > 0) {
+        console.log('[OAuthDiscovery] (c) SUCCESS: Resolved accounts via legacy Pages:', {
+          count: pageAccounts.length,
+          usernames: pageAccounts.map((a) => a.username),
+        });
+        return {
+          accounts: pageAccounts,
+          discoveryMethod: 'legacy_pages',
+          debugToken: debugSummary,
+        };
       }
-    } catch (bizErr) {
-      console.warn('[fetchInstagramAccounts] /me/businesses query error:', bizErr);
     }
+  } catch (err: any) {
+    console.warn('[OAuthDiscovery] (c) Legacy Pages discovery error:', err.message);
   }
 
-  console.log('[fetchInstagramAccounts] Total resolved Instagram business accounts:', accounts.length);
-  return accounts;
+  // Nothing found across all 3 discovery methods
+  console.log('[OAuthDiscovery] No accounts found across discovery methods (a), (b), (c)');
+  return {
+    accounts: [],
+    discoveryMethod: 'none',
+    debugToken: debugSummary,
+    errorReason: 'no_instagram_account_granted',
+  };
+}
+
+/**
+ * Backward compatibility wrapper for existing tests
+ */
+export async function fetchInstagramAccounts(userAccessToken: string): Promise<InstagramBusinessAccount[]> {
+  const result = await resolveInstagramAccountsUnified(userAccessToken);
+  return result.accounts;
 }
 
 /**
@@ -275,7 +585,7 @@ export async function probeAccountCapabilities(
     } else if (data.error) {
       errors.basic_profile = scrubSensitiveData(data.error.message || 'Profile check failed');
     }
-  } catch (err) {
+  } catch {
     errors.basic_profile = 'Network error during basic_profile probe';
   }
 
@@ -290,7 +600,7 @@ export async function probeAccountCapabilities(
     } else if (data.error) {
       errors.views_insights = scrubSensitiveData(data.error.message || 'Views insights failed');
     }
-  } catch (err) {
+  } catch {
     errors.views_insights = 'Network error during views_insights probe';
   }
 
@@ -305,7 +615,7 @@ export async function probeAccountCapabilities(
     } else if (data.error) {
       errors.demographics_gender_age = scrubSensitiveData(data.error.message || 'Demographics gender_age failed');
     }
-  } catch (err) {
+  } catch {
     errors.demographics_gender_age = 'Network error during demographics_gender_age probe';
   }
 
@@ -319,7 +629,7 @@ export async function probeAccountCapabilities(
     } else if (data.error) {
       errors.demographics_country = scrubSensitiveData(data.error.message || 'Demographics country failed');
     }
-  } catch (err) {
+  } catch {
     errors.demographics_country = 'Network error during demographics_country probe';
   }
 
