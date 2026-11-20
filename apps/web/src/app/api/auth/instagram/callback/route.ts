@@ -7,7 +7,9 @@ import {
   exchangeForLongLivedToken,
   resolveInstagramAccountsUnified,
   probeAccountCapabilities,
+  createAccountSelectionToken,
 } from '@/lib/social/meta-client';
+import { syncInstagramAccount } from '@/lib/social/sync-worker';
 import { encryptToken } from '@/lib/social/security/encryption';
 import { scrubSensitiveData } from '@/lib/social/security/log-scrubber';
 import { saveSocialAccountAndCredentials } from '@/lib/social/social-repository';
@@ -131,12 +133,14 @@ export async function GET(req: NextRequest) {
     // 7. Envelope-encrypt the long-lived token (AES-256-GCM)
     const encrypted = encryptToken(longLivedToken);
 
-    // 8. Probe capabilities and persist all resolved accounts
+    // 8. Probe capabilities, persist accounts, and trigger initial sync
+    const appSecret = process.env.META_APP_SECRET || '';
+
     for (const targetAccount of discovery.accounts) {
       console.log(`[OAuthCallback] Step 6: Probing capabilities for @${targetAccount.username} (${targetAccount.id})...`);
       const capabilities = await probeAccountCapabilities(targetAccount.id, longLivedToken);
 
-      await saveSocialAccountAndCredentials(
+      const { accountId } = await saveSocialAccountAndCredentials(
         {
           creator_id: session.user.id,
           provider: 'instagram',
@@ -165,16 +169,38 @@ export async function GET(req: NextRequest) {
           rotated_at: null,
         }
       );
+
+      // Trigger initial sync cycle (profile counts, views, demographics)
+      try {
+        await syncInstagramAccount(accountId, { forceDemographics: true });
+        console.log(`[OAuthCallback] Initial sync completed successfully for @${targetAccount.username}`);
+      } catch (syncErr: any) {
+        console.warn(`[OAuthCallback] Initial sync non-fatal warning for @${targetAccount.username}:`, syncErr.message);
+      }
     }
 
-    // 9. Redirect with success banner
+    // 9. Redirect with success banner (signed account chooser token if multiple accounts)
     if (discovery.accounts.length > 1) {
-      console.log(`[OAuthCallback] Step 7: Successfully connected ${discovery.accounts.length} accounts.`);
+      const selectionToken = createAccountSelectionToken(
+        {
+          creatorId: session.user.id,
+          allowedIgIds: discovery.accounts.map((a) => a.id),
+          accountsMeta: discovery.accounts.map((a) => ({ igId: a.id, username: a.username })),
+          encryptedTokenPayload: {
+            ciphertext: encrypted.ciphertext,
+            nonce: encrypted.nonce,
+            keyId: encrypted.keyId,
+          },
+        },
+        appSecret
+      );
+
+      console.log(`[OAuthCallback] Step 7: Successfully connected ${discovery.accounts.length} accounts (signed chooser token issued).`);
       return NextResponse.redirect(
         new URL(
           `/creator/accounts?success=multiple_accounts_connected&count=${discovery.accounts.length}&username=${encodeURIComponent(
             discovery.accounts[0].username
-          )}`,
+          )}&selection_token=${encodeURIComponent(selectionToken)}`,
           origin
         )
       );

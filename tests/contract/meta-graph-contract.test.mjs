@@ -323,6 +323,15 @@ describe('Phase F: Meta Graph API Contract Tests (Scrubbed Fixtures)', async () 
       if (urlStr.includes('/me/accounts')) {
         return new Response(JSON.stringify(legacyPagesResponse), { status: 200 });
       }
+      if (urlStr.includes('/17841499999999999')) {
+        return new Response(JSON.stringify({
+          id: '17841499999999999',
+          username: 'fallback_creator',
+          name: 'Fallback Creator',
+          followers_count: 500,
+          media_count: 10,
+        }), { status: 200 });
+      }
       return new Response(JSON.stringify({ error: { message: 'Unexpected call' } }), { status: 400 });
     };
 
@@ -355,6 +364,9 @@ describe('Phase F: Meta Graph API Contract Tests (Scrubbed Fixtures)', async () 
       }
       if (urlStr.includes('/me/accounts')) {
         return new Response(JSON.stringify({ data: [] }), { status: 200 });
+      }
+      if (urlStr.includes('/17841433187658828')) {
+        return new Response(JSON.stringify(FIXTURES.instagramAccountProfile), { status: 200 });
       }
       return new Response(JSON.stringify({ error: { message: 'Unexpected call' } }), { status: 400 });
     };
@@ -403,6 +415,9 @@ describe('Phase F: Meta Graph API Contract Tests (Scrubbed Fixtures)', async () 
       }
       if (urlStr.includes('/me/accounts')) {
         return new Response(JSON.stringify({ data: [] }), { status: 200 });
+      }
+      if (urlStr.includes('/17841433187658828')) {
+        return new Response(JSON.stringify(FIXTURES.instagramAccountProfile), { status: 200 });
       }
       return new Response(JSON.stringify({ error: { message: 'Unexpected call' } }), { status: 400 });
     };

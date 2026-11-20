@@ -1,5 +1,25 @@
 import { createAppSecretProof } from './security/meta-signature';
 import { stripTokenFromPagingUrl, scrubSensitiveData, maskId } from './security/log-scrubber';
+import {
+  getDiscoveryStrategy,
+  discoverLegacyPageAccounts,
+  DiscoveredAccount,
+  SystemUserDiscovery,
+  UserTokenDiscovery,
+  InstagramAssetDiscovery,
+  createAccountSelectionToken,
+  verifyAccountSelectionToken,
+} from './discovery-strategy';
+
+export {
+  getDiscoveryStrategy,
+  discoverLegacyPageAccounts,
+  SystemUserDiscovery,
+  UserTokenDiscovery,
+  createAccountSelectionToken,
+  verifyAccountSelectionToken,
+};
+export type { DiscoveredAccount, InstagramAssetDiscovery };
 
 const GRAPH_API_VERSION = process.env.GRAPH_API_VERSION || 'v27.0';
 const GRAPH_BASE_URL = `https://graph.facebook.com/${GRAPH_API_VERSION}`;
@@ -525,120 +545,40 @@ export async function resolveInstagramAccountsUnified(
   }
 
   // --------------------------------------------------------------------------
-  // Discovery (SU): For SYSTEM_USER tokens (Unified Login / Facebook Login for Business)
-  // The documented endpoint is GET /me/assigned_instagram_accounts
-  // Ref: https://developers.facebook.com/docs/instagram-platform/instagram-api-with-facebook-login
+  // Execute Discovery Strategy (SystemUserDiscovery vs UserTokenDiscovery)
   // --------------------------------------------------------------------------
-  if (tokenInfo.type === 'SYSTEM_USER') {
-    console.log('[OAuthDiscovery] (SU) Token type is SYSTEM_USER — trying GET /me/assigned_instagram_accounts');
-    try {
-      const assignedEndpoint = `${GRAPH_BASE_URL}/me/assigned_instagram_accounts`;
-      const assignedParams = new URLSearchParams({
-        fields: 'id,username,name,profile_picture_url,followers_count,media_count',
-        access_token: userAccessToken,
-        appsecret_proof: appsecretProof,
-      });
+  const strategy = getDiscoveryStrategy(tokenInfo.type);
+  console.log(`[OAuthDiscovery] Executing discovery strategy: ${strategy.tokenType} (token type: ${tokenInfo.type})`);
+  const discovered = await strategy.discover({
+    accessToken: userAccessToken,
+    debug: tokenInfo,
+    appSecret,
+  });
 
-      const assignedRes = await fetch(`${assignedEndpoint}?${assignedParams.toString()}`);
-      const assignedData = await assignedRes.json();
+  // Fallback: If primary strategy returned 0, try legacy pages
+  let candidates: DiscoveredAccount[] = discovered;
+  let finalMethod: DiscoveryResult['discoveryMethod'] = discovered.length > 0
+    ? (discovered[0].source as any)
+    : 'none';
 
-      console.log(`[OAuthDiscovery] (SU) /me/assigned_instagram_accounts status: ${assignedRes.status}`, {
-        hasData: !!(assignedData.data),
-        count: Array.isArray(assignedData.data) ? assignedData.data.length : 0,
-        errorCode: assignedData.error?.code,
-        errorType: assignedData.error?.type,
-      });
-
-      if (assignedRes.ok && Array.isArray(assignedData.data) && assignedData.data.length > 0) {
-        const suAccounts: InstagramBusinessAccount[] = assignedData.data
-          .filter((item: any) => item.id)
-          .map((item: any) => ({
-            id: item.id,
-            username: item.username || item.name || 'instagram_user',
-            name: item.name,
-            profile_picture_url: item.profile_picture_url || null,
-            followers_count: Number(item.followers_count || 0),
-            media_count: Number(item.media_count || 0),
-          }));
-
-        if (suAccounts.length > 0) {
-          console.log('[OAuthDiscovery] (SU) SUCCESS: Resolved accounts via assigned_instagram_accounts:', {
-            count: suAccounts.length,
-            usernames: suAccounts.map((a) => a.username),
-          });
-          return {
-            accounts: suAccounts,
-            discoveryMethod: 'assigned_instagram_accounts',
-            debugToken: debugSummary,
-          };
-        }
-      }
-
-      // If endpoint is valid but returned empty, also try /{system_user_id}/assigned_instagram_accounts
-      if (tokenInfo.user_id) {
-        console.log(`[OAuthDiscovery] (SU) Trying /{system_user_id}/assigned_instagram_accounts`);
-        const suIdEndpoint = `${GRAPH_BASE_URL}/${tokenInfo.user_id}/assigned_instagram_accounts`;
-        const suIdParams = new URLSearchParams({
-          fields: 'id,username,name,profile_picture_url,followers_count,media_count',
-          access_token: userAccessToken,
-          appsecret_proof: appsecretProof,
-        });
-
-        const suIdRes = await fetch(`${suIdEndpoint}?${suIdParams.toString()}`);
-        const suIdData = await suIdRes.json();
-
-        console.log(`[OAuthDiscovery] (SU) /{su_id}/assigned_instagram_accounts status: ${suIdRes.status}`, {
-          hasData: !!(suIdData.data),
-          count: Array.isArray(suIdData.data) ? suIdData.data.length : 0,
-        });
-
-        if (suIdRes.ok && Array.isArray(suIdData.data) && suIdData.data.length > 0) {
-          const suIdAccounts: InstagramBusinessAccount[] = suIdData.data
-            .filter((item: any) => item.id)
-            .map((item: any) => ({
-              id: item.id,
-              username: item.username || item.name || 'instagram_user',
-              name: item.name,
-              profile_picture_url: item.profile_picture_url || null,
-              followers_count: Number(item.followers_count || 0),
-              media_count: Number(item.media_count || 0),
-            }));
-
-          if (suIdAccounts.length > 0) {
-            console.log('[OAuthDiscovery] (SU) SUCCESS: Resolved via /{su_id}/assigned_instagram_accounts:', {
-              count: suIdAccounts.length,
-              usernames: suIdAccounts.map((a) => a.username),
-            });
-            return {
-              accounts: suIdAccounts,
-              discoveryMethod: 'assigned_instagram_accounts',
-              debugToken: debugSummary,
-            };
-          }
-        }
-      }
-
-      console.log('[OAuthDiscovery] (SU) assigned_instagram_accounts returned 0 results — falling through to other discovery methods');
-    } catch (err: any) {
-      console.warn('[OAuthDiscovery] (SU) assigned_instagram_accounts error:', err.message);
+  if (candidates.length === 0) {
+    console.log('[OAuthDiscovery] Strategy yielded 0 accounts — attempting legacy Pages fallback');
+    const legacy = await discoverLegacyPageAccounts(userAccessToken, appSecret);
+    if (legacy.length > 0) {
+      candidates = legacy;
+      finalMethod = 'legacy_pages';
     }
   }
 
-  // --------------------------------------------------------------------------
-  // Discovery (a): debug_token granular_scopes -> target_ids
-  // --------------------------------------------------------------------------
-  console.log('[OAuthDiscovery] (a) Attempting granular_scopes target_ids discovery:', {
-    targetIdsCount: targetIds.length,
-  });
-
-  if (targetIds.length > 0) {
+  // Fetch full verified profile for each discovered account
+  if (candidates.length > 0) {
     const resolvedAccounts: InstagramBusinessAccount[] = [];
     let hadProfessionalError = false;
     let lastErrorCode: number | undefined;
 
-    for (const id of targetIds) {
-      const profile = await fetchInstagramAccountProfile(id, userAccessToken);
-      console.log(`[OAuthDiscovery] (a) Target ID ${id} profile fetch status: ${profile.status}`, {
+    for (const cand of candidates) {
+      const profile = await fetchInstagramAccountProfile(cand.igId, userAccessToken);
+      console.log(`[OAuthDiscovery] Discovered ID ${cand.igId} (${cand.source}) profile fetch status: ${profile.status}`, {
         found: !!profile.account,
         error: profile.error,
         errorCode: profile.errorCode,
@@ -655,13 +595,12 @@ export async function resolveInstagramAccountsUnified(
     }
 
     if (resolvedAccounts.length > 0) {
-      console.log('[OAuthDiscovery] (a) SUCCESS: Resolved accounts via granular_scopes:', {
-        count: resolvedAccounts.length,
+      console.log(`[OAuthDiscovery] SUCCESS: Resolved ${resolvedAccounts.length} account(s) via ${finalMethod}:`, {
         usernames: resolvedAccounts.map((a) => a.username),
       });
       return {
         accounts: resolvedAccounts,
-        discoveryMethod: 'granular_scopes',
+        discoveryMethod: finalMethod,
         debugToken: debugSummary,
       };
     }
@@ -677,155 +616,8 @@ export async function resolveInstagramAccountsUnified(
     }
   }
 
-  // --------------------------------------------------------------------------
-  // Discovery (b): Documented business-asset / Instagram account listing
-  // --------------------------------------------------------------------------
-  console.log('[OAuthDiscovery] (b) Attempting Business Portfolio assets discovery...');
-  try {
-    const bizEndpoint = `${GRAPH_BASE_URL}/me/businesses`;
-    const bizParams = new URLSearchParams({
-      fields: 'id,name',
-      access_token: userAccessToken,
-      appsecret_proof: appsecretProof,
-    });
-
-    const bizRes = await fetch(`${bizEndpoint}?${bizParams.toString()}`);
-    const bizData = await bizRes.json();
-    const businesses = Array.isArray(bizData.data) ? bizData.data : [];
-
-    console.log(`[OAuthDiscovery] (b) /me/businesses status: ${bizRes.status}, count: ${businesses.length}`);
-
-    if (bizRes.ok && businesses.length > 0) {
-      const bizAccounts: InstagramBusinessAccount[] = [];
-      const seenBizIds = new Set<string>();
-
-      for (const biz of businesses) {
-        for (const edge of ['owned_instagram_accounts', 'client_instagram_accounts', 'instagram_accounts']) {
-          try {
-            const edgeEndpoint = `${GRAPH_BASE_URL}/${biz.id}/${edge}`;
-            const edgeParams = new URLSearchParams({
-              fields: 'id,username,name,profile_picture_url,followers_count,media_count',
-              access_token: userAccessToken,
-              appsecret_proof: appsecretProof,
-            });
-
-            const edgeRes = await fetch(`${edgeEndpoint}?${edgeParams.toString()}`);
-            const edgeData = await edgeRes.json();
-
-            if (edgeRes.ok && Array.isArray(edgeData.data)) {
-              for (const item of edgeData.data) {
-                if (item.id && !seenBizIds.has(item.id)) {
-                  seenBizIds.add(item.id);
-                  bizAccounts.push({
-                    id: item.id,
-                    username: item.username || item.name || 'instagram_user',
-                    name: item.name,
-                    profile_picture_url: item.profile_picture_url || null,
-                    followers_count: Number(item.followers_count || 0),
-                    media_count: Number(item.media_count || 0),
-                  });
-                }
-              }
-            }
-          } catch {
-            // Ignore edge unsupported
-          }
-        }
-      }
-
-      if (bizAccounts.length > 0) {
-        console.log('[OAuthDiscovery] (b) SUCCESS: Resolved accounts via Business Portfolio:', {
-          count: bizAccounts.length,
-          usernames: bizAccounts.map((a) => a.username),
-        });
-        return {
-          accounts: bizAccounts,
-          discoveryMethod: 'business_assets',
-          debugToken: debugSummary,
-        };
-      }
-    }
-  } catch (err: any) {
-    console.warn('[OAuthDiscovery] (b) Business discovery error:', err.message);
-  }
-
-  // --------------------------------------------------------------------------
-  // Discovery (c): Legacy fallback: Facebook Page -> instagram_business_account
-  // --------------------------------------------------------------------------
-  console.log('[OAuthDiscovery] (c) Attempting legacy Pages discovery...');
-  try {
-    const pageEndpoint = `${GRAPH_BASE_URL}/me/accounts`;
-    const pageParams = new URLSearchParams({
-      fields: 'id,name,access_token,instagram_business_account{id,username,name,profile_picture_url,followers_count,media_count}',
-      access_token: userAccessToken,
-      appsecret_proof: appsecretProof,
-    });
-
-    const pageRes = await fetch(`${pageEndpoint}?${pageParams.toString()}`);
-    const pageData = await pageRes.json();
-    const pages = Array.isArray(pageData.data) ? pageData.data : [];
-
-    console.log(`[OAuthDiscovery] (c) /me/accounts status: ${pageRes.status}, count: ${pages.length}`);
-
-    if (pageRes.ok && pages.length > 0) {
-      const pageAccounts: InstagramBusinessAccount[] = [];
-
-      for (const p of pages) {
-        if (p.instagram_business_account) {
-          const ig = p.instagram_business_account;
-          pageAccounts.push({
-            id: ig.id,
-            username: ig.username || ig.name || 'instagram_user',
-            name: ig.name,
-            profile_picture_url: ig.profile_picture_url || null,
-            followers_count: Number(ig.followers_count || 0),
-            media_count: Number(ig.media_count || 0),
-          });
-        } else if (p.id && p.access_token) {
-          // Page access token deep inspect
-          try {
-            const pageProof = createAppSecretProof(p.access_token, appSecret);
-            const deepRes = await fetch(
-              `${GRAPH_BASE_URL}/${p.id}?fields=instagram_business_account{id,username,name,profile_picture_url,followers_count,media_count}&access_token=${p.access_token}&appsecret_proof=${pageProof}`
-            );
-            if (deepRes.ok) {
-              const deepData = await deepRes.json();
-              if (deepData.instagram_business_account) {
-                const ig = deepData.instagram_business_account;
-                pageAccounts.push({
-                  id: ig.id,
-                  username: ig.username || ig.name || 'instagram_user',
-                  name: ig.name,
-                  profile_picture_url: ig.profile_picture_url || null,
-                  followers_count: Number(ig.followers_count || 0),
-                  media_count: Number(ig.media_count || 0),
-                });
-              }
-            }
-          } catch {
-            // Ignore
-          }
-        }
-      }
-
-      if (pageAccounts.length > 0) {
-        console.log('[OAuthDiscovery] (c) SUCCESS: Resolved accounts via legacy Pages:', {
-          count: pageAccounts.length,
-          usernames: pageAccounts.map((a) => a.username),
-        });
-        return {
-          accounts: pageAccounts,
-          discoveryMethod: 'legacy_pages',
-          debugToken: debugSummary,
-        };
-      }
-    }
-  } catch (err: any) {
-    console.warn('[OAuthDiscovery] (c) Legacy Pages discovery error:', err.message);
-  }
-
-  // Nothing found across all 3 discovery methods
-  console.log('[OAuthDiscovery] No accounts found across discovery methods (a), (b), (c)');
+  // Nothing found across all discovery methods
+  console.log('[OAuthDiscovery] No accounts found across discovery strategy and legacy fallback');
   return {
     accounts: [],
     discoveryMethod: 'none',
