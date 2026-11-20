@@ -12,7 +12,10 @@ export async function GET(req: NextRequest) {
     const acceptLanguage = req.headers.get('accept-language');
     const locale = acceptLanguage ? acceptLanguage.split(',')[0].split(';')[0].trim() : undefined;
 
-    const latest = await getSocialAccountLatest(session.user.id, { locale });
+    const latest = await getSocialAccountLatest(session.user.id, {
+      locale,
+      email: session.user.email,
+    });
     return NextResponse.json(latest);
   } catch (err: any) {
     console.error('[SocialAccountLatest] Error resolving latest read model:', err);

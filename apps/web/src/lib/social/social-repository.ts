@@ -1,9 +1,11 @@
 import { Pool } from 'pg';
 import crypto from 'crypto';
+import type { Db, MongoClient } from 'mongodb';
 
 export interface SocialAccount {
   id: string;
   creator_id: string;
+  creator_email?: string;
   provider: 'instagram';
   provider_user_id: string;
   username: string;
@@ -66,6 +68,56 @@ const inMemoryDeletions = new Map<string, DataDeletionRequest>();
 const inMemoryAuditLogs: SocialAuditLog[] = [];
 const inMemoryOutbox: OutboxEvent[] = [];
 
+// MongoDB Atlas Client Setup
+let mongoClient: MongoClient | null = null;
+let mongoDbPromise: Promise<Db | null> | null = null;
+let mongoIndexesEnsured = false;
+
+async function getMongoDb(): Promise<Db | null> {
+  const uri = process.env.MONGODB_URI;
+  if (!uri || uri.includes('USER:PASSWORD')) return null;
+  if (mongoDbPromise) return mongoDbPromise;
+
+  mongoDbPromise = (async () => {
+    try {
+      if (!mongoClient) {
+        const { MongoClient } = await import('mongodb');
+        mongoClient = new MongoClient(uri, {
+          maxPoolSize: 10,
+          serverSelectionTimeoutMS: 5000,
+          connectTimeoutMS: 5000,
+          socketTimeoutMS: 10000,
+        });
+        await mongoClient.connect();
+      }
+      const db = mongoClient.db(process.env.MONGODB_DB_NAME || 'adzunova');
+      if (!mongoIndexesEnsured) {
+        await Promise.allSettled([
+          db.collection('social_accounts').createIndex({ provider: 1, provider_user_id: 1 }, { unique: true, background: true }),
+          db.collection('social_accounts').createIndex({ creator_id: 1, status: 1 }, { background: true }),
+          db.collection('social_accounts').createIndex({ creator_email: 1 }, { background: true, sparse: true }),
+          db.collection('social_credentials').createIndex({ account_id: 1 }, { unique: true, background: true }),
+          db.collection('social_outbox_events').createIndex({ processed: 1, created_at: -1 }, { background: true }),
+          db.collection('social_audit_logs').createIndex({ creator_id: 1, created_at: -1 }, { background: true }),
+        ]);
+        mongoIndexesEnsured = true;
+      }
+      return db;
+    } catch (err: any) {
+      console.warn('[SocialRepo] MongoDB connection skipped/failed, using next layer:', err.message);
+      if (mongoClient) {
+        try {
+          await mongoClient.close();
+        } catch {}
+        mongoClient = null;
+      }
+      mongoDbPromise = null;
+      return null;
+    }
+  })();
+  return mongoDbPromise;
+}
+
 // Postgres Pool Setup
 let pgPool: Pool | null = null;
 let tablesInitialized = false;
@@ -118,7 +170,7 @@ export async function initSocialDbTables(): Promise<void> {
         account_id VARCHAR(64) PRIMARY KEY REFERENCES social_accounts(id) ON DELETE CASCADE,
         token_ciphertext TEXT NOT NULL,
         token_nonce VARCHAR(64) NOT NULL,
-        key_id VARCHAR(32) NOT NULL DEFAULT 'v1',
+        key_id VARCHAR(32) NOT NULL,
         token_type VARCHAR(32) NOT NULL,
         expires_at TIMESTAMPTZ,
         created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
@@ -129,7 +181,7 @@ export async function initSocialDbTables(): Promise<void> {
         confirmation_code VARCHAR(64) PRIMARY KEY,
         provider VARCHAR(32) NOT NULL,
         provider_user_id VARCHAR(128) NOT NULL,
-        status VARCHAR(32) NOT NULL DEFAULT 'PENDING',
+        status VARCHAR(32) NOT NULL,
         requested_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
         completed_at TIMESTAMPTZ
       );
@@ -144,7 +196,8 @@ export async function initSocialDbTables(): Promise<void> {
       );
 
       CREATE INDEX IF NOT EXISTS idx_social_accounts_creator ON social_accounts(creator_id);
-      CREATE INDEX IF NOT EXISTS idx_social_accounts_sync ON social_accounts(next_sync_at, status);
+      CREATE INDEX IF NOT EXISTS idx_social_accounts_sync ON social_accounts(status, next_sync_at);
+      CREATE INDEX IF NOT EXISTS idx_outbox_unprocessed ON social_outbox_events(processed, created_at);
     `);
     tablesInitialized = true;
   } catch (err) {
@@ -159,6 +212,15 @@ export async function findSocialAccountByProviderId(
   provider: 'instagram',
   providerUserId: string
 ): Promise<SocialAccount | null> {
+  const mongoDb = await getMongoDb();
+  if (mongoDb) {
+    const doc = await mongoDb.collection('social_accounts').findOne({ provider, provider_user_id: providerUserId });
+    if (doc) {
+      const { _id, ...rest } = doc;
+      return rest as SocialAccount;
+    }
+  }
+
   const pool = getPool();
   if (pool) {
     await initSocialDbTables();
@@ -180,7 +242,30 @@ export async function findSocialAccountByProviderId(
 /**
  * Lists all connected social accounts for a creator (never exposes credentials)
  */
-export async function getSocialAccountsByCreatorId(creatorId: string): Promise<SocialAccount[]> {
+export async function getSocialAccountsByCreatorId(creatorId: string, email?: string): Promise<SocialAccount[]> {
+  const mongoDb = await getMongoDb();
+  if (mongoDb) {
+    const queryConditions: any[] = [{ creator_id: creatorId }];
+    if (email) {
+      queryConditions.push({ creator_email: email });
+    }
+    const docs = await mongoDb
+      .collection('social_accounts')
+      .find({
+        $or: queryConditions,
+        status: { $ne: 'REVOKED' },
+      })
+      .sort({ connected_at: -1 })
+      .toArray();
+
+    if (docs.length > 0) {
+      return docs.map((doc: any) => {
+        const { _id, ...rest } = doc;
+        return rest as SocialAccount;
+      });
+    }
+  }
+
   const pool = getPool();
   if (pool) {
     await initSocialDbTables();
@@ -188,11 +273,11 @@ export async function getSocialAccountsByCreatorId(creatorId: string): Promise<S
       `SELECT * FROM social_accounts WHERE creator_id = $1 AND status != 'REVOKED' ORDER BY connected_at DESC`,
       [creatorId]
     );
-    return res.rows;
+    if (res.rows.length > 0) return res.rows;
   }
 
   return Array.from(inMemoryAccounts.values()).filter(
-    (acc) => acc.creator_id === creatorId && acc.status !== 'REVOKED'
+    (acc) => (acc.creator_id === creatorId || (email && acc.creator_email === email)) && acc.status !== 'REVOKED'
   );
 }
 
@@ -200,7 +285,7 @@ export async function getSocialAccountsByCreatorId(creatorId: string): Promise<S
  * Connects or updates a social account with encrypted credentials
  */
 export async function saveSocialAccountAndCredentials(
-  account: Omit<SocialAccount, 'id'> & { id?: string },
+  account: Omit<SocialAccount, 'id'> & { id?: string; creator_email?: string },
   credential: Omit<SocialCredential, 'account_id'>
 ): Promise<{ accountId: string; isNew: boolean }> {
   // Check for duplicate account across creators
@@ -224,6 +309,35 @@ export async function saveSocialAccountAndCredentials(
     last_synced_at: account.last_synced_at || null,
     next_sync_at: account.next_sync_at || null,
   };
+
+  const mongoDb = await getMongoDb();
+  if (mongoDb) {
+    await mongoDb.collection('social_accounts').updateOne(
+      { provider: fullAccount.provider, provider_user_id: fullAccount.provider_user_id },
+      { $set: fullAccount },
+      { upsert: true }
+    );
+    await mongoDb.collection('social_credentials').updateOne(
+      { account_id: accountId },
+      { $set: { ...credential, account_id: accountId } },
+      { upsert: true }
+    );
+    await mongoDb.collection('social_outbox_events').insertOne({
+      id: crypto.randomUUID(),
+      event_type: 'SocialConnected',
+      aggregate_id: fullAccount.creator_id,
+      payload: {
+        creatorId: fullAccount.creator_id,
+        provider: fullAccount.provider,
+        providerUserId: fullAccount.provider_user_id,
+        username: fullAccount.username,
+        followersCount: fullAccount.followers_count,
+      },
+      created_at: new Date(),
+      processed: false,
+    });
+    return { accountId, isNew: !existing };
+  }
 
   const pool = getPool();
   if (pool) {
@@ -351,6 +465,24 @@ export async function saveSocialAccountAndCredentials(
  * Disconnects an account: deletes credentials, marks REVOKED, emits SocialDisconnected
  */
 export async function disconnectSocialAccount(creatorId: string, provider: 'instagram'): Promise<boolean> {
+  const mongoDb = await getMongoDb();
+  if (mongoDb) {
+    const acc = await mongoDb.collection('social_accounts').findOne({ creator_id: creatorId, provider });
+    if (acc) {
+      await mongoDb.collection('social_credentials').deleteOne({ account_id: acc.id });
+      await mongoDb.collection('social_accounts').updateOne({ id: acc.id }, { $set: { status: 'REVOKED' } });
+      await mongoDb.collection('social_outbox_events').insertOne({
+        id: crypto.randomUUID(),
+        event_type: 'SocialDisconnected',
+        aggregate_id: creatorId,
+        payload: { creatorId, provider, accountId: acc.id },
+        created_at: new Date(),
+        processed: false,
+      });
+      return true;
+    }
+  }
+
   const pool = getPool();
   if (pool) {
     await initSocialDbTables();
@@ -420,6 +552,16 @@ export async function disconnectSocialAccount(creatorId: string, provider: 'inst
  * Deauthorizes user from Meta callback: removes token, marks REVOKED
  */
 export async function deauthorizeMetaUser(metaUserId: string): Promise<boolean> {
+  const mongoDb = await getMongoDb();
+  if (mongoDb) {
+    const acc = await mongoDb.collection('social_accounts').findOne({ provider: 'instagram', provider_user_id: metaUserId });
+    if (acc) {
+      await mongoDb.collection('social_credentials').deleteOne({ account_id: acc.id });
+      await mongoDb.collection('social_accounts').updateOne({ id: acc.id }, { $set: { status: 'REVOKED' } });
+      return true;
+    }
+  }
+
   const pool = getPool();
   if (pool) {
     await initSocialDbTables();
@@ -428,7 +570,7 @@ export async function deauthorizeMetaUser(metaUserId: string): Promise<boolean> 
       [metaUserId]
     );
     if (res.rows.length > 0) {
-      const { id, creator_id } = res.rows[0];
+      const { id } = res.rows[0];
       await pool.query(`DELETE FROM social_credentials WHERE account_id = $1`, [id]);
       await pool.query(`UPDATE social_accounts SET status = 'REVOKED' WHERE id = $1`, [id]);
       return true;
@@ -465,6 +607,12 @@ export async function recordDataDeletionRequest(
   // Perform immediate credential cleanup
   await deauthorizeMetaUser(metaUserId);
 
+  const mongoDb = await getMongoDb();
+  if (mongoDb) {
+    await mongoDb.collection('social_data_deletion_requests').insertOne(request);
+    return request;
+  }
+
   const pool = getPool();
   if (pool) {
     await initSocialDbTables();
@@ -491,6 +639,15 @@ export async function recordDataDeletionRequest(
  * Checks data deletion request status
  */
 export async function getDataDeletionStatus(confirmationCode: string): Promise<DataDeletionRequest | null> {
+  const mongoDb = await getMongoDb();
+  if (mongoDb) {
+    const doc = await mongoDb.collection('social_data_deletion_requests').findOne({ confirmation_code: confirmationCode });
+    if (doc) {
+      const { _id, ...rest } = doc;
+      return rest as DataDeletionRequest;
+    }
+  }
+
   const pool = getPool();
   if (pool) {
     await initSocialDbTables();
@@ -508,6 +665,15 @@ export async function getDataDeletionStatus(confirmationCode: string): Promise<D
  * Finds account by ID
  */
 export async function getSocialAccountById(id: string): Promise<SocialAccount | null> {
+  const mongoDb = await getMongoDb();
+  if (mongoDb) {
+    const doc = await mongoDb.collection('social_accounts').findOne({ id });
+    if (doc) {
+      const { _id, ...rest } = doc;
+      return rest as SocialAccount;
+    }
+  }
+
   const pool = getPool();
   if (pool) {
     await initSocialDbTables();
@@ -521,6 +687,15 @@ export async function getSocialAccountById(id: string): Promise<SocialAccount | 
  * Finds credential by account ID (restricted access, never for client response)
  */
 export async function getSocialCredentialByAccountId(accountId: string): Promise<SocialCredential | null> {
+  const mongoDb = await getMongoDb();
+  if (mongoDb) {
+    const doc = await mongoDb.collection('social_credentials').findOne({ account_id: accountId });
+    if (doc) {
+      const { _id, ...rest } = doc;
+      return rest as SocialCredential;
+    }
+  }
+
   const pool = getPool();
   if (pool) {
     await initSocialDbTables();
@@ -534,6 +709,25 @@ export async function getSocialCredentialByAccountId(accountId: string): Promise
  * Finds active accounts due for synchronization
  */
 export async function getDueAccountsForSync(limit = 50): Promise<SocialAccount[]> {
+  const mongoDb = await getMongoDb();
+  if (mongoDb) {
+    const now = new Date();
+    const docs = await mongoDb
+      .collection('social_accounts')
+      .find({
+        status: 'ACTIVE',
+        $or: [{ next_sync_at: null }, { next_sync_at: { $lte: now } }],
+      })
+      .sort({ next_sync_at: 1 })
+      .limit(limit)
+      .toArray();
+
+    return docs.map((d: any) => {
+      const { _id, ...rest } = d;
+      return rest as SocialAccount;
+    });
+  }
+
   const pool = getPool();
   if (pool) {
     await initSocialDbTables();
@@ -567,6 +761,11 @@ export async function updateSocialAccountSyncState(
   accountId: string,
   updates: Partial<SocialAccount>
 ): Promise<void> {
+  const mongoDb = await getMongoDb();
+  if (mongoDb) {
+    await mongoDb.collection('social_accounts').updateOne({ id: accountId }, { $set: updates });
+  }
+
   const pool = getPool();
   if (pool) {
     await initSocialDbTables();
@@ -616,6 +815,12 @@ export async function emitSocialOutboxEvent(
     processed: false,
   };
 
+  const mongoDb = await getMongoDb();
+  if (mongoDb) {
+    await mongoDb.collection('social_outbox_events').insertOne(event);
+    return;
+  }
+
   const pool = getPool();
   if (pool) {
     await initSocialDbTables();
@@ -634,6 +839,21 @@ export async function emitSocialOutboxEvent(
  * Retrieves pending or all outbox events
  */
 export async function getSocialOutboxEvents(limit = 50): Promise<OutboxEvent[]> {
+  const mongoDb = await getMongoDb();
+  if (mongoDb) {
+    const docs = await mongoDb
+      .collection('social_outbox_events')
+      .find()
+      .sort({ created_at: -1 })
+      .limit(limit)
+      .toArray();
+
+    return docs.map((d: any) => {
+      const { _id, ...rest } = d;
+      return rest as OutboxEvent;
+    });
+  }
+
   const pool = getPool();
   if (pool) {
     await initSocialDbTables();
@@ -663,6 +883,12 @@ export async function logSocialAuditAction(
     metadata,
     created_at: new Date(),
   };
+
+  const mongoDb = await getMongoDb();
+  if (mongoDb) {
+    await mongoDb.collection('social_audit_logs').insertOne(log);
+    return;
+  }
 
   const pool = getPool();
   if (pool) {
@@ -694,6 +920,21 @@ export async function logSocialAuditAction(
  * Retrieves audit logs for a creator
  */
 export async function getSocialAuditLogs(creatorId: string, limit = 50): Promise<SocialAuditLog[]> {
+  const mongoDb = await getMongoDb();
+  if (mongoDb) {
+    const docs = await mongoDb
+      .collection('social_audit_logs')
+      .find({ creator_id: creatorId })
+      .sort({ created_at: -1 })
+      .limit(limit)
+      .toArray();
+
+    return docs.map((d: any) => {
+      const { _id, ...rest } = d;
+      return rest as SocialAuditLog;
+    });
+  }
+
   const pool = getPool();
   if (pool) {
     await initSocialDbTables();
@@ -715,4 +956,13 @@ export async function getSocialAuditLogs(creatorId: string, limit = 50): Promise
     .slice(0, limit);
 }
 
-
+/**
+ * Clears in-memory storage (for unit test sandbox isolation only)
+ */
+export function _resetInMemoryStore(): void {
+  inMemoryAccounts.clear();
+  inMemoryCredentials.clear();
+  inMemoryDeletions.clear();
+  inMemoryAuditLogs.length = 0;
+  inMemoryOutbox.length = 0;
+}

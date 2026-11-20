@@ -68,7 +68,7 @@ export function Header() {
                 setSignInOpen((v) => !v);
                 setGetStartedOpen(false);
               }}
-              className="inline-flex items-center gap-1 justify-center h-9 px-3.5 rounded-lg text-sm font-semibold text-[var(--color-fg-secondary)] hover:text-[var(--color-fg-primary)] hover:bg-[var(--color-surface-2)] transition-colors cursor-pointer"
+              className="inline-flex items-center gap-1 justify-center h-9 px-3.5 rounded-lg text-sm font-semibold text-slate-700 hover:text-slate-900 dark:text-slate-300 dark:hover:text-white hover:bg-[var(--color-surface-2)] transition-colors cursor-pointer"
             >
               <span>Sign In</span>
               <svg

@@ -135,9 +135,9 @@ export function formatVerifiedViaLabel(date: Date | string | null, locale?: stri
  */
 export async function getSocialAccountLatest(
   creatorId: string,
-  options: { locale?: string } = {}
+  options: { locale?: string; email?: string } = {}
 ): Promise<SocialAccountLatest> {
-  const accounts = await getSocialAccountsByCreatorId(creatorId);
+  const accounts = await getSocialAccountsByCreatorId(creatorId, options.email);
   const activeInstagram = accounts.filter((a) => a.provider === 'instagram' && a.status === 'ACTIVE');
   const primary = activeInstagram[0] || accounts.find((a) => a.provider === 'instagram') || null;
 

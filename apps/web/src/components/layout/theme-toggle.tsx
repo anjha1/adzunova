@@ -127,9 +127,10 @@ export function ThemeToggle({ className = '' }: { className?: string }) {
       title={getAriaLabel(theme)}
       className={[
         'inline-flex items-center justify-center',
-        'h-9 w-9 rounded-[var(--radius-md)]',
-        'text-[var(--color-fg-secondary)]',
-        'hover:bg-[var(--color-surface-2)] hover:text-[var(--color-fg-primary)]',
+        'h-9 w-9 rounded-xl',
+        'border border-border bg-card/60',
+        'text-slate-700 hover:text-slate-900 dark:text-slate-300 dark:hover:text-white',
+        'hover:bg-[var(--color-surface-2)]',
         'active:bg-[var(--color-surface-3)]',
         'transition-colors duration-[var(--duration-fast)]',
         'focus-visible:outline-none focus-visible:ring-2',

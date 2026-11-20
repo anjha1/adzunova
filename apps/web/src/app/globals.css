@@ -582,12 +582,7 @@
 
 button {
   cursor: pointer;
-}
-
-/* Primary buttons */
-[data-theme="light"] button:not([data-variant="ghost"]):not([data-variant="outline"]),
-:root:not([data-theme="dark"]) button:not([data-variant="ghost"]):not([data-variant="outline"]) {
-  color: #ffffff;
+  color: inherit;
 }
 
 /* ==========================================

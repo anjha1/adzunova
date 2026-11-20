@@ -46,15 +46,15 @@ export default function AvailabilityPage() {
   const getStatusColor = (status: DayStatus) => {
     switch (status) {
       case 'available':
-        return 'bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border-emerald-500/20';
+        return 'bg-emerald-500/10 text-emerald-700 dark:text-emerald-300 border-emerald-500/30';
       case 'limited':
-        return 'bg-amber-500/10 text-amber-600 dark:text-amber-400 border-amber-500/20';
+        return 'bg-amber-500/10 text-amber-700 dark:text-amber-300 border-amber-500/30';
       case 'busy':
         return 'bg-muted text-muted-foreground border-border';
       case 'shoot':
-        return 'bg-indigo-500/10 text-indigo-600 dark:text-indigo-400 border-indigo-500/30';
+        return 'bg-indigo-500/10 text-indigo-700 dark:text-indigo-300 border-indigo-500/30';
       case 'blackout':
-        return 'bg-rose-500/10 text-rose-600 dark:text-rose-400 border-rose-500/20';
+        return 'bg-rose-500/10 text-rose-700 dark:text-rose-300 border-rose-500/30';
     }
   };
 
@@ -140,9 +140,9 @@ export default function AvailabilityPage() {
                     isSelected ? 'ring-2 ring-indigo-600 dark:ring-indigo-400' : ''
                   } ${getStatusColor(item.status)}`}
                 >
-                  <span className="text-xs font-bold">{item.date}</span>
+                  <span className="text-xs font-bold text-foreground">{item.date}</span>
                   {item.note && (
-                    <span className="text-[10px] leading-tight line-clamp-2 opacity-80">
+                    <span className="text-[10px] leading-tight line-clamp-2 opacity-80 text-foreground">
                       {item.note}
                     </span>
                   )}
@@ -171,10 +171,10 @@ export default function AvailabilityPage() {
                   <button
                     type="button"
                     onClick={() => handleUpdateStatus('available')}
-                    className={`p-2 rounded-lg border text-center font-medium ${
+                    className={`p-2 rounded-lg border text-center font-medium transition cursor-pointer ${
                       selectedDay.status === 'available'
-                        ? 'border-emerald-600 bg-emerald-500/10 text-emerald-600 dark:text-emerald-400'
-                        : 'border-border'
+                        ? 'border-emerald-600 bg-emerald-500/15 text-emerald-700 dark:text-emerald-300 font-semibold ring-1 ring-emerald-500/30'
+                        : 'border-border bg-card text-foreground hover:bg-muted'
                     }`}
                   >
                     Available
@@ -182,10 +182,10 @@ export default function AvailabilityPage() {
                   <button
                     type="button"
                     onClick={() => handleUpdateStatus('shoot')}
-                    className={`p-2 rounded-lg border text-center font-medium ${
+                    className={`p-2 rounded-lg border text-center font-medium transition cursor-pointer ${
                       selectedDay.status === 'shoot'
-                        ? 'border-indigo-600 bg-indigo-500/10 text-indigo-600 dark:text-indigo-400'
-                        : 'border-border'
+                        ? 'border-indigo-600 bg-indigo-500/15 text-indigo-700 dark:text-indigo-300 font-semibold ring-1 ring-indigo-500/30'
+                        : 'border-border bg-card text-foreground hover:bg-muted'
                     }`}
                   >
                     Shoot Day
@@ -193,10 +193,10 @@ export default function AvailabilityPage() {
                   <button
                     type="button"
                     onClick={() => handleUpdateStatus('busy')}
-                    className={`p-2 rounded-lg border text-center font-medium ${
+                    className={`p-2 rounded-lg border text-center font-medium transition cursor-pointer ${
                       selectedDay.status === 'busy'
-                        ? 'border-border bg-muted text-foreground'
-                        : 'border-border'
+                        ? 'border-border bg-muted text-foreground font-semibold ring-1 ring-border'
+                        : 'border-border bg-card text-foreground hover:bg-muted'
                     }`}
                   >
                     Busy
@@ -204,10 +204,10 @@ export default function AvailabilityPage() {
                   <button
                     type="button"
                     onClick={() => handleUpdateStatus('blackout')}
-                    className={`p-2 rounded-lg border text-center font-medium ${
+                    className={`p-2 rounded-lg border text-center font-medium transition cursor-pointer ${
                       selectedDay.status === 'blackout'
-                        ? 'border-rose-600 bg-rose-500/10 text-rose-600 dark:text-rose-400'
-                        : 'border-border'
+                        ? 'border-rose-600 bg-rose-500/15 text-rose-700 dark:text-rose-300 font-semibold ring-1 ring-rose-500/30'
+                        : 'border-border bg-card text-foreground hover:bg-muted'
                     }`}
                   >
                     Blackout / Hold

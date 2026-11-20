@@ -133,6 +133,7 @@ export async function GET(req: NextRequest) {
         const saved = await saveSocialAccountAndCredentials(
           {
             creator_id: session.user.id,
+            creator_email: session.user.email,
             provider: 'instagram',
             provider_user_id: targetAccount.id,
             username: targetAccount.username,

@@ -115,8 +115,9 @@ export function CreatorHeader({
       <div className="flex items-center gap-3">
         {/* Notifications */}
         <button
+          type="button"
           aria-label="View notifications"
-          className="relative p-2 rounded-xl text-muted-foreground hover:text-foreground hover:bg-muted transition"
+          className="relative p-2 rounded-xl border border-border bg-card/60 text-foreground hover:bg-muted transition"
         >
           <ShellIcon name="Bell" size={20} />
           {unreadNotifications > 0 && (

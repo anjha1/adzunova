@@ -136,8 +136,8 @@ function NavItemButton({
     'relative inline-flex items-center gap-1.5 px-3 py-2 text-sm font-medium rounded-lg transition-colors cursor-pointer',
     'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--color-brand-500)]',
     isActive || isOpen
-      ? 'text-[var(--color-fg-primary)] font-semibold'
-      : 'text-[var(--color-fg-secondary)] hover:text-[var(--color-fg-primary)] hover:bg-[var(--color-surface-2)]',
+      ? 'text-slate-950 dark:text-white font-semibold'
+      : 'text-slate-700 hover:text-slate-900 dark:text-slate-300 dark:hover:text-white hover:bg-[var(--color-surface-2)]',
   ].join(' ');
 
   if (item.href && !item.children) {

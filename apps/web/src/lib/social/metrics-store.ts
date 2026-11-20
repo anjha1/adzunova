@@ -1,9 +1,47 @@
 /**
- * Time Series Metric Storage & Aggregations (L0 In-Memory / L1 PostgreSQL / L2 ClickHouse Interface)
+ * Time Series Metric Storage & Aggregations (L0 In-Memory / L1 MongoDB Atlas / L2 PostgreSQL)
  */
 
 import { Pool } from 'pg';
 import { DerivedAudienceMetrics } from './demographics-engine';
+import type { Db, MongoClient } from 'mongodb';
+
+let mongoClient: MongoClient | null = null;
+let mongoDbPromise: Promise<Db | null> | null = null;
+
+async function getMongoDb(): Promise<Db | null> {
+  const uri = process.env.MONGODB_URI;
+  if (!uri || uri.includes('USER:PASSWORD')) return null;
+  if (mongoDbPromise) return mongoDbPromise;
+
+  mongoDbPromise = (async () => {
+    try {
+      if (!mongoClient) {
+        const { MongoClient } = await import('mongodb');
+        mongoClient = new MongoClient(uri, {
+          maxPoolSize: 10,
+          serverSelectionTimeoutMS: 5000,
+          connectTimeoutMS: 5000,
+          socketTimeoutMS: 10000,
+        });
+        await mongoClient.connect();
+      }
+      const db = mongoClient.db(process.env.MONGODB_DB_NAME || 'adzunova');
+      return db;
+    } catch (err: any) {
+      console.warn('[MetricsStore] MongoDB connection skipped/failed, using next layer:', err.message);
+      if (mongoClient) {
+        try {
+          await mongoClient.close();
+        } catch {}
+        mongoClient = null;
+      }
+      mongoDbPromise = null;
+      return null;
+    }
+  })();
+  return mongoDbPromise;
+}
 
 export interface MetricPoint {
   accountId: string;
@@ -77,8 +115,29 @@ export async function initMetricsTables(): Promise<void> {
  */
 export async function upsertMetricPoints(points: MetricPoint[]): Promise<number> {
   if (points.length === 0) return 0;
-  const pool = getPool();
 
+  const mongoDb = await getMongoDb();
+  if (mongoDb) {
+    const ops = points.map((pt) => ({
+      updateOne: {
+        filter: { accountId: pt.accountId, metric: pt.metric, timestamp: pt.timestamp },
+        update: {
+          $set: {
+            accountId: pt.accountId,
+            metric: pt.metric,
+            timestamp: pt.timestamp,
+            value: pt.value,
+            dimensions: pt.dimensions || {},
+          },
+        },
+        upsert: true,
+      },
+    }));
+    await mongoDb.collection('social_metric_points').bulkWrite(ops);
+    return points.length;
+  }
+
+  const pool = getPool();
   if (pool) {
     await initMetricsTables();
     let inserted = 0;
@@ -123,8 +182,29 @@ export async function getMetricSeries(
   from: Date,
   to: Date
 ): Promise<MetricSeriesResult> {
-  const pool = getPool();
+  const mongoDb = await getMongoDb();
+  if (mongoDb) {
+    const docs = await mongoDb
+      .collection('social_metric_points')
+      .find({
+        accountId,
+        metric,
+        timestamp: { $gte: from, $lte: to },
+      })
+      .sort({ timestamp: 1 })
+      .toArray();
 
+    return {
+      metric,
+      points: docs.map((doc: any) => ({
+        timestamp: new Date(doc.timestamp).toISOString(),
+        value: Number(doc.value),
+        dimensions: doc.dimensions,
+      })),
+    };
+  }
+
+  const pool = getPool();
   if (pool) {
     await initMetricsTables();
     const res = await pool.query(
@@ -174,8 +254,17 @@ export async function saveAudienceSnapshot(
   accountId: string,
   snapshot: DerivedAudienceMetrics
 ): Promise<void> {
-  const pool = getPool();
+  const mongoDb = await getMongoDb();
+  if (mongoDb) {
+    await mongoDb.collection('social_audience_snapshots').updateOne(
+      { account_id: accountId },
+      { $set: { snapshot_data: snapshot, updated_at: new Date() } },
+      { upsert: true }
+    );
+    return;
+  }
 
+  const pool = getPool();
   if (pool) {
     await initMetricsTables();
     await pool.query(
@@ -197,8 +286,15 @@ export async function saveAudienceSnapshot(
 export async function getLatestAudienceSnapshot(
   accountId: string
 ): Promise<DerivedAudienceMetrics | null> {
-  const pool = getPool();
+  const mongoDb = await getMongoDb();
+  if (mongoDb) {
+    const doc = await mongoDb.collection('social_audience_snapshots').findOne({ account_id: accountId });
+    if (doc && doc.snapshot_data) {
+      return doc.snapshot_data as DerivedAudienceMetrics;
+    }
+  }
 
+  const pool = getPool();
   if (pool) {
     await initMetricsTables();
     const res = await pool.query(
