@@ -191,8 +191,6 @@ model PublicProfile {
   updatedAt          DateTime  @updatedAt
   version            Int       @default(1)
 
-  @@index([slug])
-  @@index([creatorId])
   @@map("public_profiles")
 }
 
