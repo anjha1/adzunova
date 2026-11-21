@@ -39,38 +39,8 @@ export default async function BrandDashboardPage() {
   const planBadge = profile?.subscriptionPlan ? String(profile.subscriptionPlan).toUpperCase() : undefined;
 
   return (
-    <div className="min-h-screen bg-background text-foreground">
-      {/* Top Bar */}
-      <header className="border-b border-border bg-card sticky top-0 z-30">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-16 flex items-center justify-between">
-          <div className="flex items-center gap-3">
-            <Logo variant="full" size="md" href="/brand/dashboard" badgeText={planBadge} />
-          </div>
-
-          <div className="flex items-center gap-4">
-            <div className="text-right hidden sm:block">
-              <div className="text-sm font-semibold text-foreground">
-                {profile?.companyName || user.email}
-              </div>
-              <div className="text-xs text-muted-foreground">
-                {verificationLabel}
-              </div>
-            </div>
-            <form action="/api/auth/logout?redirect=/auth/brand/sign-in" method="POST">
-              <button
-                type="submit"
-                className="text-xs font-semibold px-3 py-1.5 rounded-lg border border-border hover:bg-muted text-muted-foreground hover:text-foreground transition"
-              >
-                Sign Out
-              </button>
-            </form>
-          </div>
-        </div>
-      </header>
-
-      {/* Main Content */}
-      <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 space-y-8">
-        {/* Work Email Policy Restriction Banner (Phase B4) */}
+    <div className="space-y-8">
+      {/* Work Email Policy Restriction Banner (Phase B4) */}
         {user.status === 'RESTRICTED_WORK_EMAIL_REQUIRED' && (
           <div className="p-6 rounded-2xl bg-amber-500/10 border-2 border-amber-500/30 text-foreground space-y-4 shadow-2xs">
             <div className="flex items-start gap-4">
@@ -181,7 +151,7 @@ export default async function BrandDashboardPage() {
                 Company Profile & Setup
               </Link>
               <Link
-                href="/c/anjha1"
+                href="/brand/discover"
                 className="block w-full py-2.5 px-4 text-center rounded-xl text-sm font-semibold border border-border text-foreground bg-muted/40 hover:bg-muted transition"
               >
                 Discover Creators
@@ -189,7 +159,6 @@ export default async function BrandDashboardPage() {
             </div>
           </div>
         </div>
-      </main>
     </div>
   );
 }
