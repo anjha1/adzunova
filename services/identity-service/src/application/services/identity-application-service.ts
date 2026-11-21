@@ -7,6 +7,12 @@ import {
   SessionEntity,
   VerificationTokenEntity,
   UserRole,
+  WorkspaceEntity,
+  BrandEntity,
+  WorkspaceMemberEntity,
+  WorkspaceInvitationEntity,
+  ApprovalEntity,
+  AuditLogEntity,
 } from '../../domain/entities/models';
 import {
   hashPassword,
@@ -22,6 +28,22 @@ import {
   computeBrandVerificationBadge,
   BusinessVerificationInput,
 } from '../../domain/services/business-verification-service';
+import {
+  checkPermission,
+  isIpAllowed,
+  isTwoFactorCompliant,
+} from '../../domain/services/workspace-rbac-service';
+import {
+  buildChainedAuditEntry,
+  verifyAuditChain,
+  exportAuditLogsToCsv,
+  exportAuditLogsToJson,
+} from '../../domain/services/audit-log-service';
+import {
+  createApprovalRequest,
+  evaluateApprovalDecision,
+  checkSlaStatus,
+} from '../../domain/services/approval-workflow-service';
 
 export class IdentityService {
   /**
@@ -724,5 +746,422 @@ export class IdentityService {
       { $set: { emailVerified: true, updatedAt: new Date() } }
     );
     return true;
+  }
+
+  /**
+   * Phase E: Workspace, Team, Roles, Approvals & Immutable Audit Trail
+   */
+
+  async getOrCreateWorkspace(userId: string): Promise<{
+    workspace: WorkspaceEntity;
+    member: WorkspaceMemberEntity;
+  }> {
+    const db = await getDatabase();
+    let member = await db.collection<WorkspaceMemberEntity>('members').findOne({ userId });
+
+    let workspace: WorkspaceEntity | null = null;
+    if (member) {
+      workspace = await db.collection<WorkspaceEntity>('workspaces').findOne({ _id: member.workspaceId });
+    }
+
+    if (!workspace) {
+      // Find or create workspace where user is owner
+      workspace = await db.collection<WorkspaceEntity>('workspaces').findOne({ ownerId: userId });
+      if (!workspace) {
+        const brandProfile = await db.collection<BrandProfileEntity>('brand_profiles').findOne({ userId });
+        const now = new Date();
+        const wsId = crypto.randomBytes(12).toString('hex');
+
+        workspace = {
+          _id: wsId,
+          id: wsId,
+          name: brandProfile?.companyName || brandProfile?.brandName || 'Corporate Workspace',
+          slug: `ws_${userId.slice(0, 8)}_${Date.now().toString(36)}`,
+          type: (brandProfile?.accountType as any) || 'BRAND',
+          ownerId: userId,
+          billingCurrency: brandProfile?.currency || 'INR',
+          ipAllowlist: [],
+          twoFactorRequired: false,
+          approvalThresholds: {
+            bookingThresholdMinor: 10000000, // ₹1,00,000
+            campaignThresholdMinor: 50000000, // ₹5,00,000
+            paymentThresholdMinor: 25000000, // ₹2,50,000
+          },
+          createdAt: now,
+          updatedAt: now,
+        };
+
+        await db.collection('workspaces').insertOne(workspace);
+
+        // Record genesis audit entry
+        const genesisEntry = buildChainedAuditEntry({
+          workspaceId: wsId,
+          actorId: userId,
+          action: 'workspace:create',
+          resourceType: 'WORKSPACE',
+          resourceId: wsId,
+          payload: { name: workspace.name, type: workspace.type },
+          createdAt: now,
+        });
+        await db.collection('audit_log').insertOne(genesisEntry);
+      }
+
+      if (!member) {
+        const user = await db.collection<UserEntity>('users').findOne({ _id: userId as any });
+        const now = new Date();
+        const memId = crypto.randomBytes(12).toString('hex');
+        member = {
+          _id: memId,
+          id: memId,
+          workspaceId: workspace._id || workspace.id!,
+          userId,
+          email: user?.email || '',
+          name: user?.name,
+          role: 'OWNER',
+          brandIds: [],
+          status: 'ACTIVE',
+          joinedAt: now,
+          updatedAt: now,
+        };
+        await db.collection('members').insertOne(member);
+      }
+    }
+
+    return { workspace, member };
+  }
+
+  async getWorkspaceTeam(workspaceId: string): Promise<{
+    members: WorkspaceMemberEntity[];
+    invitations: WorkspaceInvitationEntity[];
+    brands: BrandEntity[];
+  }> {
+    const db = await getDatabase();
+    const members = await db.collection<WorkspaceMemberEntity>('members').find({ workspaceId }).toArray();
+    const invitations = await db.collection<WorkspaceInvitationEntity>('invitations').find({ workspaceId }).toArray();
+    const brands = await db.collection<BrandEntity>('brands').find({ workspaceId }).toArray();
+
+    return {
+      members,
+      invitations: invitations.filter((inv) => inv.status === 'PENDING'),
+      brands,
+    };
+  }
+
+  async inviteTeamMember(
+    workspaceId: string,
+    invitedByUserId: string,
+    input: {
+      email: string;
+      role: string;
+      brandIds?: string[];
+      approvalLimitMinor?: number;
+    }
+  ): Promise<WorkspaceInvitationEntity> {
+    const db = await getDatabase();
+
+    // Strict Domain Policy Engine check (Phase B)
+    const evalResult = await evaluateWorkEmail(input.email);
+    if (!evalResult.allowed) {
+      const err = new Error(
+        evalResult.errorMessage ||
+          'Please use a company work email address. Personal email providers are not supported for workspace invitations.'
+      );
+      (err as any).code = evalResult.reason;
+      throw err;
+    }
+
+    const normalizedEmail = evalResult.normalized;
+
+    // Check existing active member
+    const existingMember = await db.collection<WorkspaceMemberEntity>('members').findOne({
+      workspaceId,
+      email: normalizedEmail,
+    });
+    if (existingMember && existingMember.status === 'ACTIVE') {
+      throw new Error('A team member with this work email already exists in this workspace.');
+    }
+
+    // Check pending invite
+    const existingInvite = await db.collection<WorkspaceInvitationEntity>('invitations').findOne({
+      workspaceId,
+      email: normalizedEmail,
+      status: 'PENDING',
+    });
+    if (existingInvite) {
+      throw new Error('An active invitation has already been sent to this work email address.');
+    }
+
+    const now = new Date();
+    const token = crypto.randomBytes(24).toString('hex');
+    const expiresAt = new Date(now.getTime() + 7 * 24 * 3600 * 1000); // 7 days
+
+    const invitation: WorkspaceInvitationEntity = {
+      _id: crypto.randomBytes(12).toString('hex'),
+      workspaceId,
+      email: normalizedEmail,
+      role: input.role,
+      brandIds: input.brandIds || [],
+      invitedByUserId,
+      token,
+      status: 'PENDING',
+      expiresAt,
+      createdAt: now,
+    };
+
+    await db.collection('invitations').insertOne(invitation);
+
+    // Chained audit log
+    const lastLogs = await db.collection<AuditLogEntity>('audit_log').find({ workspaceId }).toArray();
+    const lastHash = lastLogs.length > 0 ? lastLogs[lastLogs.length - 1].hash : undefined;
+    const auditEntry = buildChainedAuditEntry(
+      {
+        workspaceId,
+        actorId: invitedByUserId,
+        action: 'team:invite',
+        resourceType: 'INVITATION',
+        resourceId: invitation._id,
+        payload: { email: normalizedEmail, role: input.role, brandIds: input.brandIds },
+        createdAt: now,
+      },
+      lastHash
+    );
+    await db.collection('audit_log').insertOne(auditEntry);
+
+    return invitation;
+  }
+
+  async removeTeamMember(
+    workspaceId: string,
+    actorId: string,
+    targetId: string,
+    isInvitation = false
+  ): Promise<boolean> {
+    const db = await getDatabase();
+    const now = new Date();
+
+    if (isInvitation) {
+      await db.collection('invitations').updateOne(
+        { _id: targetId as any, workspaceId },
+        { $set: { status: 'REVOKED', updatedAt: now } }
+      );
+    } else {
+      const targetMember = await db.collection<WorkspaceMemberEntity>('members').findOne({
+        _id: targetId as any,
+        workspaceId,
+      });
+      if (targetMember?.role === 'OWNER') {
+        throw new Error('Cannot remove the workspace Owner.');
+      }
+      await db.collection('members').updateOne(
+        { _id: targetId as any, workspaceId },
+        { $set: { status: 'SUSPENDED', updatedAt: now } }
+      );
+    }
+
+    // Chained audit log
+    const lastLogs = await db.collection<AuditLogEntity>('audit_log').find({ workspaceId }).toArray();
+    const lastHash = lastLogs.length > 0 ? lastLogs[lastLogs.length - 1].hash : undefined;
+    const auditEntry = buildChainedAuditEntry(
+      {
+        workspaceId,
+        actorId,
+        action: isInvitation ? 'team:invite_revoked' : 'team:member_removed',
+        resourceType: isInvitation ? 'INVITATION' : 'MEMBER',
+        resourceId: targetId,
+        payload: { targetId, isInvitation },
+        createdAt: now,
+      },
+      lastHash
+    );
+    await db.collection('audit_log').insertOne(auditEntry);
+
+    return true;
+  }
+
+  async getApprovals(workspaceId: string): Promise<ApprovalEntity[]> {
+    const db = await getDatabase();
+    return db.collection<ApprovalEntity>('approvals').find({ workspaceId }).toArray();
+  }
+
+  async createApproval(
+    workspaceId: string,
+    requesterId: string,
+    input: {
+      type: 'BOOKING_CREATION' | 'CAMPAIGN_LAUNCH' | 'PAYMENT_RELEASE';
+      resourceId: string;
+      brandId?: string;
+      amountMinor?: number;
+      currency?: string;
+      slaHours?: number;
+    }
+  ): Promise<ApprovalEntity> {
+    const db = await getDatabase();
+    const approval = createApprovalRequest({
+      workspaceId,
+      brandId: input.brandId,
+      type: input.type,
+      resourceId: input.resourceId,
+      requesterId,
+      amountMinor: input.amountMinor,
+      currency: input.currency,
+      slaHours: input.slaHours,
+    });
+
+    await db.collection('approvals').insertOne(approval);
+
+    // Chained audit log
+    const lastLogs = await db.collection<AuditLogEntity>('audit_log').find({ workspaceId }).toArray();
+    const lastHash = lastLogs.length > 0 ? lastLogs[lastLogs.length - 1].hash : undefined;
+    const auditEntry = buildChainedAuditEntry(
+      {
+        workspaceId,
+        actorId: requesterId,
+        action: 'approval:request_created',
+        resourceType: 'APPROVAL',
+        resourceId: approval._id,
+        payload: { type: input.type, resourceId: input.resourceId, amountMinor: input.amountMinor },
+        createdAt: new Date(),
+      },
+      lastHash
+    );
+    await db.collection('audit_log').insertOne(auditEntry);
+
+    return approval;
+  }
+
+  async decideApproval(
+    workspaceId: string,
+    approverUserId: string,
+    approvalId: string,
+    decision: 'APPROVED' | 'REJECTED',
+    reason?: string
+  ): Promise<ApprovalEntity> {
+    const db = await getDatabase();
+    const approval = await db.collection<ApprovalEntity>('approvals').findOne({
+      _id: approvalId as any,
+      workspaceId,
+    });
+    if (!approval) {
+      throw new Error('Approval request not found.');
+    }
+
+    const approverMember = await db.collection<WorkspaceMemberEntity>('members').findOne({
+      workspaceId,
+      userId: approverUserId,
+    });
+    if (!approverMember) {
+      throw new Error('Approver is not an authorized member of this workspace.');
+    }
+
+    const { updatedApproval, auditPayload } = evaluateApprovalDecision(approval, {
+      approvalId,
+      approver: approverMember,
+      decision,
+      reason,
+    });
+
+    await db.collection('approvals').updateOne(
+      { _id: approvalId as any, workspaceId },
+      { $set: updatedApproval }
+    );
+
+    // Chained audit log
+    const lastLogs = await db.collection<AuditLogEntity>('audit_log').find({ workspaceId }).toArray();
+    const lastHash = lastLogs.length > 0 ? lastLogs[lastLogs.length - 1].hash : undefined;
+    const auditEntry = buildChainedAuditEntry(
+      {
+        workspaceId,
+        actorId: approverUserId,
+        action: `approval:${decision.toLowerCase()}`,
+        resourceType: 'APPROVAL',
+        resourceId: approvalId,
+        payload: auditPayload,
+        createdAt: new Date(),
+      },
+      lastHash
+    );
+    await db.collection('audit_log').insertOne(auditEntry);
+
+    return updatedApproval;
+  }
+
+  async getAuditLogs(
+    workspaceId: string,
+    options?: { verify?: boolean; format?: 'csv' | 'json' }
+  ): Promise<{
+    logs: AuditLogEntity[];
+    verification: { valid: boolean; totalEntries: number; error?: string };
+    csv?: string;
+    json?: string;
+  }> {
+    const db = await getDatabase();
+    const logs = await db.collection<AuditLogEntity>('audit_log').find({ workspaceId }).toArray();
+
+    // Sort ascending by creation time
+    logs.sort((a, b) => new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime());
+
+    const verification = verifyAuditChain(logs);
+
+    let csv: string | undefined;
+    let json: string | undefined;
+
+    if (options?.format === 'csv') {
+      csv = exportAuditLogsToCsv(logs);
+    } else if (options?.format === 'json') {
+      json = exportAuditLogsToJson(logs);
+    }
+
+    return {
+      logs,
+      verification: {
+        valid: verification.valid,
+        totalEntries: verification.totalEntries,
+        error: verification.error,
+      },
+      csv,
+      json,
+    };
+  }
+
+  async updateWorkspaceSettings(
+    workspaceId: string,
+    actorId: string,
+    settings: {
+      ipAllowlist?: string[];
+      twoFactorRequired?: boolean;
+      approvalThresholds?: any;
+    }
+  ): Promise<WorkspaceEntity> {
+    const db = await getDatabase();
+    const now = new Date();
+
+    const patch: any = { updatedAt: now };
+    if (settings.ipAllowlist !== undefined) patch.ipAllowlist = settings.ipAllowlist;
+    if (settings.twoFactorRequired !== undefined) patch.twoFactorRequired = settings.twoFactorRequired;
+    if (settings.approvalThresholds !== undefined) patch.approvalThresholds = settings.approvalThresholds;
+
+    await db.collection('workspaces').updateOne(
+      { _id: workspaceId as any },
+      { $set: patch }
+    );
+
+    // Chained audit log
+    const lastLogs = await db.collection<AuditLogEntity>('audit_log').find({ workspaceId }).toArray();
+    const lastHash = lastLogs.length > 0 ? lastLogs[lastLogs.length - 1].hash : undefined;
+    const auditEntry = buildChainedAuditEntry(
+      {
+        workspaceId,
+        actorId,
+        action: 'settings:update',
+        resourceType: 'WORKSPACE',
+        resourceId: workspaceId,
+        payload: settings,
+        createdAt: now,
+      },
+      lastHash
+    );
+    await db.collection('audit_log').insertOne(auditEntry);
+
+    return (await db.collection<WorkspaceEntity>('workspaces').findOne({ _id: workspaceId as any }))!;
   }
 }

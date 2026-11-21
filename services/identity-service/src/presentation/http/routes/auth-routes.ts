@@ -353,6 +353,206 @@ export function createAuthRouter(identityService: IdentityService): Router {
     }
   });
 
+  // 8c. Phase E: Workspace, Team, Approvals & Immutable Audit Trail
+  router.get('/workspace', async (req: Request, res: Response) => {
+    try {
+      const authHeader = req.headers.authorization;
+      const token = authHeader?.startsWith('Bearer ') ? authHeader.slice(7) : req.headers['x-session-token'] as string;
+      if (!token) return res.status(401).json({ error: 'Unauthorized.' });
+
+      const session = await identityService.findSession(token);
+      if (!session) return res.status(401).json({ error: 'Session expired.' });
+
+      const data = await identityService.getOrCreateWorkspace(session.user._id);
+      return res.status(200).json(data);
+    } catch (err: any) {
+      return res.status(400).json({ error: err.message || 'Failed to fetch workspace.' });
+    }
+  });
+
+  router.get('/workspace/team', async (req: Request, res: Response) => {
+    try {
+      const authHeader = req.headers.authorization;
+      const token = authHeader?.startsWith('Bearer ') ? authHeader.slice(7) : req.headers['x-session-token'] as string;
+      if (!token) return res.status(401).json({ error: 'Unauthorized.' });
+
+      const session = await identityService.findSession(token);
+      if (!session) return res.status(401).json({ error: 'Session expired.' });
+
+      const { workspace } = await identityService.getOrCreateWorkspace(session.user._id);
+      const team = await identityService.getWorkspaceTeam(workspace._id || workspace.id!);
+      return res.status(200).json(team);
+    } catch (err: any) {
+      return res.status(400).json({ error: err.message || 'Failed to fetch team.' });
+    }
+  });
+
+  router.post('/workspace/team/invite', async (req: Request, res: Response) => {
+    try {
+      const authHeader = req.headers.authorization;
+      const token = authHeader?.startsWith('Bearer ') ? authHeader.slice(7) : req.headers['x-session-token'] as string;
+      if (!token) return res.status(401).json({ error: 'Unauthorized.' });
+
+      const session = await identityService.findSession(token);
+      if (!session) return res.status(401).json({ error: 'Session expired.' });
+
+      const { workspace } = await identityService.getOrCreateWorkspace(session.user._id);
+      const { email, role, brandIds, approvalLimitMinor } = req.body;
+
+      const invitation = await identityService.inviteTeamMember(
+        workspace._id || workspace.id!,
+        session.user._id,
+        { email, role, brandIds, approvalLimitMinor }
+      );
+      return res.status(200).json({ success: true, invitation });
+    } catch (err: any) {
+      return res.status(400).json({ error: err.message || 'Failed to send invitation.' });
+    }
+  });
+
+  router.delete('/workspace/team/member', async (req: Request, res: Response) => {
+    try {
+      const authHeader = req.headers.authorization;
+      const token = authHeader?.startsWith('Bearer ') ? authHeader.slice(7) : req.headers['x-session-token'] as string;
+      if (!token) return res.status(401).json({ error: 'Unauthorized.' });
+
+      const session = await identityService.findSession(token);
+      if (!session) return res.status(401).json({ error: 'Session expired.' });
+
+      const { workspace } = await identityService.getOrCreateWorkspace(session.user._id);
+      const { targetId, isInvitation } = req.body;
+
+      await identityService.removeTeamMember(
+        workspace._id || workspace.id!,
+        session.user._id,
+        targetId,
+        Boolean(isInvitation)
+      );
+      return res.status(200).json({ success: true });
+    } catch (err: any) {
+      return res.status(400).json({ error: err.message || 'Failed to remove member.' });
+    }
+  });
+
+  router.get('/workspace/approvals', async (req: Request, res: Response) => {
+    try {
+      const authHeader = req.headers.authorization;
+      const token = authHeader?.startsWith('Bearer ') ? authHeader.slice(7) : req.headers['x-session-token'] as string;
+      if (!token) return res.status(401).json({ error: 'Unauthorized.' });
+
+      const session = await identityService.findSession(token);
+      if (!session) return res.status(401).json({ error: 'Session expired.' });
+
+      const { workspace } = await identityService.getOrCreateWorkspace(session.user._id);
+      const approvals = await identityService.getApprovals(workspace._id || workspace.id!);
+      return res.status(200).json({ approvals });
+    } catch (err: any) {
+      return res.status(400).json({ error: err.message || 'Failed to fetch approvals.' });
+    }
+  });
+
+  router.post('/workspace/approvals', async (req: Request, res: Response) => {
+    try {
+      const authHeader = req.headers.authorization;
+      const token = authHeader?.startsWith('Bearer ') ? authHeader.slice(7) : req.headers['x-session-token'] as string;
+      if (!token) return res.status(401).json({ error: 'Unauthorized.' });
+
+      const session = await identityService.findSession(token);
+      if (!session) return res.status(401).json({ error: 'Session expired.' });
+
+      const { workspace } = await identityService.getOrCreateWorkspace(session.user._id);
+      const { type, resourceId, brandId, amountMinor, currency, slaHours } = req.body;
+
+      const approval = await identityService.createApproval(
+        workspace._id || workspace.id!,
+        session.user._id,
+        { type, resourceId, brandId, amountMinor, currency, slaHours }
+      );
+      return res.status(200).json({ success: true, approval });
+    } catch (err: any) {
+      return res.status(400).json({ error: err.message || 'Failed to create approval request.' });
+    }
+  });
+
+  router.post('/workspace/approvals/decide', async (req: Request, res: Response) => {
+    try {
+      const authHeader = req.headers.authorization;
+      const token = authHeader?.startsWith('Bearer ') ? authHeader.slice(7) : req.headers['x-session-token'] as string;
+      if (!token) return res.status(401).json({ error: 'Unauthorized.' });
+
+      const session = await identityService.findSession(token);
+      if (!session) return res.status(401).json({ error: 'Session expired.' });
+
+      const { workspace } = await identityService.getOrCreateWorkspace(session.user._id);
+      const { approvalId, decision, reason } = req.body;
+
+      const updated = await identityService.decideApproval(
+        workspace._id || workspace.id!,
+        session.user._id,
+        approvalId,
+        decision,
+        reason
+      );
+      return res.status(200).json({ success: true, approval: updated });
+    } catch (err: any) {
+      return res.status(400).json({ error: err.message || 'Failed to record decision.' });
+    }
+  });
+
+  router.get('/workspace/audit-log', async (req: Request, res: Response) => {
+    try {
+      const authHeader = req.headers.authorization;
+      const token = authHeader?.startsWith('Bearer ') ? authHeader.slice(7) : req.headers['x-session-token'] as string;
+      if (!token) return res.status(401).json({ error: 'Unauthorized.' });
+
+      const session = await identityService.findSession(token);
+      if (!session) return res.status(401).json({ error: 'Session expired.' });
+
+      const { workspace } = await identityService.getOrCreateWorkspace(session.user._id);
+      const format = req.query.format as 'csv' | 'json' | undefined;
+
+      const auditData = await identityService.getAuditLogs(workspace._id || workspace.id!, { format });
+
+      if (format === 'csv') {
+        res.setHeader('Content-Type', 'text/csv');
+        res.setHeader('Content-Disposition', 'attachment; filename="workspace-audit-trail.csv"');
+        return res.send(auditData.csv);
+      }
+      if (format === 'json') {
+        res.setHeader('Content-Type', 'application/json');
+        res.setHeader('Content-Disposition', 'attachment; filename="workspace-audit-trail.json"');
+        return res.send(auditData.json);
+      }
+
+      return res.status(200).json(auditData);
+    } catch (err: any) {
+      return res.status(400).json({ error: err.message || 'Failed to fetch audit log.' });
+    }
+  });
+
+  router.post('/workspace/settings', async (req: Request, res: Response) => {
+    try {
+      const authHeader = req.headers.authorization;
+      const token = authHeader?.startsWith('Bearer ') ? authHeader.slice(7) : req.headers['x-session-token'] as string;
+      if (!token) return res.status(401).json({ error: 'Unauthorized.' });
+
+      const session = await identityService.findSession(token);
+      if (!session) return res.status(401).json({ error: 'Session expired.' });
+
+      const { workspace } = await identityService.getOrCreateWorkspace(session.user._id);
+      const { ipAllowlist, twoFactorRequired, approvalThresholds } = req.body;
+
+      const updated = await identityService.updateWorkspaceSettings(
+        workspace._id || workspace.id!,
+        session.user._id,
+        { ipAllowlist, twoFactorRequired, approvalThresholds }
+      );
+      return res.status(200).json({ success: true, workspace: updated });
+    } catch (err: any) {
+      return res.status(400).json({ error: err.message || 'Failed to update settings.' });
+    }
+  });
+
   // 9. Forgot Password
   router.post('/forgot-password', async (req: Request, res: Response) => {
     try {

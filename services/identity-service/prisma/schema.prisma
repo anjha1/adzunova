@@ -319,3 +319,185 @@ model DomainClaim {
   @@index([workspaceId])
   @@map("domain_claims")
 }
+
+enum WorkspaceType {
+  BRAND
+  AGENCY
+  ENTERPRISE
+}
+
+enum MemberStatus {
+  ACTIVE
+  INVITED
+  SUSPENDED
+}
+
+enum InvitationStatus {
+  PENDING
+  ACCEPTED
+  REVOKED
+  EXPIRED
+}
+
+enum ApprovalDecision {
+  PENDING
+  APPROVED
+  REJECTED
+}
+
+enum ApprovalType {
+  BOOKING_CREATION
+  CAMPAIGN_LAUNCH
+  PAYMENT_RELEASE
+}
+
+model Workspace {
+  id                 String        @id @default(auto()) @map("_id") @db.ObjectId
+  name               String
+  slug               String        @unique
+  type               WorkspaceType @default(BRAND)
+  ownerId            String
+  billingCurrency    String        @default("INR")
+  ipAllowlist        String[]      @default([])
+  twoFactorRequired  Boolean       @default(false)
+  approvalThresholds Json?
+  createdAt          DateTime      @default(now())
+  updatedAt          DateTime      @updatedAt
+
+  @@index([ownerId])
+  @@map("workspaces")
+}
+
+model Brand {
+  id          String   @id @default(auto()) @map("_id") @db.ObjectId
+  workspaceId String
+  name        String
+  logoUrl     String?
+  website     String?
+  status      String   @default("ACTIVE")
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@index([workspaceId])
+  @@map("brands")
+}
+
+model WorkspaceMember {
+  id                 String       @id @default(auto()) @map("_id") @db.ObjectId
+  workspaceId        String
+  userId             String
+  email              String
+  role               String       @default("VIEWER")
+  customRoleId       String?
+  brandIds           String[]     @default([])
+  approvalLimitMinor Int?
+  status             MemberStatus @default(ACTIVE)
+  joinedAt           DateTime     @default(now())
+  updatedAt          DateTime     @updatedAt
+
+  @@unique([workspaceId, userId])
+  @@index([workspaceId])
+  @@index([userId])
+  @@map("members")
+}
+
+model Role {
+  id          String   @id @default(auto()) @map("_id") @db.ObjectId
+  workspaceId String?
+  name        String
+  slug        String
+  description String?
+  isCustom    Boolean  @default(false)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@unique([workspaceId, slug])
+  @@map("roles")
+}
+
+model RolePermission {
+  id           String   @id @default(auto()) @map("_id") @db.ObjectId
+  roleId       String
+  action       String
+  resourceType String
+  conditions   Json?
+  createdAt    DateTime @default(now())
+
+  @@index([roleId])
+  @@map("role_permissions")
+}
+
+model WorkspaceInvitation {
+  id              String           @id @default(auto()) @map("_id") @db.ObjectId
+  workspaceId     String
+  email           String
+  role            String           @default("CAMPAIGN_MANAGER")
+  brandIds        String[]         @default([])
+  invitedByUserId String
+  token           String           @unique
+  status          InvitationStatus @default(PENDING)
+  expiresAt       DateTime
+  acceptedAt      DateTime?
+  createdAt       DateTime         @default(now())
+
+  @@index([workspaceId])
+  @@index([email])
+  @@map("invitations")
+}
+
+model Approval {
+  id             String           @id @default(auto()) @map("_id") @db.ObjectId
+  workspaceId    String
+  brandId        String?
+  type           ApprovalType
+  resourceId     String
+  requesterId    String
+  approverId     String?
+  decision       ApprovalDecision @default(PENDING)
+  reason         String?
+  amountMinor    Int?
+  currency       String           @default("INR")
+  slaDeadline    DateTime?
+  escalationPath String?
+  decidedAt      DateTime?
+  createdAt      DateTime         @default(now())
+  updatedAt      DateTime         @updatedAt
+
+  @@index([workspaceId])
+  @@index([requesterId])
+  @@index([approverId])
+  @@map("approvals")
+}
+
+model ApprovalRule {
+  id             String   @id @default(auto()) @map("_id") @db.ObjectId
+  workspaceId    String
+  actionType     String
+  minAmountMinor Int
+  requiredRole   String
+  slaHours       Int      @default(24)
+  createdAt      DateTime @default(now())
+
+  @@index([workspaceId])
+  @@map("approval_rules")
+}
+
+model AuditLog {
+  id           String   @id @default(auto()) @map("_id") @db.ObjectId
+  workspaceId  String
+  actorId      String
+  actorEmail   String?
+  actorIp      String?
+  action       String
+  resourceType String
+  resourceId   String
+  previousHash String
+  hash         String
+  payload      Json?
+  createdAt    DateTime @default(now())
+
+  @@index([workspaceId])
+  @@index([actorId])
+  @@index([hash])
+  @@map("audit_log")
+}

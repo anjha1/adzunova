@@ -146,3 +146,136 @@ export interface VerificationTokenEntity {
   usedAt?: Date;
   createdAt: Date;
 }
+
+export type BrandRole = 'OWNER' | 'ADMIN' | 'CAMPAIGN_MANAGER' | 'FINANCE' | 'LEGAL' | 'VIEWER' | string;
+
+export interface WorkspaceEntity {
+  _id?: any;
+  id?: string;
+  name: string;
+  slug: string;
+  type: 'BRAND' | 'AGENCY' | 'ENTERPRISE';
+  ownerId: string;
+  billingCurrency: string;
+  ipAllowlist: string[];
+  twoFactorRequired: boolean;
+  approvalThresholds?: {
+    bookingThresholdMinor?: number;
+    campaignThresholdMinor?: number;
+    paymentThresholdMinor?: number;
+  };
+  createdAt: Date;
+  updatedAt: Date;
+}
+
+export interface BrandEntity {
+  _id?: any;
+  id?: string;
+  workspaceId: string;
+  name: string;
+  logoUrl?: string;
+  website?: string;
+  status: 'ACTIVE' | 'ARCHIVED';
+  createdAt: Date;
+  updatedAt: Date;
+}
+
+export interface WorkspaceMemberEntity {
+  _id?: any;
+  id?: string;
+  workspaceId: string;
+  userId: string;
+  email: string;
+  name?: string;
+  role: BrandRole;
+  customRoleId?: string;
+  brandIds: string[]; // empty means all brands in workspace
+  approvalLimitMinor?: number; // minor units e.g. 10000000 = ₹1,00,000
+  status: 'ACTIVE' | 'INVITED' | 'SUSPENDED';
+  joinedAt: Date;
+  updatedAt: Date;
+}
+
+export interface RoleEntity {
+  _id?: any;
+  id?: string;
+  workspaceId?: string; // null for system predefined roles
+  name: string;
+  slug: string;
+  description?: string;
+  isCustom: boolean;
+  createdAt: Date;
+  updatedAt: Date;
+}
+
+export interface RolePermissionEntity {
+  _id?: any;
+  id?: string;
+  roleId: string;
+  action: string;
+  resourceType: string;
+  conditions?: Record<string, any>;
+  createdAt: Date;
+}
+
+export interface WorkspaceInvitationEntity {
+  _id?: any;
+  id?: string;
+  workspaceId: string;
+  email: string;
+  role: BrandRole;
+  brandIds: string[];
+  invitedByUserId: string;
+  token: string;
+  status: 'PENDING' | 'ACCEPTED' | 'REVOKED' | 'EXPIRED';
+  expiresAt: Date;
+  acceptedAt?: Date;
+  createdAt: Date;
+}
+
+export interface ApprovalEntity {
+  _id?: any;
+  id?: string;
+  workspaceId: string;
+  brandId?: string;
+  type: 'BOOKING_CREATION' | 'CAMPAIGN_LAUNCH' | 'PAYMENT_RELEASE';
+  resourceId: string;
+  requesterId: string;
+  approverId?: string;
+  decision: 'PENDING' | 'APPROVED' | 'REJECTED';
+  reason?: string;
+  amountMinor?: number;
+  currency: string;
+  slaDeadline?: Date;
+  escalationPath?: string;
+  decidedAt?: Date;
+  createdAt: Date;
+  updatedAt: Date;
+}
+
+export interface ApprovalRuleEntity {
+  _id?: any;
+  id?: string;
+  workspaceId: string;
+  actionType: string;
+  minAmountMinor: number;
+  requiredRole: string;
+  slaHours: number;
+  createdAt: Date;
+}
+
+export interface AuditLogEntity {
+  _id?: any;
+  id?: string;
+  workspaceId: string;
+  actorId: string;
+  actorEmail?: string;
+  actorIp?: string;
+  action: string;
+  resourceType: string;
+  resourceId: string;
+  previousHash: string;
+  hash: string;
+  payload?: any;
+  createdAt: Date;
+}

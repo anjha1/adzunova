@@ -74,3 +74,69 @@ export interface AuthSession {
   user: AuthUser;
   profile: CreatorProfileData & BrandProfileData;
 }
+
+export type BrandRole = 'OWNER' | 'ADMIN' | 'CAMPAIGN_MANAGER' | 'FINANCE' | 'LEGAL' | 'VIEWER' | string;
+
+export interface WorkspaceMemberData {
+  id: string;
+  workspaceId: string;
+  userId: string;
+  email: string;
+  name?: string;
+  role: BrandRole;
+  customRoleId?: string;
+  brandIds: string[];
+  approvalLimitMinor?: number;
+  status: 'ACTIVE' | 'INVITED' | 'SUSPENDED';
+  joinedAt: string;
+}
+
+export interface WorkspaceData {
+  id: string;
+  name: string;
+  slug: string;
+  type: 'BRAND' | 'AGENCY' | 'ENTERPRISE';
+  ownerId: string;
+  billingCurrency: string;
+  ipAllowlist: string[];
+  twoFactorRequired: boolean;
+  approvalThresholds?: {
+    bookingThresholdMinor?: number;
+    campaignThresholdMinor?: number;
+    paymentThresholdMinor?: number;
+  };
+}
+
+export interface ApprovalData {
+  id: string;
+  workspaceId: string;
+  brandId?: string;
+  type: 'BOOKING_CREATION' | 'CAMPAIGN_LAUNCH' | 'PAYMENT_RELEASE';
+  resourceId: string;
+  requesterId: string;
+  requesterName?: string;
+  approverId?: string;
+  decision: 'PENDING' | 'APPROVED' | 'REJECTED';
+  reason?: string;
+  amountMinor?: number;
+  currency: string;
+  slaDeadline?: string;
+  escalationPath?: string;
+  decidedAt?: string;
+  createdAt: string;
+}
+
+export interface AuditLogData {
+  id: string;
+  workspaceId: string;
+  actorId: string;
+  actorEmail?: string;
+  actorIp?: string;
+  action: string;
+  resourceType: string;
+  resourceId: string;
+  previousHash: string;
+  hash: string;
+  payload?: any;
+  createdAt: string;
+}
