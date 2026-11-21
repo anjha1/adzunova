@@ -315,16 +315,16 @@ export function PublicProfileClient({ profile }: PublicProfileClientProps) {
                   className="p-5 rounded-2xl border border-border bg-card flex flex-col justify-between space-y-4 hover:border-border/80 transition shadow-2xs"
                 >
                   <div className="space-y-3">
-                    <div className="flex items-start justify-between gap-3">
-                      <div className="flex items-center gap-3">
-                        <div className="w-10 h-10 rounded-xl overflow-hidden flex items-center justify-center shrink-0 shadow-xs">
-                          <SocialPlatformIcon platform={ch.platform} size={40} />
+                    <div className="flex items-center justify-between gap-3">
+                      <div className="flex items-center gap-3 min-w-0">
+                        <div className="w-11 h-11 rounded-2xl overflow-hidden flex items-center justify-center shrink-0 shadow-xs bg-muted/20">
+                          <SocialPlatformIcon platform={ch.platform} size={44} />
                         </div>
-                        <div>
+                        <div className="min-w-0">
                           <div className="flex items-center gap-1.5">
                             <span className="font-bold text-sm text-foreground">{ch.platform}</span>
                             {ch.verificationStatus === 'VERIFIED' && (
-                              <ShellIcon name="CheckCircle" size={13} className="text-emerald-500" />
+                              <ShellIcon name="CheckCircle" size={13} className="text-emerald-500 shrink-0" />
                             )}
                           </div>
                           <a
@@ -332,34 +332,37 @@ export function PublicProfileClient({ profile }: PublicProfileClientProps) {
                             target="_blank"
                             rel="noopener noreferrer nofollow"
                             onClick={() => handlePlatformClick(ch.platform)}
-                            className="text-xs text-muted-foreground hover:text-indigo-600 dark:hover:text-indigo-400 font-mono transition flex items-center gap-1"
+                            className="text-xs text-muted-foreground hover:text-indigo-600 dark:hover:text-indigo-400 font-mono transition flex items-center gap-1 truncate"
                           >
-                            <span>{ch.handle}</span>
-                            <ShellIcon name="ExternalLink" size={10} />
+                            <span className="truncate">{ch.handle}</span>
+                            <ShellIcon name="ExternalLink" size={10} className="shrink-0" />
                           </a>
                         </div>
                       </div>
 
-                      {/* Right side: Social Profile Picture + Verified Badge */}
-                      <div className="flex items-center gap-2 shrink-0">
-                        {ch.profilePictureUrl && (
+                      {/* Middle: Prominent Social Profile Avatar (Positioned between Platform info & Verified badge) */}
+                      {ch.profilePictureUrl && (
+                        <div className="flex-1 flex items-center justify-center px-1">
                           <a
                             href={ch.profileUrl}
                             target="_blank"
                             rel="noopener noreferrer nofollow"
                             title={`Open ${ch.handle} on ${ch.platform}`}
-                            className="relative w-8 h-8 rounded-full overflow-hidden border-2 border-border hover:border-indigo-500 transition shadow-2xs group"
+                            className="relative w-14 h-14 sm:w-16 sm:h-16 rounded-full overflow-hidden border-2 border-border hover:border-indigo-500 transition-all shadow-md group shrink-0 ring-2 ring-background"
                           >
                             {/* eslint-disable-next-line @next/next/no-img-element */}
                             <img
                               src={ch.profilePictureUrl}
                               alt={`${ch.handle} on ${ch.platform}`}
-                              className="w-full h-full object-cover group-hover:scale-105 transition"
+                              className="w-full h-full object-cover group-hover:scale-105 transition duration-200"
                             />
                           </a>
-                        )}
+                        </div>
+                      )}
 
-                        <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-emerald-500/10 text-emerald-700 dark:text-emerald-300 border border-emerald-500/20 shadow-2xs">
+                      {/* Right: Verified Badge */}
+                      <div className="shrink-0 flex items-center">
+                        <span className="text-[10px] sm:text-xs font-bold px-2.5 py-1 rounded-full bg-emerald-500/10 text-emerald-700 dark:text-emerald-300 border border-emerald-500/20 shadow-2xs whitespace-nowrap">
                           Verified
                         </span>
                       </div>
