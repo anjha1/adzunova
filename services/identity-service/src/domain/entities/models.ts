@@ -1,6 +1,10 @@
 export type UserRole = 'CREATOR' | 'BRAND' | 'ADMIN' | 'SUPER_ADMIN';
 
-export type UserStatus = 'ACTIVE' | 'SUSPENDED' | 'PENDING_VERIFICATION';
+export type UserStatus =
+  | 'ACTIVE'
+  | 'SUSPENDED'
+  | 'PENDING_VERIFICATION'
+  | 'RESTRICTED_WORK_EMAIL_REQUIRED';
 
 export interface UserEntity {
   _id: string;

@@ -70,6 +70,40 @@ export default async function BrandDashboardPage() {
 
       {/* Main Content */}
       <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 space-y-8">
+        {/* Work Email Policy Restriction Banner (Phase B4) */}
+        {user.status === 'RESTRICTED_WORK_EMAIL_REQUIRED' && (
+          <div className="p-6 rounded-2xl bg-amber-500/10 border-2 border-amber-500/30 text-foreground space-y-4 shadow-2xs">
+            <div className="flex items-start gap-4">
+              <div className="w-10 h-10 rounded-xl bg-amber-500/20 text-amber-600 dark:text-amber-400 flex items-center justify-center shrink-0 font-bold text-lg">
+                ⚠
+              </div>
+              <div className="space-y-1">
+                <h2 className="text-lg font-bold text-foreground">
+                  Workspace Restricted: Company Work Email Required
+                </h2>
+                <p className="text-sm text-muted-foreground leading-relaxed">
+                  To protect brand safety and corporate data, Brand workspaces cannot operate on personal or free email providers (<span className="font-mono text-foreground font-semibold">{user.email}</span>). Your account is in read-only restricted mode. To launch campaigns, book talent, and collaborate with creators, please verify an official company work email.
+                </p>
+              </div>
+            </div>
+
+            <div className="pt-2 flex flex-wrap items-center gap-3">
+              <Link
+                href="/brand/onboarding"
+                className="px-4 py-2 rounded-xl bg-primary text-primary-foreground text-sm font-semibold hover:bg-primary/90 transition shadow-2xs"
+              >
+                Verify Company Work Email →
+              </Link>
+              <Link
+                href="/api/creator/privacy/export"
+                className="px-4 py-2 rounded-xl border border-border text-foreground text-sm font-semibold hover:bg-muted transition"
+              >
+                Export Workspace Data (DPDP)
+              </Link>
+            </div>
+          </div>
+        )}
+
         {/* Welcome Banner */}
         <div className="p-6 rounded-2xl bg-card border border-border shadow-xs">
           <h1 className="text-2xl sm:text-3xl font-extrabold text-foreground">

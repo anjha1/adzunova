@@ -9,6 +9,7 @@ export interface AuthUser {
   emailVerified?: boolean;
   avatarUrl?: string;
   displayName?: string;
+  status?: 'ACTIVE' | 'SUSPENDED' | 'PENDING_VERIFICATION' | 'RESTRICTED_WORK_EMAIL_REQUIRED';
 }
 
 export interface CreatorProfileData {

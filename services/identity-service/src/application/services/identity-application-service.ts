@@ -16,6 +16,7 @@ import {
   createSessionJwt,
 } from '../../infrastructure/security/crypto';
 import crypto from 'crypto';
+import { evaluateWorkEmail } from '../../domain/services/work-email-policy';
 
 export class IdentityService {
   /**
@@ -98,7 +99,19 @@ export class IdentityService {
     businessType: any;
   }): Promise<{ user: UserEntity; profile: BrandProfileEntity; sessionToken: string }> {
     const db = await getDatabase();
-    const normalizedEmail = input.workEmail.trim().toLowerCase();
+
+    // Strict Domain Policy Engine check for Brand registration
+    const evalResult = await evaluateWorkEmail(input.workEmail);
+    if (!evalResult.allowed) {
+      const err = new Error(
+        evalResult.errorMessage ||
+          'Please use your company email address (for example name@yourcompany.com). Personal email providers are not supported for brand accounts.'
+      );
+      (err as any).code = evalResult.reason;
+      throw err;
+    }
+
+    const normalizedEmail = evalResult.normalized;
 
     const existing = await db.collection<UserEntity>('users').findOne({ normalizedEmail });
     if (existing) {
@@ -182,6 +195,17 @@ export class IdentityService {
     if (user.role === 'CREATOR') {
       profile = await db.collection('creator_profiles').findOne({ userId: user._id });
     } else if (user.role === 'BRAND') {
+      // Re-check work-email policy on every login for BRAND accounts (Phase B1.8 & B4)
+      const evalResult = await evaluateWorkEmail(user.email);
+      if (!evalResult.allowed) {
+        if (user.status !== 'RESTRICTED_WORK_EMAIL_REQUIRED') {
+          await db.collection('users').updateOne(
+            { _id: user._id as any },
+            { $set: { status: 'RESTRICTED_WORK_EMAIL_REQUIRED', updatedAt: new Date() } }
+          );
+          user.status = 'RESTRICTED_WORK_EMAIL_REQUIRED' as any;
+        }
+      }
       profile = await db.collection('brand_profiles').findOne({ userId: user._id });
     }
 
@@ -199,10 +223,40 @@ export class IdentityService {
   async resolveGoogleUser(input: {
     googleId: string;
     email: string;
+    emailVerified?: boolean;
+    hd?: string;
     name: string;
     avatarUrl?: string;
     role: UserRole;
   }): Promise<{ user: UserEntity; profile: any; sessionToken: string; isNewUser: boolean }> {
+    // Strict Google Workspace hosted domain validation for Brand logins (Phase B2)
+    if (input.role === 'BRAND') {
+      const emailDomain = input.email.split('@')[1]?.toLowerCase().trim();
+      if (!input.hd) {
+        const err = new Error(
+          'Please use your company email address (for example name@yourcompany.com). Personal email providers are not supported for brand accounts.'
+        );
+        (err as any).code = 'FREE_EMAIL_NOT_ALLOWED';
+        throw err;
+      }
+
+      if (input.hd.toLowerCase().trim() !== emailDomain) {
+        const err = new Error('Google Workspace hosted domain does not match email address.');
+        (err as any).code = 'INVALID_DOMAIN';
+        throw err;
+      }
+
+      const evalResult = await evaluateWorkEmail(input.email);
+      if (!evalResult.allowed) {
+        const err = new Error(
+          evalResult.errorMessage ||
+            'Please use your company email address (for example name@yourcompany.com). Personal email providers are not supported for brand accounts.'
+        );
+        (err as any).code = evalResult.reason;
+        throw err;
+      }
+    }
+
     const db = await getDatabase();
     const normalizedEmail = input.email.trim().toLowerCase();
 

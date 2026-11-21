@@ -19,6 +19,7 @@ enum AccountStatus {
   SUSPENDED
   DEACTIVATED
   PENDING_VERIFICATION
+  RESTRICTED_WORK_EMAIL_REQUIRED
 }
 
 enum ProfileStatus {
@@ -243,4 +244,38 @@ model ProfileReport {
 
   @@index([profileId, createdAt])
   @@map("profile_reports")
+}
+
+enum DomainRuleKind {
+  FREE
+  DISPOSABLE
+  BLOCKED
+  ALLOWED_EXCEPTION
+}
+
+model EmailDomainRule {
+  id        String         @id @default(auto()) @map("_id") @db.ObjectId
+  domain    String         @unique
+  kind      DomainRuleKind
+  source    String?
+  addedBy   String?
+  createdAt DateTime       @default(now())
+  updatedAt DateTime       @updatedAt
+
+  @@index([kind])
+  @@map("email_domain_rules")
+}
+
+model DomainClaim {
+  id              String    @id @default(auto()) @map("_id") @db.ObjectId
+  workspaceId     String
+  domain          String    @unique
+  verificationTxt String
+  isVerified      Boolean   @default(false)
+  verifiedAt      DateTime?
+  createdAt       DateTime  @default(now())
+  updatedAt       DateTime  @updatedAt
+
+  @@index([workspaceId])
+  @@map("domain_claims")
 }

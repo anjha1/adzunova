@@ -4,6 +4,7 @@ import React, { useState } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { AuthCard, GoogleAuthButton } from '@/components/auth/auth-card';
+import { evaluateWorkEmail } from '@/lib/auth/work-email-policy';
 
 const BUSINESS_TYPES = [
   'D2C Brand',
@@ -55,6 +56,15 @@ export default function BrandSignUpPage() {
     }
     if (!consent) {
       setError('Please agree to the Terms of Service and Privacy Policy.');
+      return;
+    }
+
+    const emailCheck = evaluateWorkEmail(workEmail);
+    if (!emailCheck.allowed) {
+      setError(
+        emailCheck.errorMessage ||
+          'Please use your company email address (for example name@yourcompany.com). Personal email providers are not supported for brand accounts.'
+      );
       return;
     }
 

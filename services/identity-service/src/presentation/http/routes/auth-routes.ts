@@ -246,6 +246,8 @@ export function createAuthRouter(identityService: IdentityService): Router {
       const result = await identityService.resolveGoogleUser({
         googleId: googleUser.sub,
         email: googleUser.email,
+        emailVerified: Boolean(googleUser.email_verified),
+        hd: googleUser.hd || undefined,
         name: googleUser.name || 'Adzunova User',
         avatarUrl: googleUser.picture,
         role: verifiedState.role,
