@@ -243,7 +243,12 @@ export function serializePublicProfile({
     tags: (profile.tags || []).map(sanitizeText).filter(Boolean),
     languages: (profile.languages || []).map(sanitizeText).filter(Boolean),
     location: sanitizeText(profile.location),
-    avatarUrl: sanitizeExternalUrl(profile.avatarUrl),
+    avatarUrl: sanitizeExternalUrl(
+      profile.avatarUrl ||
+      latestSocial?.account?.profilePictureUrl ||
+      latestSocial?.accounts?.find((a) => a.profilePictureUrl)?.profilePictureUrl ||
+      null
+    ),
     coverUrl: sanitizeExternalUrl(profile.coverUrl),
     isVerifiedCreator: isVerified,
     lastVerifiedAt,

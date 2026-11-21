@@ -6,7 +6,9 @@ import { useRouter } from 'next/navigation';
 import { PublicCreatorProfileDTO, PublicRateCardItemDTO } from '@/lib/public-profile/types';
 import { SocialPlatformIcon } from '@/components/creator/ui/social-platform-icon';
 import { ShellIcon } from '@/components/creator/shell/shell-icons';
-import { formatIndianRupees, formatCompactCount } from '@/lib/public-profile/formatters';
+import { Logo } from '@/components/brand/Logo';
+import { QrCode } from '@/components/ui/qr-code';
+import { formatIndianRupees, formatCompactCount, formatVerifiedViaLabel } from '@/lib/public-profile/formatters';
 
 interface PublicProfileClientProps {
   profile: PublicCreatorProfileDTO;
@@ -19,6 +21,7 @@ export function PublicProfileClient({ profile }: PublicProfileClientProps) {
   const [isReportModalOpen, setIsReportModalOpen] = useState(false);
   const [isHowBookingWorksOpen, setIsHowBookingWorksOpen] = useState(false);
   const [copied, setCopied] = useState(false);
+  const [avatarImgFailed, setAvatarImgFailed] = useState(false);
 
   // Report state
   const [reportReason, setReportReason] = useState<'IMPERSONATION' | 'MISLEADING_STATS' | 'HARASSMENT' | 'SCAM' | 'OTHER'>('MISLEADING_STATS');
@@ -151,15 +154,7 @@ export function PublicProfileClient({ profile }: PublicProfileClientProps) {
       {/* Top Header Navigation */}
       <header className="sticky top-0 z-40 w-full border-b border-border bg-background/80 backdrop-blur-md">
         <div className="max-w-6xl mx-auto px-4 h-14 flex items-center justify-between">
-          <Link href="/" className="flex items-center gap-2 font-bold text-sm tracking-tight text-foreground">
-            <div className="w-7 h-7 rounded-lg bg-indigo-600 text-white flex items-center justify-center font-black text-sm">
-              A
-            </div>
-            <span>ADZUNOVA</span>
-            <span className="text-[10px] uppercase tracking-wider px-1.5 py-0.5 rounded-md bg-muted text-muted-foreground font-semibold">
-              Verified Creator
-            </span>
-          </Link>
+          <Logo variant="full" size="sm" badgeText="VERIFIED CREATOR" href="/" />
 
           <div className="flex items-center gap-2">
             <button
@@ -199,11 +194,16 @@ export function PublicProfileClient({ profile }: PublicProfileClientProps) {
             {/* Creator Identity */}
             <div className="flex flex-col sm:flex-row items-start sm:items-center gap-5">
               <div className="relative w-20 h-20 sm:w-24 sm:h-24 rounded-3xl overflow-hidden border-2 border-border shadow-md bg-muted shrink-0">
-                {profile.avatarUrl ? (
+                {profile.avatarUrl && !avatarImgFailed ? (
                   // eslint-disable-next-line @next/next/no-img-element
-                  <img src={profile.avatarUrl} alt={profile.displayName} className="w-full h-full object-cover" />
+                  <img
+                    src={profile.avatarUrl}
+                    alt={profile.displayName}
+                    className="w-full h-full object-cover"
+                    onError={() => setAvatarImgFailed(true)}
+                  />
                 ) : (
-                  <div className="w-full h-full bg-indigo-600 text-white flex items-center justify-center font-black text-2xl">
+                  <div className="w-full h-full bg-gradient-to-br from-indigo-500 to-purple-600 text-white flex items-center justify-center font-black text-2xl shadow-inner">
                     {profile.displayName[0] || 'C'}
                   </div>
                 )}
@@ -277,7 +277,7 @@ export function PublicProfileClient({ profile }: PublicProfileClientProps) {
               {profile.lastVerifiedAt && (
                 <span className="text-[11px] text-muted-foreground flex items-center gap-1">
                   <ShellIcon name="Shield" size={11} className="text-emerald-500" />
-                  Verified via Meta API on {new Date(profile.lastVerifiedAt).toLocaleDateString()}
+                  {formatVerifiedViaLabel(profile.lastVerifiedAt)}
                 </span>
               )}
             </div>
@@ -917,34 +917,7 @@ export function PublicProfileClient({ profile }: PublicProfileClientProps) {
 
             {/* QR Code Container */}
             <div className="flex flex-col items-center justify-center p-4 rounded-xl bg-muted/40 border border-border space-y-2">
-              <div className="w-36 h-36 bg-card border border-border p-2 rounded-xl flex items-center justify-center shadow-xs">
-                {/* Clean inline SVG QR Pattern */}
-                <svg viewBox="0 0 100 100" className="w-full h-full">
-                  <rect width="100" height="100" fill="#ffffff" />
-                  {/* Position detection squares */}
-                  <rect x="5" y="5" width="25" height="25" fill="#000000" />
-                  <rect x="8" y="8" width="19" height="19" fill="#ffffff" />
-                  <rect x="12" y="12" width="11" height="11" fill="#000000" />
-
-                  <rect x="70" y="5" width="25" height="25" fill="#000000" />
-                  <rect x="73" y="8" width="19" height="19" fill="#ffffff" />
-                  <rect x="77" y="12" width="11" height="11" fill="#000000" />
-
-                  <rect x="5" y="70" width="25" height="25" fill="#000000" />
-                  <rect x="8" y="73" width="19" height="19" fill="#ffffff" />
-                  <rect x="12" y="77" width="11" height="11" fill="#000000" />
-
-                  {/* QR Matrix Elements */}
-                  <rect x="35" y="10" width="8" height="8" fill="#000000" />
-                  <rect x="50" y="15" width="10" height="5" fill="#000000" />
-                  <rect x="15" y="40" width="8" height="15" fill="#000000" />
-                  <rect x="35" y="35" width="30" height="30" fill="#6366F1" rx="4" />
-                  <text x="50" y="55" fill="#ffffff" fontSize="14" fontWeight="bold" textAnchor="middle">A</text>
-                  <rect x="70" y="40" width="12" height="12" fill="#000000" />
-                  <rect x="40" y="75" width="20" height="10" fill="#000000" />
-                  <rect x="70" y="70" width="15" height="15" fill="#000000" />
-                </svg>
-              </div>
+              <QrCode value={shareUrl} size={150} centerLogo />
               <span className="text-[11px] text-muted-foreground font-mono">Scan on mobile to view</span>
             </div>
 

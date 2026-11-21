@@ -70,6 +70,51 @@ async function getMongoDb(): Promise<Db | null> {
 }
 
 /**
+ * Discovers and auto-populates avatar from Google OAuth or connected Instagram if profile avatar is empty.
+ */
+async function resolveAvatarIfEmpty(profile: PublicProfile, db: Db | null): Promise<PublicProfile> {
+  if (profile.avatarUrl) return profile;
+  if (!db) return profile;
+
+  try {
+    const { ObjectId } = await import('mongodb');
+    const creatorId = profile.creatorId;
+    let query: any = { userId: creatorId };
+    let userQuery: any = { _id: creatorId };
+    try {
+      if (ObjectId.isValid(creatorId)) {
+        query = { $or: [{ userId: creatorId }, { userId: new ObjectId(creatorId) }] };
+        userQuery = { $or: [{ _id: creatorId }, { _id: new ObjectId(creatorId) }] };
+      }
+    } catch {}
+
+    const [cp, userDoc, socialDoc] = await Promise.all([
+      db.collection('creator_profiles').findOne(query).catch(() => null),
+      db.collection('users').findOne(userQuery).catch(() => null),
+      db.collection('social_accounts').findOne({ creator_id: creatorId }).catch(() => null),
+    ]);
+
+    const discoveredAvatar =
+      cp?.avatarUrl ||
+      userDoc?.avatarUrl ||
+      socialDoc?.profile_picture_url ||
+      null;
+
+    if (discoveredAvatar) {
+      profile.avatarUrl = discoveredAvatar;
+      db.collection('public_profiles').updateOne(
+        { creatorId: profile.creatorId },
+        { $set: { avatarUrl: discoveredAvatar } }
+      ).catch(() => null);
+    }
+  } catch {
+    // Non-blocking fallback
+  }
+
+  return profile;
+}
+
+/**
  * Get profile by slug.
  * Checks current slug first, then looks in previousSlugs.
  * If found via previousSlugs, returns isRedirect: true with redirectSlug.
@@ -84,15 +129,19 @@ export async function getPublicProfileBySlug(
     try {
       // Direct slug match
       const doc = await db.collection('public_profiles').findOne<PublicProfile>({ slug: normSlug });
-      if (doc) return { profile: doc };
+      if (doc) {
+        const enriched = await resolveAvatarIfEmpty(doc, db);
+        return { profile: enriched };
+      }
 
       // Previous slug match for 301 redirect
       const prevDoc = await db.collection('public_profiles').findOne<PublicProfile>({ previousSlugs: normSlug });
       if (prevDoc) {
+        const enriched = await resolveAvatarIfEmpty(prevDoc, db);
         return {
-          profile: prevDoc,
+          profile: enriched,
           isRedirect: true,
-          redirectSlug: prevDoc.slug,
+          redirectSlug: enriched.slug,
         };
       }
       return { profile: null };
@@ -124,7 +173,7 @@ export async function getPublicProfileByCreatorId(creatorId: string): Promise<Pu
   if (db) {
     try {
       const doc = await db.collection('public_profiles').findOne<PublicProfile>({ creatorId });
-      if (doc) return doc;
+      if (doc) return await resolveAvatarIfEmpty(doc, db);
     } catch (err: any) {
       console.warn('[PublicProfileRepo] Mongo query failed:', err.message);
     }

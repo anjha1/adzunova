@@ -7,6 +7,7 @@ import { ShellIcon } from '@/components/creator/shell/shell-icons';
 import { SocialPlatformIcon } from '@/components/creator/ui/social-platform-icon';
 import { PublicProfile, SectionVisibility } from '@/lib/public-profile/types';
 import { formatIndianRupees } from '@/lib/public-profile/formatters';
+import { QrCode } from '@/components/ui/qr-code';
 
 export default function ProfilePage() {
   const [activeTab, setActiveTab] = useState<'details' | 'visibility' | 'pricing' | 'analytics'>('details');
@@ -509,7 +510,21 @@ export default function ProfilePage() {
                 {/* Avatar & Cover URLs */}
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 pt-2 border-t border-border">
                   <div>
-                    <label className="font-semibold text-foreground block mb-1">Avatar Image URL</label>
+                    <div className="flex items-center justify-between mb-1">
+                      <label className="font-semibold text-foreground">Avatar Image URL</label>
+                      {latest?.account?.profilePictureUrl && avatarUrl !== latest.account.profilePictureUrl && (
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setAvatarUrl(latest.account.profilePictureUrl);
+                            setIsDirty(true);
+                          }}
+                          className="text-[10px] font-bold text-indigo-600 dark:text-indigo-400 hover:underline cursor-pointer"
+                        >
+                          Use Connected Photo
+                        </button>
+                      )}
+                    </div>
                     <input
                       type="url"
                       value={avatarUrl || ''}
@@ -517,7 +532,7 @@ export default function ProfilePage() {
                         setAvatarUrl(e.target.value || null);
                         setIsDirty(true);
                       }}
-                      placeholder="https://images.unsplash.com/..."
+                      placeholder={latest?.account?.profilePictureUrl || "https://images.unsplash.com/..."}
                       className="w-full rounded-xl border border-border bg-background px-3 py-2 text-foreground font-mono text-[11px]"
                     />
                   </div>
@@ -851,30 +866,8 @@ export default function ProfilePage() {
               </button>
             </div>
 
-            <div className="w-44 h-44 bg-card border border-border p-3 rounded-2xl mx-auto flex items-center justify-center shadow-md">
-              <svg viewBox="0 0 100 100" className="w-full h-full">
-                <rect width="100" height="100" fill="#ffffff" />
-                <rect x="5" y="5" width="25" height="25" fill="#000000" />
-                <rect x="8" y="8" width="19" height="19" fill="#ffffff" />
-                <rect x="12" y="12" width="11" height="11" fill="#000000" />
-
-                <rect x="70" y="5" width="25" height="25" fill="#000000" />
-                <rect x="73" y="8" width="19" height="19" fill="#ffffff" />
-                <rect x="77" y="12" width="11" height="11" fill="#000000" />
-
-                <rect x="5" y="70" width="25" height="25" fill="#000000" />
-                <rect x="8" y="73" width="19" height="19" fill="#ffffff" />
-                <rect x="12" y="77" width="11" height="11" fill="#000000" />
-
-                <rect x="35" y="10" width="8" height="8" fill="#000000" />
-                <rect x="50" y="15" width="10" height="5" fill="#000000" />
-                <rect x="15" y="40" width="8" height="15" fill="#000000" />
-                <rect x="35" y="35" width="30" height="30" fill="#6366F1" rx="4" />
-                <text x="50" y="55" fill="#ffffff" fontSize="14" fontWeight="bold" textAnchor="middle">A</text>
-                <rect x="70" y="40" width="12" height="12" fill="#000000" />
-                <rect x="40" y="75" width="20" height="10" fill="#000000" />
-                <rect x="70" y="70" width="15" height="15" fill="#000000" />
-              </svg>
+            <div className="flex justify-center p-2">
+              <QrCode value={publicUrl} size={180} centerLogo />
             </div>
 
             <p className="text-xs font-mono text-muted-foreground break-all">

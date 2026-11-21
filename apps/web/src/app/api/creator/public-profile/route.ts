@@ -20,6 +20,13 @@ export async function GET(req: NextRequest) {
     const creatorId = session.user.id;
     let profile = await getPublicProfileByCreatorId(creatorId);
 
+    const [latestSocial, rateCardItems] = await Promise.all([
+      getSocialAccountLatest(creatorId).catch(() => null),
+      getRateCardItems(creatorId).catch(() => []),
+    ]);
+
+    const fallbackAvatar = session.profile?.avatarUrl || session.user?.avatarUrl || latestSocial?.account?.profilePictureUrl || null;
+
     // Initial setup if not exists
     if (!profile) {
       const emailPrefix = session.user.email?.split('@')[0]?.replace(/[^a-z0-9-]/gi, '').toLowerCase() || 'creator';
@@ -27,13 +34,14 @@ export async function GET(req: NextRequest) {
         slug: emailPrefix,
         displayName: session.profile?.displayName || session.user.displayName || 'Creator',
         bio: session.profile?.bio || '',
+        avatarUrl: fallbackAvatar,
+      });
+    } else if (!profile.avatarUrl && fallbackAvatar) {
+      // Auto-backfill avatar from Google OAuth / Instagram if profile avatar was left empty
+      profile = await upsertPublicProfile(creatorId, {
+        avatarUrl: fallbackAvatar,
       });
     }
-
-    const [latestSocial, rateCardItems] = await Promise.all([
-      getSocialAccountLatest(creatorId).catch(() => null),
-      getRateCardItems(creatorId).catch(() => []),
-    ]);
 
     const completeness = await calculateProfileCompleteness(profile, latestSocial, rateCardItems);
 
