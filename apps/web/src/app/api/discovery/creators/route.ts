@@ -1,10 +1,16 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { creatorSearchEngine } from '@/lib/discovery/search-engine';
 import { CreatorSearchQuery } from '@/lib/discovery/search-types';
+import { getSession } from '@/lib/auth';
 
 export async function GET(req: NextRequest) {
   try {
     const { searchParams } = new URL(req.url);
+
+    // Identify requesting user to enforce self-dealing protection
+    const session = await getSession(req.headers.get('x-request-id') || undefined).catch(() => null);
+    const requestingUserId = session?.user?.id || searchParams.get('requesting_user_id') || req.headers.get('x-user-id') || undefined;
+    const workspaceId = (session?.user as any)?.workspaceId || searchParams.get('workspace_id') || req.headers.get('x-workspace-id') || undefined;
 
     const query: CreatorSearchQuery = {
       query: searchParams.get('q') || searchParams.get('query') || undefined,
@@ -23,9 +29,11 @@ export async function GET(req: NextRequest) {
       sortBy: (searchParams.get('sort_by') as any) || 'best_match',
       cursor: searchParams.get('cursor') || undefined,
       limit: searchParams.get('limit') ? Number(searchParams.get('limit')) : 20,
+      requestingUserId,
+      workspaceId,
     };
 
-    const result = await creatorSearchEngine.search(query);
+    const result = await creatorSearchEngine.search(query, workspaceId);
 
     return NextResponse.json({
       data: result.items,

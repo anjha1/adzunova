@@ -9,6 +9,7 @@ import { getLatestAudienceSnapshot } from '../social/metrics-store';
 import { getRateCardItems } from '../rate-card/rate-card-repository';
 import { getPublicProfileByCreatorId } from '../public-profile/public-profile-repository';
 import { isStockPhotoUrl } from '../public-profile/formatters';
+import { checkSelfDealing } from './self-dealing';
 
 /**
  * SearchPort & Discovery Engine Implementation (L0 Launch Adapter)
@@ -181,6 +182,27 @@ export class CreatorSearchEngine implements SearchPort {
       if (snapshot?.top_country) {
         facets.audienceCountries[snapshot.top_country] =
           (facets.audienceCountries[snapshot.top_country] || 0) + 1;
+      }
+
+      // System-created, fixture or demo creators are strictly ineligible for discovery
+      if (
+        acc.creator_id.startsWith('creator_') ||
+        acc.creator_id.startsWith('seed_') ||
+        acc.creator_id.startsWith('demo_') ||
+        acc.creator_id.startsWith('test_')
+      ) {
+        continue;
+      }
+
+      // Self-dealing guard: Brand workspace members cannot discover or contract their own creator identity
+      if (query.requestingUserId) {
+        const selfCheck = await checkSelfDealing({
+          requestingUserId: query.requestingUserId,
+          creatorId: acc.creator_id,
+        });
+        if (!selfCheck.allowed) {
+          continue;
+        }
       }
 
       // Public profile lookup by authentic creatorId

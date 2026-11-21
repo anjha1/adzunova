@@ -22,6 +22,8 @@ export interface CreatorSearchQuery {
   sortBy?: 'best_match' | 'price_asc' | 'price_desc' | 'followers_desc' | 'engagement_desc';
   cursor?: string; // Base64 cursor for keyset pagination
   limit?: number; // Default 20, max 50 (scraping defense cap)
+  requestingUserId?: string; // Self-dealing guard: ID of authenticated brand user
+  workspaceId?: string; // Self-dealing guard: workspace ID of requesting brand
 }
 
 export interface CreatorCardData {

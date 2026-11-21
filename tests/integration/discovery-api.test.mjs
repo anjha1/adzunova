@@ -10,14 +10,16 @@ import { upsertPublicProfile } from '../../apps/web/src/lib/public-profile/publi
 import { createRateCardItem } from '../../apps/web/src/lib/rate-card/rate-card-repository.ts';
 
 test('Creator Discovery Engine: Search, Filtering & Truth Guarantees', async (t) => {
+  const authenticCreatorId = 'd4dc7a3863c3030b5c840255';
+
   // Setup test fixture for isolated test runner
-  await upsertPublicProfile('creator_anjha1', {
+  await upsertPublicProfile(authenticCreatorId, {
     slug: 'anjha1',
     displayName: 'Achhuta Nand Jha',
     tags: ['Tech & Gadgets'],
     isPublished: true,
   });
-  await createRateCardItem('creator_anjha1', {
+  await createRateCardItem(authenticCreatorId, {
     platform: 'INSTAGRAM',
     contentFormat: 'REEL',
     deliverableType: 'DEDICATED_VIDEO',
@@ -71,6 +73,17 @@ test('Creator Discovery Engine: Search, Filtering & Truth Guarantees', async (t)
     const res = await creatorSearchEngine.search({ budgetAmount: 50000 });
     assert.ok(res.items.length > 0);
     assert.equal(res.queryMeta.budgetEvaluated, true);
+  });
+
+  await t.test('enforces self-dealing guard: brand owner cannot discover their own creator identity', async () => {
+    // When brand user is the creator themselves
+    const selfRes = await creatorSearchEngine.search({ requestingUserId: authenticCreatorId });
+    assert.equal(selfRes.items.length, 0, 'Self-creator must be excluded from discovery');
+
+    // When brand user is independent third party
+    const independentRes = await creatorSearchEngine.search({ requestingUserId: 'different_brand_user_uuid' });
+    assert.ok(independentRes.items.length > 0, 'Independent creator must appear in discovery');
+    assert.equal(independentRes.items[0].creatorId, authenticCreatorId);
   });
 });
 

@@ -10,6 +10,7 @@ import {
 import { serializePublicProfile } from '@/lib/public-profile/serializer';
 import { getSocialAccountLatest } from '@/lib/social/latest-state';
 import { getRateCardItems } from '@/lib/rate-card/rate-card-repository';
+import { getSession } from '@/lib/auth';
 import { PublicProfileClient } from '@/components/creator/public-profile/public-profile-client';
 
 interface PageProps {
@@ -32,9 +33,25 @@ export async function generateMetadata({ params }: PageProps): Promise<Metadata>
     };
   }
 
-  if (!profile || !profile.isPublished) {
+  if (!profile) {
     return {
       title: 'Creator Profile Not Found — Adzunova',
+      robots: { index: false, follow: false },
+    };
+  }
+
+  // Unpublished creator: owner gets noindex preview; public gets 404
+  if (!profile.isPublished) {
+    const session = await getSession().catch(() => null);
+    const isOwner = session?.user?.id === profile.creatorId;
+    if (!isOwner) {
+      return {
+        title: 'Creator Profile Not Found — Adzunova',
+        robots: { index: false, follow: false },
+      };
+    }
+    return {
+      title: `[PREVIEW] ${profile.displayName} — Adzunova`,
       robots: { index: false, follow: false },
     };
   }
@@ -99,9 +116,19 @@ export default async function PublicCreatorProfilePage({ params }: PageProps) {
     redirect(`/c/${redirectSlug}`, RedirectType.replace);
   }
 
-  // 404 for unpublished or missing profiles
-  if (!profile || !profile.isPublished) {
+  if (!profile) {
     notFound();
+  }
+
+  // Unpublished creator profiles: 404 for public; owner gets labelled draft preview
+  let isOwnerPreview = false;
+  if (!profile.isPublished) {
+    const session = await getSession().catch(() => null);
+    if (session?.user?.id && session.user.id === profile.creatorId) {
+      isOwnerPreview = true;
+    } else {
+      notFound();
+    }
   }
 
   const [latestSocial, rateCardItems] = await Promise.all([
@@ -150,6 +177,13 @@ export default async function PublicCreatorProfilePage({ params }: PageProps) {
         type="application/ld+json"
         dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd) }}
       />
+
+      {isOwnerPreview && (
+        <div className="sticky top-0 z-50 bg-amber-500/15 border-b border-amber-500/30 px-4 py-2.5 text-center text-xs font-semibold text-amber-800 dark:text-amber-200 flex items-center justify-center gap-2 backdrop-blur-sm">
+          <span className="w-2 h-2 rounded-full bg-amber-500 animate-pulse" />
+          <span>UNPUBLISHED DRAFT PREVIEW — Visible only to you as owner. Hidden from public discovery and search engines.</span>
+        </div>
+      )}
 
       <PublicProfileClient profile={dto} />
     </>
