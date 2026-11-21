@@ -779,7 +779,7 @@ export class IdentityService {
           slug: `ws_${userId.slice(0, 8)}_${Date.now().toString(36)}`,
           type: (brandProfile?.accountType as any) || 'BRAND',
           ownerId: userId,
-          billingCurrency: brandProfile?.currency || 'INR',
+          billingCurrency: (brandProfile as any)?.currency || 'INR',
           ipAllowlist: [],
           twoFactorRequired: false,
           approvalThresholds: {
@@ -816,7 +816,7 @@ export class IdentityService {
           workspaceId: workspace._id || workspace.id!,
           userId,
           email: user?.email || '',
-          name: user?.name,
+          name: user?.displayName,
           role: 'OWNER',
           brandIds: [],
           status: 'ACTIVE',
@@ -827,7 +827,7 @@ export class IdentityService {
       }
     }
 
-    return { workspace, member };
+    return { workspace: workspace!, member: member! };
   }
 
   async getWorkspaceTeam(workspaceId: string): Promise<{

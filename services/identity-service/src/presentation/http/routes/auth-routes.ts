@@ -360,7 +360,7 @@ export function createAuthRouter(identityService: IdentityService): Router {
       const token = authHeader?.startsWith('Bearer ') ? authHeader.slice(7) : req.headers['x-session-token'] as string;
       if (!token) return res.status(401).json({ error: 'Unauthorized.' });
 
-      const session = await identityService.findSession(token);
+      const session = await identityService.validateSession(token);
       if (!session) return res.status(401).json({ error: 'Session expired.' });
 
       const data = await identityService.getOrCreateWorkspace(session.user._id);
@@ -376,7 +376,7 @@ export function createAuthRouter(identityService: IdentityService): Router {
       const token = authHeader?.startsWith('Bearer ') ? authHeader.slice(7) : req.headers['x-session-token'] as string;
       if (!token) return res.status(401).json({ error: 'Unauthorized.' });
 
-      const session = await identityService.findSession(token);
+      const session = await identityService.validateSession(token);
       if (!session) return res.status(401).json({ error: 'Session expired.' });
 
       const { workspace } = await identityService.getOrCreateWorkspace(session.user._id);
@@ -393,7 +393,7 @@ export function createAuthRouter(identityService: IdentityService): Router {
       const token = authHeader?.startsWith('Bearer ') ? authHeader.slice(7) : req.headers['x-session-token'] as string;
       if (!token) return res.status(401).json({ error: 'Unauthorized.' });
 
-      const session = await identityService.findSession(token);
+      const session = await identityService.validateSession(token);
       if (!session) return res.status(401).json({ error: 'Session expired.' });
 
       const { workspace } = await identityService.getOrCreateWorkspace(session.user._id);
@@ -416,7 +416,7 @@ export function createAuthRouter(identityService: IdentityService): Router {
       const token = authHeader?.startsWith('Bearer ') ? authHeader.slice(7) : req.headers['x-session-token'] as string;
       if (!token) return res.status(401).json({ error: 'Unauthorized.' });
 
-      const session = await identityService.findSession(token);
+      const session = await identityService.validateSession(token);
       if (!session) return res.status(401).json({ error: 'Session expired.' });
 
       const { workspace } = await identityService.getOrCreateWorkspace(session.user._id);
@@ -440,7 +440,7 @@ export function createAuthRouter(identityService: IdentityService): Router {
       const token = authHeader?.startsWith('Bearer ') ? authHeader.slice(7) : req.headers['x-session-token'] as string;
       if (!token) return res.status(401).json({ error: 'Unauthorized.' });
 
-      const session = await identityService.findSession(token);
+      const session = await identityService.validateSession(token);
       if (!session) return res.status(401).json({ error: 'Session expired.' });
 
       const { workspace } = await identityService.getOrCreateWorkspace(session.user._id);
@@ -457,7 +457,7 @@ export function createAuthRouter(identityService: IdentityService): Router {
       const token = authHeader?.startsWith('Bearer ') ? authHeader.slice(7) : req.headers['x-session-token'] as string;
       if (!token) return res.status(401).json({ error: 'Unauthorized.' });
 
-      const session = await identityService.findSession(token);
+      const session = await identityService.validateSession(token);
       if (!session) return res.status(401).json({ error: 'Session expired.' });
 
       const { workspace } = await identityService.getOrCreateWorkspace(session.user._id);
@@ -480,7 +480,7 @@ export function createAuthRouter(identityService: IdentityService): Router {
       const token = authHeader?.startsWith('Bearer ') ? authHeader.slice(7) : req.headers['x-session-token'] as string;
       if (!token) return res.status(401).json({ error: 'Unauthorized.' });
 
-      const session = await identityService.findSession(token);
+      const session = await identityService.validateSession(token);
       if (!session) return res.status(401).json({ error: 'Session expired.' });
 
       const { workspace } = await identityService.getOrCreateWorkspace(session.user._id);
@@ -505,7 +505,7 @@ export function createAuthRouter(identityService: IdentityService): Router {
       const token = authHeader?.startsWith('Bearer ') ? authHeader.slice(7) : req.headers['x-session-token'] as string;
       if (!token) return res.status(401).json({ error: 'Unauthorized.' });
 
-      const session = await identityService.findSession(token);
+      const session = await identityService.validateSession(token);
       if (!session) return res.status(401).json({ error: 'Session expired.' });
 
       const { workspace } = await identityService.getOrCreateWorkspace(session.user._id);
@@ -536,7 +536,7 @@ export function createAuthRouter(identityService: IdentityService): Router {
       const token = authHeader?.startsWith('Bearer ') ? authHeader.slice(7) : req.headers['x-session-token'] as string;
       if (!token) return res.status(401).json({ error: 'Unauthorized.' });
 
-      const session = await identityService.findSession(token);
+      const session = await identityService.validateSession(token);
       if (!session) return res.status(401).json({ error: 'Session expired.' });
 
       const { workspace } = await identityService.getOrCreateWorkspace(session.user._id);
