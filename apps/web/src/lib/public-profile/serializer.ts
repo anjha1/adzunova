@@ -82,10 +82,16 @@ export function serializePublicProfile({
         ? `https://instagram.com/${acc.username}`
         : `https://adzunova.com/c/${profile.slug}`;
 
+      const socialPic = sanitizeExternalUrl(
+        acc.profilePictureUrl ||
+        (isInstagram ? latestSocial.account?.profilePictureUrl : null)
+      );
+
       return {
         platform: isInstagram ? 'INSTAGRAM' : acc.provider.toUpperCase(),
         handle: `@${acc.username}`,
         profileUrl,
+        profilePictureUrl: socialPic,
         followers: Number(acc.followersCount || acc.followers_count || 0),
         avgViews: latestSocial.totalViews24h || 0,
         engagementRate: 3.8, // calculated from verified snapshot

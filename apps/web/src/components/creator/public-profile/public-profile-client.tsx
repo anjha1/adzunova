@@ -340,9 +340,29 @@ export function PublicProfileClient({ profile }: PublicProfileClientProps) {
                         </div>
                       </div>
 
-                      <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-emerald-500/10 text-emerald-700 dark:text-emerald-300 border border-emerald-500/20">
-                        Verified
-                      </span>
+                      {/* Right side: Social Profile Picture + Verified Badge */}
+                      <div className="flex items-center gap-2 shrink-0">
+                        {ch.profilePictureUrl && (
+                          <a
+                            href={ch.profileUrl}
+                            target="_blank"
+                            rel="noopener noreferrer nofollow"
+                            title={`Open ${ch.handle} on ${ch.platform}`}
+                            className="relative w-8 h-8 rounded-full overflow-hidden border-2 border-border hover:border-indigo-500 transition shadow-2xs group"
+                          >
+                            {/* eslint-disable-next-line @next/next/no-img-element */}
+                            <img
+                              src={ch.profilePictureUrl}
+                              alt={`${ch.handle} on ${ch.platform}`}
+                              className="w-full h-full object-cover group-hover:scale-105 transition"
+                            />
+                          </a>
+                        )}
+
+                        <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-emerald-500/10 text-emerald-700 dark:text-emerald-300 border border-emerald-500/20 shadow-2xs">
+                          Verified
+                        </span>
+                      </div>
                     </div>
 
                     {/* Channel Stats Matrix */}

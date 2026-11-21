@@ -50,6 +50,7 @@ export interface PlatformSnapshot {
   platform: RateCardPlatform | 'INSTAGRAM' | 'YOUTUBE' | 'TIKTOK' | 'FACEBOOK' | 'X' | 'LINKEDIN';
   handle: string;
   profileUrl: string;
+  profilePictureUrl?: string | null;
   followers: number;
   avgViews: number;
   engagementRate: number; // percentage e.g. 3.4
@@ -167,6 +168,7 @@ export interface PublicCreatorProfileDTO {
     platform: string;
     handle: string;
     profileUrl: string;
+    profilePictureUrl?: string | null;
     followers: number;
     avgViews: number;
     engagementRate: number;
