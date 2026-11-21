@@ -70,11 +70,17 @@ async function getMongoDb(): Promise<Db | null> {
 }
 
 /**
- * Discovers and auto-populates avatar from Google OAuth or connected Instagram if profile avatar is empty.
+ * Discovers and sets the creator's official Adzunova login avatar (from Google OAuth / creator_profiles / users).
+ * Strictly avoids using Instagram or social media pictures for the Adzunova creator identity.
  */
 async function resolveAvatarIfEmpty(profile: PublicProfile, db: Db | null): Promise<PublicProfile> {
-  if (profile.avatarUrl) return profile;
   if (!db) return profile;
+
+  // If avatar is already an explicit Adzunova / custom image (and not a social media CDN link), keep it
+  const isSocialMediaAvatar = Boolean(profile.avatarUrl && /instagram|cdninstagram|scontent|fbcdn/i.test(profile.avatarUrl));
+  if (profile.avatarUrl && !isSocialMediaAvatar) {
+    return profile;
+  }
 
   try {
     const { ObjectId } = await import('mongodb');
@@ -88,23 +94,37 @@ async function resolveAvatarIfEmpty(profile: PublicProfile, db: Db | null): Prom
       }
     } catch {}
 
-    const [cp, userDoc, socialDoc] = await Promise.all([
+    const [cp, userDoc] = await Promise.all([
       db.collection('creator_profiles').findOne(query).catch(() => null),
       db.collection('users').findOne(userQuery).catch(() => null),
-      db.collection('social_accounts').findOne({ creator_id: creatorId }).catch(() => null),
     ]);
 
-    const discoveredAvatar =
-      cp?.avatarUrl ||
-      userDoc?.avatarUrl ||
-      socialDoc?.profile_picture_url ||
-      null;
+    let adzunovaAvatar = cp?.avatarUrl || userDoc?.avatarUrl || null;
 
-    if (discoveredAvatar) {
-      profile.avatarUrl = discoveredAvatar;
+    // If not found by direct ID, match user by email matching the creator slug prefix (e.g. anjha1@...)
+    if (!adzunovaAvatar && profile.slug) {
+      const slugUser = await db.collection('users').findOne({
+        $or: [
+          { email: { $regex: new RegExp(`^${profile.slug}@`, 'i') } },
+          { normalizedEmail: { $regex: new RegExp(`^${profile.slug}@`, 'i') } },
+        ],
+      }).catch(() => null);
+
+      if (slugUser?.avatarUrl) {
+        adzunovaAvatar = slugUser.avatarUrl;
+      } else if (slugUser?._id) {
+        const userCp = await db.collection('creator_profiles').findOne({
+          $or: [{ userId: slugUser._id }, { userId: String(slugUser._id) }],
+        }).catch(() => null);
+        if (userCp?.avatarUrl) adzunovaAvatar = userCp.avatarUrl;
+      }
+    }
+
+    if (adzunovaAvatar) {
+      profile.avatarUrl = adzunovaAvatar;
       db.collection('public_profiles').updateOne(
         { creatorId: profile.creatorId },
-        { $set: { avatarUrl: discoveredAvatar } }
+        { $set: { avatarUrl: adzunovaAvatar } }
       ).catch(() => null);
     }
   } catch {

@@ -25,7 +25,8 @@ export async function GET(req: NextRequest) {
       getRateCardItems(creatorId).catch(() => []),
     ]);
 
-    const fallbackAvatar = session.profile?.avatarUrl || session.user?.avatarUrl || latestSocial?.account?.profilePictureUrl || null;
+    const adzunovaLoginAvatar = session.profile?.avatarUrl || session.user?.avatarUrl || null;
+    const isSocialMediaAvatar = Boolean(profile?.avatarUrl && /instagram|cdninstagram|scontent|fbcdn/i.test(profile.avatarUrl));
 
     // Initial setup if not exists
     if (!profile) {
@@ -34,12 +35,12 @@ export async function GET(req: NextRequest) {
         slug: emailPrefix,
         displayName: session.profile?.displayName || session.user.displayName || 'Creator',
         bio: session.profile?.bio || '',
-        avatarUrl: fallbackAvatar,
+        avatarUrl: adzunovaLoginAvatar,
       });
-    } else if (!profile.avatarUrl && fallbackAvatar) {
-      // Auto-backfill avatar from Google OAuth / Instagram if profile avatar was left empty
+    } else if (adzunovaLoginAvatar && (!profile.avatarUrl || isSocialMediaAvatar)) {
+      // Overwrite with official Adzunova login avatar
       profile = await upsertPublicProfile(creatorId, {
-        avatarUrl: fallbackAvatar,
+        avatarUrl: adzunovaLoginAvatar,
       });
     }
 
@@ -49,6 +50,7 @@ export async function GET(req: NextRequest) {
       profile,
       completeness,
       latestSocial,
+      loginAvatar: adzunovaLoginAvatar,
       activeRateCardCount: rateCardItems.filter((i) => i.status === 'ACTIVE').length,
     });
   } catch (err: any) {

@@ -49,11 +49,6 @@ export async function generateMetadata({ params }: PageProps): Promise<Metadata>
     getRateCardItems(profile.creatorId).catch(() => []),
   ]);
 
-  // Inherit avatar from connected social account if not set
-  if (!profile.avatarUrl && latestSocial?.account?.profilePictureUrl) {
-    profile.avatarUrl = latestSocial.account.profilePictureUrl;
-  }
-
   const dto = serializePublicProfile({
     profile,
     latestSocial,
@@ -123,11 +118,6 @@ export default async function PublicCreatorProfilePage({ params }: PageProps) {
     getSocialAccountLatest(profile.creatorId).catch(() => null),
     getRateCardItems(profile.creatorId).catch(() => []),
   ]);
-
-  // Inherit avatar from connected social account if not set
-  if (!profile.avatarUrl && latestSocial?.account?.profilePictureUrl) {
-    profile.avatarUrl = latestSocial.account.profilePictureUrl;
-  }
 
   const packages = getCreatorPackages(profile.creatorId);
   const topContent = getCreatorTopContent(profile.creatorId);

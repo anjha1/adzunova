@@ -21,6 +21,7 @@ export default function ProfilePage() {
   const [languages, setLanguages] = useState<string[]>(['English']);
   const [location, setLocation] = useState('');
   const [avatarUrl, setAvatarUrl] = useState<string | null>(null);
+  const [loginAvatar, setLoginAvatar] = useState<string | null>(null);
   const [coverUrl, setCoverUrl] = useState<string | null>(null);
   const [isPublished, setIsPublished] = useState(false);
   const [allowIndexing, setAllowIndexing] = useState(true);
@@ -102,7 +103,11 @@ export default function ProfilePage() {
         setTags(p.tags || []);
         setLanguages(p.languages?.length ? p.languages : ['English']);
         setLocation(p.location || '');
-        setAvatarUrl(p.avatarUrl);
+        setLoginAvatar(data.loginAvatar || null);
+        const effectiveAvatar = p.avatarUrl && !/instagram|cdninstagram|scontent|fbcdn/i.test(p.avatarUrl)
+          ? p.avatarUrl
+          : (data.loginAvatar || null);
+        setAvatarUrl(effectiveAvatar);
         setCoverUrl(p.coverUrl);
         setIsPublished(p.isPublished);
         setAllowIndexing(p.allowIndexing ?? true);
@@ -512,16 +517,16 @@ export default function ProfilePage() {
                   <div>
                     <div className="flex items-center justify-between mb-1">
                       <label className="font-semibold text-foreground">Avatar Image URL</label>
-                      {latest?.account?.profilePictureUrl && avatarUrl !== latest.account.profilePictureUrl && (
+                      {loginAvatar && avatarUrl !== loginAvatar && (
                         <button
                           type="button"
                           onClick={() => {
-                            setAvatarUrl(latest.account.profilePictureUrl);
+                            setAvatarUrl(loginAvatar);
                             setIsDirty(true);
                           }}
                           className="text-[10px] font-bold text-indigo-600 dark:text-indigo-400 hover:underline cursor-pointer"
                         >
-                          Use Connected Photo
+                          Use Adzunova Account Photo
                         </button>
                       )}
                     </div>
@@ -532,7 +537,7 @@ export default function ProfilePage() {
                         setAvatarUrl(e.target.value || null);
                         setIsDirty(true);
                       }}
-                      placeholder={latest?.account?.profilePictureUrl || "https://images.unsplash.com/..."}
+                      placeholder={loginAvatar || "https://images.unsplash.com/..."}
                       className="w-full rounded-xl border border-border bg-background px-3 py-2 text-foreground font-mono text-[11px]"
                     />
                   </div>
