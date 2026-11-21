@@ -7,7 +7,8 @@ import {
 import { getAllActiveSocialAccounts } from '../social/social-repository';
 import { getLatestAudienceSnapshot } from '../social/metrics-store';
 import { getRateCardItems } from '../rate-card/rate-card-repository';
-import { getPublicProfileBySlug } from '../public-profile/public-profile-repository';
+import { getPublicProfileByCreatorId } from '../public-profile/public-profile-repository';
+import { isStockPhotoUrl } from '../public-profile/formatters';
 
 /**
  * SearchPort & Discovery Engine Implementation (L0 Launch Adapter)
@@ -40,39 +41,56 @@ export function decodeCursor(cursor: string): { id: string; sortVal: any } | nul
 }
 
 /**
- * Calculates Best Match Score with transparent breakdown
+ * Calculates Best Match Score with transparent breakdown.
+ * Returns null score when no search or targeting criteria are provided by the brand.
  */
 export function calculateBestMatchScore(
   creator: {
     category?: string;
-    engagementRate: number;
+    engagementRate: number | null;
     share18Plus?: number | null;
     startingPriceMinor?: number | null;
   },
   query: CreatorSearchQuery
-): { score: number; explanation: string } {
-  let score = 50; // Base score
+): { score: number | null; explanation: string } {
+  const hasQueryCriteria = Boolean(
+    (query.query && query.query.trim().length > 0) ||
+    query.category ||
+    query.budgetAmount ||
+    query.minBudget ||
+    query.maxBudget ||
+    (query.deliverableFormat && query.deliverableFormat !== 'ANY') ||
+    query.minEngagementRate ||
+    query.min18PlusShare ||
+    query.audienceCountry
+  );
+
+  if (!hasQueryCriteria) {
+    return { score: null, explanation: '' };
+  }
+
+  let score = 50; // Base score when user explicitly searches
   const reasons: string[] = [];
 
   // 1. Niche / Category Match (+25)
   if (query.category) {
-    if (creator.category?.toLowerCase() === query.category.toLowerCase()) {
+    if (creator.category && creator.category.toLowerCase() === query.category.toLowerCase()) {
       score += 25;
       reasons.push(`Exact ${creator.category} niche match`);
     } else {
       score -= 10;
     }
-  } else if (creator.category) {
-    score += 10;
   }
 
   // 2. Engagement Rate Quality (+15)
-  if (creator.engagementRate >= 3.5) {
-    score += 15;
-    reasons.push(`High verified engagement (${creator.engagementRate}%)`);
-  } else if (creator.engagementRate >= 2.0) {
-    score += 10;
-    reasons.push(`Healthy engagement (${creator.engagementRate}%)`);
+  if (creator.engagementRate !== null && creator.engagementRate !== undefined) {
+    if (creator.engagementRate >= 3.5) {
+      score += 15;
+      reasons.push(`High verified engagement (${creator.engagementRate}%)`);
+    } else if (creator.engagementRate >= 2.0) {
+      score += 10;
+      reasons.push(`Healthy engagement (${creator.engagementRate}%)`);
+    }
   }
 
   // 3. Audience 18+ Quality (+10)
@@ -83,7 +101,7 @@ export function calculateBestMatchScore(
 
   // Cap between 10 and 99
   const finalScore = Math.min(99, Math.max(10, score));
-  const explanation = reasons.length > 0 ? reasons.join(' · ') : 'Verified first-party metrics';
+  const explanation = reasons.length > 0 ? reasons.join(' · ') : 'Matching search criteria';
 
   return { score: finalScore, explanation };
 }
@@ -165,11 +183,15 @@ export class CreatorSearchEngine implements SearchPort {
           (facets.audienceCountries[snapshot.top_country] || 0) + 1;
       }
 
-      // Public profile lookup
-      const slug = acc.username || 'creator';
-      const { profile } = await getPublicProfileBySlug(slug).catch(() => ({ profile: null }));
+      // Public profile lookup by authentic creatorId
+      const profile = await getPublicProfileByCreatorId(acc.creator_id).catch(() => null);
 
-      const category = profile?.tags?.[0] || 'Lifestyle';
+      // Only published creator profiles are discoverable to brands
+      if (!profile || !profile.isPublished) {
+        continue;
+      }
+
+      const category = profile.tags?.[0] || 'Uncategorized';
       facets.categories[category] = (facets.categories[category] || 0) + 1;
 
       if (query.category && category.toLowerCase() !== query.category.toLowerCase()) {
@@ -181,14 +203,14 @@ export class CreatorSearchEngine implements SearchPort {
         const q = query.query.trim().toLowerCase();
         const textMatch =
           acc.username.toLowerCase().includes(q) ||
-          (profile?.displayName || '').toLowerCase().includes(q) ||
-          (profile?.bio || '').toLowerCase().includes(q) ||
+          (profile.displayName || '').toLowerCase().includes(q) ||
+          (profile.bio || '').toLowerCase().includes(q) ||
           category.toLowerCase().includes(q);
 
         if (!textMatch) continue;
       }
 
-      // Rate card & pricing
+      // Rate card & pricing (authentic only - zero synthetic items)
       const rateItems = await getRateCardItems(acc.creator_id, { status: 'ACTIVE' }).catch(() => []);
       const visibleItems = rateItems.filter((i) => i.visibleToBrands);
 
@@ -196,13 +218,12 @@ export class CreatorSearchEngine implements SearchPort {
       const deliverables: string[] = [];
 
       if (visibleItems.length > 0) {
-        const minPrice = Math.min(...visibleItems.map((i) => i.price));
-        startingPriceMinor = Math.round(minPrice * 100);
+        const validPrices = visibleItems.map((i) => i.price).filter((p): p is number => p !== null && p > 0);
+        if (validPrices.length > 0) {
+          const minPrice = Math.min(...validPrices);
+          startingPriceMinor = Math.round(minPrice * 100);
+        }
         deliverables.push(...Array.from(new Set(visibleItems.map((i) => i.contentFormat))));
-      } else {
-        // Honest starting fallback
-        startingPriceMinor = 1500000; // ₹15,000 in minor units
-        deliverables.push('REEL', 'STORY');
       }
 
       // Deliverable Format Filter
@@ -215,32 +236,36 @@ export class CreatorSearchEngine implements SearchPort {
 
       // Budget-First Search: total campaign budget ceiling
       if (query.budgetAmount !== undefined && query.budgetAmount > 0) {
+        if (startingPriceMinor === null) continue;
         const platformFeeRate = 0.10; // 10% platform fee
         const effectiveMaxDeliverableRupees = query.budgetAmount / (1 + platformFeeRate * 1.18);
-        if (startingPriceMinor && startingPriceMinor / 100 > effectiveMaxDeliverableRupees) {
+        if (startingPriceMinor / 100 > effectiveMaxDeliverableRupees) {
           continue;
         }
       }
 
       // Direct min/max budget filter
-      if (query.minBudget !== undefined && startingPriceMinor && startingPriceMinor / 100 < query.minBudget) {
-        continue;
+      if (query.minBudget !== undefined) {
+        if (startingPriceMinor === null || startingPriceMinor / 100 < query.minBudget) continue;
       }
-      if (query.maxBudget !== undefined && startingPriceMinor && startingPriceMinor / 100 > query.maxBudget) {
-        continue;
+      if (query.maxBudget !== undefined) {
+        if (startingPriceMinor === null || startingPriceMinor / 100 > query.maxBudget) continue;
       }
 
-      // Engagement calculation
-      const engagementRate = 3.8; // Authenticated first-party aggregate
+      // Authentic engagement calculation (null if insufficient metrics)
+      const engagementRate: number | null = (acc as any).engagement_rate ?? (acc as any).engagementRate ?? null;
 
-      if (query.minEngagementRate !== undefined && engagementRate < query.minEngagementRate) {
-        continue;
+      if (query.minEngagementRate !== undefined) {
+        if (engagementRate === null || engagementRate < query.minEngagementRate) continue;
       }
 
       // Format date honest string
       const dateStr = acc.last_synced_at
         ? new Date(acc.last_synced_at).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })
-        : 'Nov 20, 2026';
+        : null;
+      const dataAsOfText = dateStr
+        ? `Data as of ${dateStr} (Meta estimate)`
+        : 'Meta OAuth Connected';
 
       const matchInfo = calculateBestMatchScore(
         {
@@ -252,28 +277,28 @@ export class CreatorSearchEngine implements SearchPort {
         query
       );
 
-      const locationStr = profile?.location || 'Mumbai, India';
-      const city = locationStr.includes(',') ? locationStr.split(',')[0].trim() : locationStr;
-      const country = locationStr.includes(',') ? locationStr.split(',')[1].trim() : 'India';
+      const locationStr = profile.location || '';
+      const city = locationStr.includes(',') ? locationStr.split(',')[0].trim() : (locationStr || undefined);
+      const country = locationStr.includes(',') ? locationStr.split(',')[1].trim() : (locationStr || 'India');
 
       candidateCards.push({
         creatorId: acc.creator_id,
-        slug: profile?.slug || acc.username,
-        displayName: profile?.displayName || acc.username,
-        avatarUrl: profile?.avatarUrl || acc.profile_picture_url || null,
-        bio: profile?.bio,
+        slug: profile.slug,
+        displayName: profile.displayName || acc.username,
+        avatarUrl: isStockPhotoUrl(profile.avatarUrl) ? null : (profile.avatarUrl || acc.profile_picture_url || null),
+        bio: profile.bio || undefined,
         category,
         country,
         city,
         primaryPlatform: acc.provider,
         handle: `@${acc.username}`,
         followersCount: followers,
-        views24h: 18,
-        mediaCount: Number(acc.media_count || 5),
+        views24h: (acc as any).views_sample !== undefined && (acc as any).views_sample !== null ? Number((acc as any).views_sample) : undefined,
+        mediaCount: Number(acc.media_count || 0),
         engagementRate,
         verifiedStatus: 'VERIFIED',
-        verifiedBadgeText: 'Meta Verified via OAuth',
-        dataAsOfText: `Data as of ${dateStr} (Meta estimate)`,
+        verifiedBadgeText: 'Verified via Instagram API',
+        dataAsOfText,
         audienceMetrics: snapshot
           ? {
               hasSnapshot: true,
@@ -304,10 +329,10 @@ export class CreatorSearchEngine implements SearchPort {
         return (b.startingPriceMinor || 0) - (a.startingPriceMinor || 0);
       }
       if (sortBy === 'engagement_desc') {
-        return b.engagementRate - a.engagementRate;
+        return (b.engagementRate || 0) - (a.engagementRate || 0);
       }
       // default: best_match
-      return b.matchScore - a.matchScore;
+      return (b.matchScore || 0) - (a.matchScore || 0);
     });
 
     // 3. Cursor pagination

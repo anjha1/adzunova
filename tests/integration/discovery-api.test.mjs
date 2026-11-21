@@ -6,8 +6,27 @@ import {
   createShortlist,
   toggleCreatorInShortlist,
 } from '../../apps/web/src/lib/discovery/shortlist-service.ts';
+import { upsertPublicProfile } from '../../apps/web/src/lib/public-profile/public-profile-repository.ts';
+import { createRateCardItem } from '../../apps/web/src/lib/rate-card/rate-card-repository.ts';
 
 test('Creator Discovery Engine: Search, Filtering & Truth Guarantees', async (t) => {
+  // Setup test fixture for isolated test runner
+  await upsertPublicProfile('creator_anjha1', {
+    slug: 'anjha1',
+    displayName: 'Achhuta Nand Jha',
+    tags: ['Tech & Gadgets'],
+    isPublished: true,
+  });
+  await createRateCardItem('creator_anjha1', {
+    platform: 'INSTAGRAM',
+    contentFormat: 'REEL',
+    deliverableType: 'DEDICATED_VIDEO',
+    title: 'Dedicated Instagram Reel',
+    price: 15000,
+    status: 'ACTIVE',
+    visibleToBrands: true,
+  });
+
   await t.test('searches verified creator index and returns authentic card data', async () => {
     const res = await creatorSearchEngine.search({ limit: 10 });
     assert.ok(res.items.length > 0);
@@ -17,8 +36,14 @@ test('Creator Discovery Engine: Search, Filtering & Truth Guarantees', async (t)
     assert.ok(first.creatorId);
     assert.ok(first.handle);
     assert.equal(first.verifiedStatus, 'VERIFIED');
-    assert.match(first.dataAsOfText, /Meta estimate/i);
-    assert.ok(first.matchScore > 0);
+    assert.match(first.dataAsOfText, /Meta estimate|Meta OAuth/i);
+    // When no query criteria are supplied, match score is null (never fake 75%)
+    assert.equal(first.matchScore, null);
+
+    // When brand specifies query criteria, match score is computed
+    const targeted = await creatorSearchEngine.search({ category: first.category });
+    assert.ok(targeted.items[0].matchScore !== null);
+    assert.ok(targeted.items[0].matchScore > 0);
   });
 
   await t.test('filters by platform channel', async () => {

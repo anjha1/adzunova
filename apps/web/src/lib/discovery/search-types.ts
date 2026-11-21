@@ -40,7 +40,7 @@ export interface CreatorCardData {
   followersCount: number;
   views24h?: number;
   mediaCount: number;
-  engagementRate: number; // Percentage e.g. 3.8
+  engagementRate: number | null; // Percentage e.g. 3.8, or null if insufficient sample data
   verifiedStatus: 'VERIFIED' | 'SOCIAL_VERIFIED';
   verifiedBadgeText: string;
   dataAsOfText: string; // e.g. "Data as of Nov 20, 2026 (Meta estimate)"
@@ -55,12 +55,12 @@ export interface CreatorCardData {
   };
 
   // Pricing & Deliverables from Active Rate Card
-  startingPriceMinor: number | null; // In minor units e.g. 1500000 = ₹15,000
+  startingPriceMinor: number | null; // In minor units e.g. 1500000 = ₹15,000, null if not published
   currency: string;
   availableDeliverables: string[];
 
-  // Transparent Best Match Algorithm Score
-  matchScore: number; // 0 to 100
+  // Transparent Best Match Algorithm Score (null when no query criteria are provided)
+  matchScore: number | null; // 0 to 100 or null
   matchExplanation: string;
 }
 

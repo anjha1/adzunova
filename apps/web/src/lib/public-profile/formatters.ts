@@ -3,6 +3,51 @@
  * Zero external database or backend dependencies.
  */
 
+const STOCK_PHOTO_DOMAINS = [
+  'images.unsplash.com',
+  'unsplash.com',
+  'images.pexels.com',
+  'pexels.com',
+  'pixabay.com',
+  'stock.adobe.com',
+  'shutterstock.com',
+  'gettyimages.com',
+  'istockphoto.com',
+];
+
+/**
+ * Checks if a given URL is hosted on a known stock image service.
+ */
+export function isStockPhotoUrl(url: string | null | undefined): boolean {
+  if (!url) return false;
+  try {
+    const parsed = new URL(url);
+    const hostname = parsed.hostname.toLowerCase();
+    return STOCK_PHOTO_DOMAINS.some(
+      (domain) => hostname === domain || hostname.endsWith(`.${domain}`)
+    );
+  } catch {
+    return false;
+  }
+}
+
+/**
+ * Formats a decimal ratio or raw percentage string/number into an honest percentage string:
+ * e.g. 0.9942 -> "99.4%", 99.42 -> "99.4%"
+ */
+export function formatRatioToPercent(ratio: number | null | undefined): string {
+  if (ratio === null || ratio === undefined || isNaN(ratio)) return '—';
+  const num = Number(ratio);
+  if (num <= 0) return '0%';
+  // Decimal ratio between 0 and 1.0 (e.g. 0.9942 -> 99.42%)
+  if (num <= 1.0) {
+    const pct = num * 100;
+    return `${(Math.round(pct * 10) / 10).toFixed(1)}%`;
+  }
+  // Already a 0-100 percentage
+  return `${(Math.round(num * 10) / 10).toFixed(1)}%`;
+}
+
 /**
  * Format numbers in the Indian numbering system:
  * e.g. 125000 -> "₹1,25,000"

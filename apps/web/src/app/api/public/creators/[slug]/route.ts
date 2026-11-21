@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { getPublicProfileBySlug, getCreatorPackages, getCreatorTopContent, seedDemoProfile } from '@/lib/public-profile/public-profile-repository';
+import { getPublicProfileBySlug, getCreatorPackages, getCreatorTopContent } from '@/lib/public-profile/public-profile-repository';
 import { serializePublicProfile } from '@/lib/public-profile/serializer';
 import { getSocialAccountLatest } from '@/lib/social/latest-state';
 import { getRateCardItems } from '@/lib/rate-card/rate-card-repository';
@@ -15,12 +15,7 @@ export async function GET(
     }
 
     const normSlug = slug.toLowerCase().trim();
-    let { profile, isRedirect, redirectSlug } = await getPublicProfileBySlug(normSlug);
-
-    // Auto-seed demo profile for @a_n_jha1 / @anjha1 if testing demo
-    if (!profile && (normSlug === 'a_n_jha1' || normSlug === 'anjha1')) {
-      profile = await seedDemoProfile('creator_anjha1', normSlug);
-    }
+    const { profile, isRedirect, redirectSlug } = await getPublicProfileBySlug(normSlug);
 
     // 301 Redirect for previous slugs
     if (isRedirect && redirectSlug) {

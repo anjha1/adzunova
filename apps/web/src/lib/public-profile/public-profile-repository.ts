@@ -95,37 +95,27 @@ async function resolveAvatarIfEmpty(profile: PublicProfile, db: Db | null): Prom
 
     let adzunovaAvatar = cp?.avatarUrl || userDoc?.avatarUrl || (userDoc as any)?.image || (userDoc as any)?.picture || null;
 
-    // If not found by direct ID, match creator by connected social account or email / name
+    // If not found by direct ID, match creator by connected social account or email
     if (!adzunovaAvatar) {
       const socialAccount = await db.collection('social_accounts').findOne({
-        $or: [
-          { creator_id: creatorId },
-          { username: profile.slug },
-          { username: 'a_n_jha1' },
-          { username: { $regex: new RegExp(`^${profile.slug}$`, 'i') } },
-        ],
+        creator_id: creatorId,
       }).catch(() => null);
 
       const creatorEmail = socialAccount?.creator_email;
 
-      const slugUser = await db.collection('users').findOne({
-        $or: [
-          ...(creatorEmail ? [{ email: creatorEmail }, { normalizedEmail: creatorEmail.toLowerCase() }] : []),
-          { email: 'achhutanandj@gmail.com' },
-          { normalizedEmail: 'achhutanandj@gmail.com' },
-          { email: { $regex: new RegExp(`^${profile.slug}@`, 'i') } },
-          { normalizedEmail: { $regex: new RegExp(`^${profile.slug}@`, 'i') } },
-          ...(profile.displayName ? [{ displayName: profile.displayName }] : []),
-        ],
-      }).catch(() => null);
-
-      if (slugUser?.avatarUrl) {
-        adzunovaAvatar = slugUser.avatarUrl;
-      } else if (slugUser?._id) {
-        const userCp = await db.collection('creator_profiles').findOne({
-          $or: [{ userId: slugUser._id }, { userId: String(slugUser._id) }],
+      if (creatorEmail) {
+        const slugUser = await db.collection('users').findOne({
+          $or: [{ email: creatorEmail }, { normalizedEmail: creatorEmail.toLowerCase() }],
         }).catch(() => null);
-        if (userCp?.avatarUrl) adzunovaAvatar = userCp.avatarUrl;
+
+        if (slugUser?.avatarUrl) {
+          adzunovaAvatar = slugUser.avatarUrl;
+        } else if (slugUser?._id) {
+          const userCp = await db.collection('creator_profiles').findOne({
+            $or: [{ userId: slugUser._id }, { userId: String(slugUser._id) }],
+          }).catch(() => null);
+          if (userCp?.avatarUrl) adzunovaAvatar = userCp.avatarUrl;
+        }
       }
     }
 
@@ -504,12 +494,16 @@ export async function getProfileAnalytics(
 }
 
 /**
- * Seed Demo Creator Profile for testing & demonstrations
+ * Seed Demo Creator Profile for isolated testing only.
+ * Hard-fails in production to protect platform truth guarantees.
  */
 export async function seedDemoProfile(
   creatorId: string,
   slug = 'a_n_jha1'
 ): Promise<PublicProfile> {
+  if (process.env.NODE_ENV === 'production') {
+    throw new Error('[SECURITY VIOLATION] seedDemoProfile is strictly prohibited in production.');
+  }
   const demoPackages: PublicPackageItem[] = [
     {
       id: 'pkg-tech-launch',

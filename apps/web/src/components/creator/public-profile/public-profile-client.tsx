@@ -166,10 +166,12 @@ export function PublicProfileClient({ profile }: PublicProfileClientProps) {
             </button>
 
             <button
-              onClick={handleMessageCreator}
-              className="px-3.5 py-1.5 rounded-xl bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-bold shadow-xs transition cursor-pointer"
+              disabled
+              title="Direct brand messaging is coming soon"
+              className="px-3.5 py-1.5 rounded-xl bg-muted text-muted-foreground text-xs font-semibold cursor-not-allowed opacity-75 flex items-center gap-1.5"
             >
-              Message Creator
+              <span>Message</span>
+              <span className="text-[9px] px-1 py-0.2 rounded bg-border text-muted-foreground font-mono uppercase">Soon</span>
             </button>
           </div>
         </div>
@@ -266,11 +268,13 @@ export function PublicProfileClient({ profile }: PublicProfileClientProps) {
                 </button>
 
                 <button
-                  onClick={handleMessageCreator}
-                  className="flex-1 sm:flex-initial px-5 py-2.5 rounded-xl bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-bold shadow-md transition cursor-pointer flex items-center justify-center gap-1.5"
+                  disabled
+                  title="Direct brand messaging is coming soon"
+                  className="flex-1 sm:flex-initial px-5 py-2.5 rounded-xl bg-muted text-muted-foreground text-xs font-semibold cursor-not-allowed flex items-center justify-center gap-1.5 opacity-75"
                 >
                   <ShellIcon name="Send" size={14} />
                   <span>Message Creator</span>
+                  <span className="text-[9px] px-1.5 py-0.5 rounded-full bg-border text-muted-foreground uppercase tracking-wider font-mono">Soon</span>
                 </button>
               </div>
 
@@ -538,7 +542,7 @@ export function PublicProfileClient({ profile }: PublicProfileClientProps) {
                   {formatCompactCount(profile.stats.totalVerifiedReach)}
                 </div>
                 <span className="text-[10px] text-emerald-800 dark:text-emerald-300 font-semibold block mt-1">
-                  100% Platform Verified
+                  Verified via Instagram API
                 </span>
               </div>
 
@@ -555,10 +559,14 @@ export function PublicProfileClient({ profile }: PublicProfileClientProps) {
               <div className="p-4 rounded-2xl border border-border bg-card">
                 <span className="text-xs text-muted-foreground block mb-1">Avg Engagement</span>
                 <div className="text-2xl font-black text-foreground">
-                  {profile.stats.averageEngagementRate}%
+                  {profile.stats.averageEngagementRate !== null && profile.stats.averageEngagementRate !== undefined
+                    ? `${profile.stats.averageEngagementRate}%`
+                    : '—'}
                 </div>
                 <span className="text-[10px] text-muted-foreground block mt-1">
-                  Industry benchmark standard
+                  {profile.stats.averageEngagementRate !== null && profile.stats.averageEngagementRate !== undefined
+                    ? 'Verified first-party aggregate'
+                    : 'Awaiting sample data'}
                 </span>
               </div>
 

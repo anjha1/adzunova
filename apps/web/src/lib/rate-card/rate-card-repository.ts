@@ -70,111 +70,6 @@ async function getMongoDb(): Promise<Db | null> {
   return mongoDbPromise;
 }
 
-function getInitialDefaultSeedItems(creatorId: string): RateCardItem[] {
-  const now = new Date().toISOString();
-  return [
-    {
-      id: crypto.randomUUID(),
-      creatorId,
-      version: 1,
-      createdAt: now,
-      updatedAt: now,
-      deletedAt: null,
-      platform: 'INSTAGRAM',
-      contentFormat: 'REEL',
-      deliverableType: 'DEDICATED_VIDEO',
-      durationSeconds: 60,
-      price: 25000,
-      currency: 'INR',
-      priceType: 'FIXED',
-      minimumBookingAmount: null,
-      title: '1 Min Dedicated Instagram Reel',
-      description: 'High-energy vertical reel featuring organic product integration, customized CTA, and creator brand voice.',
-      deliveryDays: 5,
-      freeRevisions: 1,
-      publishOnMyChannel: true,
-      scriptApprovalRequired: true,
-      status: 'ACTIVE',
-      visibleToBrands: true,
-      sortOrder: 0,
-      addons: [
-        {
-          id: crypto.randomUUID(),
-          type: 'USAGE_RIGHTS',
-          enabled: true,
-          pricingMode: 'PERCENT_OF_BASE',
-          value: 20,
-          durationDays: 30,
-        },
-        {
-          id: crypto.randomUUID(),
-          type: 'EXCLUSIVITY',
-          enabled: true,
-          pricingMode: 'PERCENT_OF_BASE',
-          value: 30,
-          durationDays: 90,
-        },
-        {
-          id: crypto.randomUUID(),
-          type: 'RUSH_DELIVERY',
-          enabled: true,
-          pricingMode: 'PERCENT_OF_BASE',
-          value: 25,
-          rushWithinHours: 48,
-        },
-      ],
-    },
-    {
-      id: crypto.randomUUID(),
-      creatorId,
-      version: 1,
-      createdAt: now,
-      updatedAt: now,
-      deletedAt: null,
-      platform: 'YOUTUBE',
-      contentFormat: 'LONG_VIDEO',
-      deliverableType: 'DEDICATED_VIDEO',
-      durationSeconds: 600,
-      price: 40000,
-      currency: 'INR',
-      priceType: 'FIXED',
-      minimumBookingAmount: null,
-      title: 'YouTube Dedicated Video',
-      description: 'Full 8-12 minute high-production YouTube video dedicated entirely to brand narrative, testing, and call-to-action.',
-      deliveryDays: 7,
-      freeRevisions: 2,
-      publishOnMyChannel: true,
-      scriptApprovalRequired: true,
-      status: 'ACTIVE',
-      visibleToBrands: true,
-      sortOrder: 1,
-      addons: [
-        {
-          id: crypto.randomUUID(),
-          type: 'USAGE_RIGHTS',
-          enabled: true,
-          pricingMode: 'PERCENT_OF_BASE',
-          value: 20,
-          durationDays: 30,
-        },
-        {
-          id: crypto.randomUUID(),
-          type: 'EXTRA_REVISION',
-          enabled: true,
-          pricingMode: 'FIXED_AMOUNT',
-          value: 3000,
-        },
-        {
-          id: crypto.randomUUID(),
-          type: 'RAW_FOOTAGE',
-          enabled: true,
-          pricingMode: 'PERCENT_OF_BASE',
-          value: 35,
-        },
-      ],
-    },
-  ];
-}
 
 export async function logRateCardAudit(log: Omit<RateCardAuditLog, 'id' | 'timestamp'>): Promise<void> {
   const fullLog: RateCardAuditLog = {
@@ -237,38 +132,11 @@ export async function getRateCardItems(
       const { _id, ...rest } = doc;
       return rest as RateCardItem;
     });
-
-    // Auto-seed default items if creator has zero items ever
-    if (items.length === 0 && !options?.platform && !options?.status && !options?.search) {
-      const totalCount = await db.collection('rate_card_items').countDocuments({ creatorId, deletedAt: null });
-      if (totalCount === 0) {
-        const seeded = getInitialDefaultSeedItems(creatorId);
-        await db.collection('rate_card_items').insertMany(seeded);
-        for (const s of seeded) {
-          await logRateCardAudit({
-            creatorId,
-            itemId: s.id,
-            action: 'CREATE',
-            newState: s,
-          });
-        }
-        items = seeded;
-      }
-    }
   } else {
     // In-memory fallback
     items = Array.from(inMemoryItems.values()).filter(
       (item) => item.creatorId === creatorId && item.deletedAt === null
     );
-
-    // Auto-seed in-memory if empty
-    if (items.length === 0 && !options?.platform && !options?.status && !options?.search) {
-      const seeded = getInitialDefaultSeedItems(creatorId);
-      for (const s of seeded) {
-        inMemoryItems.set(s.id, s);
-      }
-      items = seeded;
-    }
 
     if (options?.platform) {
       items = items.filter((i) => i.platform === options.platform);

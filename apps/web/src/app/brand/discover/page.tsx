@@ -5,6 +5,7 @@ import Link from 'next/link';
 import { BrandPageContainer } from '@/components/brand/shell/brand-page-container';
 import { CreatorCardData, SearchFacets } from '@/lib/discovery/search-types';
 import { buildComparisonMatrix, ComparisonMatrix } from '@/lib/discovery/shortlist-service';
+import { formatRatioToPercent } from '@/lib/public-profile/formatters';
 
 export default function BrandDiscoverPage() {
   // Query States
@@ -382,13 +383,15 @@ export default function BrandDiscoverPage() {
                         </div>
                       </div>
 
-                      {/* Best Match Score Pill */}
-                      <span
-                        className="px-2 py-0.5 rounded-full text-[11px] font-bold bg-primary/10 text-primary shrink-0"
-                        title={c.matchExplanation}
-                      >
-                        {c.matchScore}% Match
-                      </span>
+                      {/* Best Match Score Pill (Only when brand provides targeting criteria) */}
+                      {c.matchScore !== null && c.matchScore !== undefined && (
+                        <span
+                          className="px-2 py-0.5 rounded-full text-[11px] font-bold bg-primary/10 text-primary shrink-0"
+                          title={c.matchExplanation}
+                        >
+                          {c.matchScore}% Match
+                        </span>
+                      )}
                     </div>
 
                     {/* Category & Verified Badge */}
@@ -404,7 +407,7 @@ export default function BrandDiscoverPage() {
                     {/* Stats Metrics Grid */}
                     <div className="grid grid-cols-3 gap-2 py-2 px-3 rounded-xl border border-border bg-muted/20 text-center">
                       <div>
-                        <div className="text-[10px] text-muted-foreground uppercase tracking-wider">Reach</div>
+                        <div className="text-[10px] text-muted-foreground uppercase tracking-wider">Followers</div>
                         <div className="text-xs font-bold text-foreground font-mono mt-0.5">
                           {c.followersCount >= 1000
                             ? `${(c.followersCount / 1000).toFixed(2)}K`
@@ -414,7 +417,7 @@ export default function BrandDiscoverPage() {
                       <div>
                         <div className="text-[10px] text-muted-foreground uppercase tracking-wider">Engagement</div>
                         <div className="text-xs font-bold text-foreground font-mono mt-0.5">
-                          {c.engagementRate}%
+                          {c.engagementRate !== null && c.engagementRate !== undefined ? `${c.engagementRate}%` : '—'}
                         </div>
                       </div>
                       <div>
@@ -422,7 +425,7 @@ export default function BrandDiscoverPage() {
                         <div className="text-xs font-bold text-primary font-mono mt-0.5">
                           {c.startingPriceMinor
                             ? `₹${(c.startingPriceMinor / 100).toLocaleString('en-IN')}`
-                            : 'On Request'}
+                            : 'Not published'}
                         </div>
                       </div>
                     </div>
@@ -432,7 +435,7 @@ export default function BrandDiscoverPage() {
                       <div className="text-[11px] text-muted-foreground flex items-center justify-between">
                         <span>Top: {c.audienceMetrics.topCountry || 'India'}</span>
                         <span className="font-semibold text-foreground">
-                          {c.audienceMetrics.share18Plus}% 18+ Audience
+                          {formatRatioToPercent(c.audienceMetrics.share18Plus)} 18+ Audience
                         </span>
                       </div>
                     ) : (

@@ -171,7 +171,7 @@ export interface PublicCreatorProfileDTO {
     profilePictureUrl?: string | null;
     followers: number;
     avgViews: number;
-    engagementRate: number;
+    engagementRate: number | null;
     contentCount: number;
     verificationStatus: VerificationStatus;
     verifiedLabel: string;
@@ -184,7 +184,7 @@ export interface PublicCreatorProfileDTO {
   stats?: {
     totalVerifiedReach: number;
     totalPublishedContent: number;
-    averageEngagementRate: number;
+    averageEngagementRate: number | null;
     audienceQualityScore: number | null;
     audienceQualityDisplay: string;
     qualityReason?: string;

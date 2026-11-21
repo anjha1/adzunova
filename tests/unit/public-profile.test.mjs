@@ -11,6 +11,8 @@ import {
   serializePublicProfile,
   formatIndianRupees,
   formatCompactCount,
+  formatRatioToPercent,
+  isStockPhotoUrl,
   sanitizeText,
   sanitizeExternalUrl,
 } from '../../apps/web/src/lib/public-profile/serializer.ts';
@@ -74,6 +76,23 @@ test('Public Creator Profile: Number & Text Formatting', async (t) => {
     assert.equal(formatCompactCount(150000), '1.5L');
     assert.equal(formatCompactCount(1200000), '12L');
     assert.equal(formatCompactCount(10000000), '1Cr');
+  });
+
+  await t.test('formats decimal ratios and percentages honestly without 0.9942% bug', () => {
+    assert.equal(formatRatioToPercent(0.9942), '99.4%');
+    assert.equal(formatRatioToPercent(0.75), '75.0%');
+    assert.equal(formatRatioToPercent(99.42), '99.4%');
+    assert.equal(formatRatioToPercent(null), '—');
+    assert.equal(formatRatioToPercent(undefined), '—');
+  });
+
+  await t.test('detects and forbids stock photo URLs', () => {
+    assert.equal(isStockPhotoUrl('https://images.unsplash.com/photo-12345?w=400'), true);
+    assert.equal(isStockPhotoUrl('https://unsplash.com/photos/abc'), true);
+    assert.equal(isStockPhotoUrl('https://images.pexels.com/photos/123'), true);
+    assert.equal(isStockPhotoUrl('https://lh3.googleusercontent.com/a/ACg8ocL...'), false);
+    assert.equal(isStockPhotoUrl('https://scontent.cdninstagram.com/v/...'), false);
+    assert.equal(isStockPhotoUrl(null), false);
   });
 
   await t.test('sanitizes untrusted text and URLs against XSS', () => {
@@ -271,5 +290,31 @@ test('Public Creator Profile: Strict DTO Security & Privacy Engine', async (t) =
     assert.equal(dto.topContent, undefined, 'Top content should be omitted');
     assert.equal(dto.rateCard, undefined, 'Rate card should be omitted');
     assert.equal(dto.packages, undefined, 'Packages should be omitted');
+  });
+
+  await t.test('strictly refuses stock photos and hardcoded engagement rates in DTO', () => {
+    const stockProfile = {
+      ...mockProfile,
+      avatarUrl: 'https://images.unsplash.com/photo-stock-model-1234?w=400',
+      coverUrl: 'https://images.unsplash.com/photo-stock-banner-5678?w=1200',
+    };
+
+    const dto = serializePublicProfile({
+      profile: stockProfile,
+      latestSocial: mockSocialLatest,
+      rateCardItems: [],
+    });
+
+    // Avatar and cover from Unsplash MUST be null
+    assert.equal(dto.avatarUrl, null, 'Stock avatar must be sanitized to null');
+    assert.equal(dto.coverUrl, null, 'Stock cover must be sanitized to null');
+
+    // Engagement rates must be null when not provided
+    assert.equal(dto.stats?.averageEngagementRate, null, 'Engagement must not be hardcoded to 3.8%');
+    assert.equal(dto.platforms?.[0]?.engagementRate, null, 'Platform engagement must not be hardcoded to 3.8%');
+
+    // Rate card starting price must be null when 0 items
+    assert.equal(dto.rateCard?.startingPriceInr, null, 'Starting price must be null if no active items');
+    assert.equal(dto.rateCard?.items.length, 0);
   });
 });

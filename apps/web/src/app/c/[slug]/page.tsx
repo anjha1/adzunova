@@ -6,7 +6,6 @@ import {
   getPublicProfileBySlug,
   getCreatorPackages,
   getCreatorTopContent,
-  seedDemoProfile,
 } from '@/lib/public-profile/public-profile-repository';
 import { serializePublicProfile } from '@/lib/public-profile/serializer';
 import { getSocialAccountLatest } from '@/lib/social/latest-state';
@@ -25,11 +24,7 @@ export async function generateMetadata({ params }: PageProps): Promise<Metadata>
   if (!slug) return {};
 
   const normSlug = slug.toLowerCase().trim();
-  let { profile, isRedirect, redirectSlug } = await getPublicProfileBySlug(normSlug);
-
-  if (!profile && (normSlug === 'a_n_jha1' || normSlug === 'anjha1')) {
-    profile = await seedDemoProfile('creator_anjha1', normSlug);
-  }
+  const { profile, isRedirect, redirectSlug } = await getPublicProfileBySlug(normSlug);
 
   if (isRedirect && redirectSlug) {
     return {
@@ -97,12 +92,7 @@ export default async function PublicCreatorProfilePage({ params }: PageProps) {
   if (!slug) notFound();
 
   const normSlug = slug.toLowerCase().trim();
-  let { profile, isRedirect, redirectSlug } = await getPublicProfileBySlug(normSlug);
-
-  // Auto-seed demo profile for testing demo user
-  if (!profile && (normSlug === 'a_n_jha1' || normSlug === 'anjha1')) {
-    profile = await seedDemoProfile('creator_anjha1', normSlug);
-  }
+  const { profile, isRedirect, redirectSlug } = await getPublicProfileBySlug(normSlug);
 
   // 301 Permanent Redirect for past custom slugs
   if (isRedirect && redirectSlug) {

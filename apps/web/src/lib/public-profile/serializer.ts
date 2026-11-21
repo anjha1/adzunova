@@ -12,6 +12,8 @@ import type { SocialAccountLatest } from '../social/latest-state';
 import {
   formatIndianRupees,
   formatCompactCount,
+  formatRatioToPercent,
+  isStockPhotoUrl,
   sanitizeText,
   sanitizeExternalUrl,
   getCountryDisplayName,
@@ -21,6 +23,8 @@ import {
 export {
   formatIndianRupees,
   formatCompactCount,
+  formatRatioToPercent,
+  isStockPhotoUrl,
   sanitizeText,
   sanitizeExternalUrl,
   getCountryDisplayName,
@@ -82,10 +86,14 @@ export function serializePublicProfile({
         ? `https://instagram.com/${acc.username}`
         : `https://adzunova.com/c/${profile.slug}`;
 
-      const socialPic = sanitizeExternalUrl(
+      const rawSocialPic = sanitizeExternalUrl(
         acc.profilePictureUrl ||
         (isInstagram ? latestSocial.account?.profilePictureUrl : null)
       );
+      const socialPic = isStockPhotoUrl(rawSocialPic) ? null : rawSocialPic;
+
+      // Authentic engagement rate calculation: only if verifiable engagement metrics exist
+      const computedEngRate = (acc as any).engagementRate ?? (latestSocial as any).engagementRate ?? null;
 
       return {
         platform: isInstagram ? 'INSTAGRAM' : acc.provider.toUpperCase(),
@@ -94,14 +102,14 @@ export function serializePublicProfile({
         profilePictureUrl: socialPic,
         followers: Number(acc.followersCount || acc.followers_count || 0),
         avgViews: latestSocial.totalViews24h || 0,
-        engagementRate: 3.8, // calculated from verified snapshot
+        engagementRate: computedEngRate !== null ? Number(computedEngRate) : null,
         contentCount: Number(acc.mediaCount || 0),
         verificationStatus: isAccountVerified ? ('VERIFIED' as const) : ('UNVERIFIED' as const),
         verifiedLabel: isAccountVerified
           ? formatVerifiedViaLabel(acc.lastSyncedAt)
           : 'Pending verification',
         isStale,
-        fetchedAt: acc.lastSyncedAt || new Date().toISOString(),
+        fetchedAt: acc.lastSyncedAt || '',
         trendSeries: latestSocial.followersSeries || [],
       };
     });
@@ -112,11 +120,12 @@ export function serializePublicProfile({
   if (vis.stats && latestSocial) {
     const verifiedReach = isVerified ? Number(latestSocial.totalReach || 0) : 0;
     const publishedCount = latestSocial.accounts?.reduce((sum, a) => sum + (a.mediaCount || 0), 0) || 0;
+    const avgEng = (latestSocial as any).averageEngagementRate ?? (latestSocial as any).engagementRate ?? null;
 
     stats = {
       totalVerifiedReach: verifiedReach,
       totalPublishedContent: publishedCount,
-      averageEngagementRate: 3.8,
+      averageEngagementRate: avgEng !== null ? Number(avgEng) : null,
       audienceQualityScore: latestSocial.isScoreComplete ? latestSocial.audienceScore : null,
       audienceQualityDisplay: latestSocial.audienceScoreDisplay || 'Not enough data',
       qualityReason: latestSocial.qualityEvaluation?.missingFactors?.length
@@ -249,8 +258,14 @@ export function serializePublicProfile({
     tags: (profile.tags || []).map(sanitizeText).filter(Boolean),
     languages: (profile.languages || []).map(sanitizeText).filter(Boolean),
     location: sanitizeText(profile.location),
-    avatarUrl: sanitizeExternalUrl(profile.avatarUrl),
-    coverUrl: sanitizeExternalUrl(profile.coverUrl),
+    avatarUrl: (() => {
+      const sanitized = sanitizeExternalUrl(profile.avatarUrl);
+      return isStockPhotoUrl(sanitized) ? null : sanitized;
+    })(),
+    coverUrl: (() => {
+      const sanitized = sanitizeExternalUrl(profile.coverUrl);
+      return isStockPhotoUrl(sanitized) ? null : sanitized;
+    })(),
     isVerifiedCreator: isVerified,
     lastVerifiedAt,
     publishedAt: profile.publishedAt,

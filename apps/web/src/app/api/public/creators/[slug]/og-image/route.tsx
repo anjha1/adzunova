@@ -1,6 +1,6 @@
 import { NextRequest } from 'next/server';
 import { ImageResponse } from 'next/og';
-import { getPublicProfileBySlug, seedDemoProfile } from '@/lib/public-profile/public-profile-repository';
+import { getPublicProfileBySlug } from '@/lib/public-profile/public-profile-repository';
 import { getSocialAccountLatest } from '@/lib/social/latest-state';
 import { formatCompactCount } from '@/lib/public-profile/formatters';
 
@@ -10,10 +10,10 @@ export async function GET(
 ) {
   try {
     const { slug } = await context.params;
-    let { profile } = await getPublicProfileBySlug(slug);
+    const { profile } = await getPublicProfileBySlug(slug);
 
-    if (!profile && (slug === 'a_n_jha1' || slug === 'anjha1')) {
-      profile = await seedDemoProfile('creator_anjha1', slug);
+    if (!profile || !profile.isPublished) {
+      return new Response('Creator profile not found', { status: 404 });
     }
 
     const displayName = profile?.displayName || 'Creator';

@@ -1,5 +1,6 @@
 import crypto from 'crypto';
 import { ShortlistEntity, CreatorCardData } from './search-types';
+import { formatRatioToPercent } from '../public-profile/formatters';
 
 /**
  * Tenant-Isolated Workspace Shortlists & Side-by-Side Comparison Engine
@@ -101,13 +102,13 @@ export function buildComparisonMatrix(creators: CreatorCardData[]): ComparisonMa
 
   for (const c of capped) {
     followersMap[c.creatorId] = c.followersCount;
-    engagementMap[c.creatorId] = `${c.engagementRate}%`;
+    engagementMap[c.creatorId] = c.engagementRate !== null ? `${c.engagementRate}%` : '—';
     startingPriceMap[c.creatorId] = c.startingPriceMinor
       ? `₹${(c.startingPriceMinor / 100).toLocaleString('en-IN')}`
-      : 'Contact';
-    viewsMap[c.creatorId] = c.views24h ?? 'N/A';
-    adultAudienceMap[c.creatorId] = c.audienceMetrics?.share18Plus
-      ? `${c.audienceMetrics.share18Plus}%`
+      : 'Not published';
+    viewsMap[c.creatorId] = c.views24h ?? '—';
+    adultAudienceMap[c.creatorId] = c.audienceMetrics?.share18Plus !== undefined && c.audienceMetrics?.share18Plus !== null
+      ? formatRatioToPercent(c.audienceMetrics.share18Plus)
       : 'Estimate Pending';
     topCountryMap[c.creatorId] = c.audienceMetrics?.topCountry || 'India';
     platformMap[c.creatorId] = c.primaryPlatform.toUpperCase();
@@ -115,7 +116,7 @@ export function buildComparisonMatrix(creators: CreatorCardData[]): ComparisonMa
 
   const dimensions: ComparisonDimension[] = [
     { key: 'platform', label: 'Primary Channel', format: 'text', values: platformMap },
-    { key: 'followers', label: 'Verified Reach', format: 'number', values: followersMap },
+    { key: 'followers', label: 'Followers', format: 'number', values: followersMap },
     { key: 'engagement', label: 'Avg Engagement Rate', format: 'percentage', values: engagementMap },
     { key: 'startingPrice', label: 'Starting Rate', format: 'currency', values: startingPriceMap },
     { key: 'views24h', label: '24h Content Views', format: 'number', values: viewsMap },
