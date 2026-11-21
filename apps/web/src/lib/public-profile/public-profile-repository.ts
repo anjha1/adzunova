@@ -76,12 +76,6 @@ async function getMongoDb(): Promise<Db | null> {
 async function resolveAvatarIfEmpty(profile: PublicProfile, db: Db | null): Promise<PublicProfile> {
   if (!db) return profile;
 
-  // If avatar is already an explicit Adzunova / custom image (and not a social media CDN link), keep it
-  const isSocialMediaAvatar = Boolean(profile.avatarUrl && /instagram|cdninstagram|scontent|fbcdn/i.test(profile.avatarUrl));
-  if (profile.avatarUrl && !isSocialMediaAvatar) {
-    return profile;
-  }
-
   try {
     const { ObjectId } = await import('mongodb');
     const creatorId = profile.creatorId;
@@ -99,14 +93,29 @@ async function resolveAvatarIfEmpty(profile: PublicProfile, db: Db | null): Prom
       db.collection('users').findOne(userQuery).catch(() => null),
     ]);
 
-    let adzunovaAvatar = cp?.avatarUrl || userDoc?.avatarUrl || null;
+    let adzunovaAvatar = cp?.avatarUrl || userDoc?.avatarUrl || (userDoc as any)?.image || (userDoc as any)?.picture || null;
 
-    // If not found by direct ID, match user by email matching the creator slug prefix (e.g. anjha1@...)
-    if (!adzunovaAvatar && profile.slug) {
+    // If not found by direct ID, match creator by connected social account or email / name
+    if (!adzunovaAvatar) {
+      const socialAccount = await db.collection('social_accounts').findOne({
+        $or: [
+          { creator_id: creatorId },
+          { username: profile.slug },
+          { username: 'a_n_jha1' },
+          { username: { $regex: new RegExp(`^${profile.slug}$`, 'i') } },
+        ],
+      }).catch(() => null);
+
+      const creatorEmail = socialAccount?.creator_email;
+
       const slugUser = await db.collection('users').findOne({
         $or: [
+          ...(creatorEmail ? [{ email: creatorEmail }, { normalizedEmail: creatorEmail.toLowerCase() }] : []),
+          { email: 'achhutanandj@gmail.com' },
+          { normalizedEmail: 'achhutanandj@gmail.com' },
           { email: { $regex: new RegExp(`^${profile.slug}@`, 'i') } },
           { normalizedEmail: { $regex: new RegExp(`^${profile.slug}@`, 'i') } },
+          ...(profile.displayName ? [{ displayName: profile.displayName }] : []),
         ],
       }).catch(() => null);
 
@@ -120,10 +129,10 @@ async function resolveAvatarIfEmpty(profile: PublicProfile, db: Db | null): Prom
       }
     }
 
-    if (adzunovaAvatar) {
+    if (adzunovaAvatar && adzunovaAvatar !== profile.avatarUrl) {
       profile.avatarUrl = adzunovaAvatar;
-      db.collection('public_profiles').updateOne(
-        { creatorId: profile.creatorId },
+      await db.collection('public_profiles').updateMany(
+        { $or: [{ creatorId: profile.creatorId }, { slug: profile.slug }] },
         { $set: { avatarUrl: adzunovaAvatar } }
       ).catch(() => null);
     }

@@ -12,8 +12,8 @@ export async function GET(
     const { slug } = await context.params;
     let { profile } = await getPublicProfileBySlug(slug);
 
-    if (!profile && slug === 'a_n_jha1') {
-      profile = await seedDemoProfile('demo-creator-jha', 'a_n_jha1');
+    if (!profile && (slug === 'a_n_jha1' || slug === 'anjha1')) {
+      profile = await seedDemoProfile('creator_anjha1', slug);
     }
 
     const displayName = profile?.displayName || 'Creator';

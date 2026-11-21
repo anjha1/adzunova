@@ -27,8 +27,8 @@ export async function generateMetadata({ params }: PageProps): Promise<Metadata>
   const normSlug = slug.toLowerCase().trim();
   let { profile, isRedirect, redirectSlug } = await getPublicProfileBySlug(normSlug);
 
-  if (!profile && normSlug === 'a_n_jha1') {
-    profile = await seedDemoProfile('demo-creator-jha', 'a_n_jha1');
+  if (!profile && (normSlug === 'a_n_jha1' || normSlug === 'anjha1')) {
+    profile = await seedDemoProfile('creator_anjha1', normSlug);
   }
 
   if (isRedirect && redirectSlug) {
@@ -100,8 +100,8 @@ export default async function PublicCreatorProfilePage({ params }: PageProps) {
   let { profile, isRedirect, redirectSlug } = await getPublicProfileBySlug(normSlug);
 
   // Auto-seed demo profile for testing demo user
-  if (!profile && normSlug === 'a_n_jha1') {
-    profile = await seedDemoProfile('demo-creator-jha', 'a_n_jha1');
+  if (!profile && (normSlug === 'a_n_jha1' || normSlug === 'anjha1')) {
+    profile = await seedDemoProfile('creator_anjha1', normSlug);
   }
 
   // 301 Permanent Redirect for past custom slugs

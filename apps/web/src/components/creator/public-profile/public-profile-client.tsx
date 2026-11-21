@@ -296,115 +296,233 @@ export function PublicProfileClient({ profile }: PublicProfileClientProps) {
         {/* =========================================================================
             3.2 CONNECTED PLATFORMS SECTION
             ========================================================================= */}
-        {profile.platforms && profile.platforms.length > 0 && (
-          <section className="space-y-4">
-            <div className="flex items-center justify-between">
-              <div>
-                <h2 className="text-base font-bold text-foreground">Verified Connected Channels</h2>
-                <p className="text-xs text-muted-foreground">Ingested through first-party OAuth APIs. Never self-reported.</p>
+        {profile.platforms && profile.platforms.length > 0 && (() => {
+          const platformsList = profile.platforms;
+          const single = platformsList[0];
+          return (
+            <section className="space-y-4">
+              <div className="flex items-center justify-between">
+                <div>
+                  <h2 className="text-base font-bold text-foreground">Verified Connected Channels</h2>
+                  <p className="text-xs text-muted-foreground">Ingested through first-party OAuth APIs. Never self-reported.</p>
+                </div>
+                <span className="text-xs text-muted-foreground font-medium">
+                  {platformsList.length} Channel{platformsList.length !== 1 ? 's' : ''} Connected
+                </span>
               </div>
-              <span className="text-xs text-muted-foreground font-medium">
-                {profile.platforms.length} Channel{profile.platforms.length !== 1 ? 's' : ''} Connected
-              </span>
-            </div>
 
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-              {profile.platforms.map((ch) => (
+              {platformsList.length === 1 && single ? (
+                // Single Channel: Expansive hero card that fills the full container width seamlessly
                 <div
-                  key={ch.platform + ch.handle}
-                  className="p-5 rounded-2xl border border-border bg-card flex flex-col justify-between space-y-4 hover:border-border/80 transition shadow-2xs"
+                  key={single.platform + single.handle}
+                  className="p-5 sm:p-6 rounded-2xl border border-border bg-card shadow-2xs hover:border-border/80 transition flex flex-col gap-5"
                 >
-                  <div className="space-y-3">
-                    <div className="flex items-center justify-between gap-3">
-                      <div className="flex items-center gap-3 min-w-0">
-                        <div className="w-11 h-11 rounded-2xl overflow-hidden flex items-center justify-center shrink-0 shadow-xs bg-muted/20">
-                          <SocialPlatformIcon platform={ch.platform} size={44} />
-                        </div>
-                        <div className="min-w-0">
-                          <div className="flex items-center gap-1.5">
-                            <span className="font-bold text-sm text-foreground">{ch.platform}</span>
-                            {ch.verificationStatus === 'VERIFIED' && (
-                              <ShellIcon name="CheckCircle" size={13} className="text-emerald-500 shrink-0" />
-                            )}
-                          </div>
-                          <a
-                            href={ch.profileUrl}
-                            target="_blank"
-                            rel="noopener noreferrer nofollow"
-                            onClick={() => handlePlatformClick(ch.platform)}
-                            className="text-xs text-muted-foreground hover:text-indigo-600 dark:hover:text-indigo-400 font-mono transition flex items-center gap-1 truncate"
-                          >
-                            <span className="truncate">{ch.handle}</span>
-                            <ShellIcon name="ExternalLink" size={10} className="shrink-0" />
-                          </a>
-                        </div>
+                  <div className="flex flex-col md:flex-row md:items-center justify-between gap-5">
+                    {/* Left: Platform Icon & Name */}
+                    <div className="flex items-center gap-3.5 min-w-0">
+                      <div className="w-13 h-13 sm:w-14 sm:h-14 rounded-2xl overflow-hidden flex items-center justify-center shrink-0 shadow-xs bg-muted/20">
+                        <SocialPlatformIcon platform={single.platform} size={52} />
                       </div>
-
-                      {/* Middle: Prominent Social Profile Avatar (Positioned between Platform info & Verified badge) */}
-                      {ch.profilePictureUrl && (
-                        <div className="flex-1 flex items-center justify-center px-1">
-                          <a
-                            href={ch.profileUrl}
-                            target="_blank"
-                            rel="noopener noreferrer nofollow"
-                            title={`Open ${ch.handle} on ${ch.platform}`}
-                            className="relative w-14 h-14 sm:w-16 sm:h-16 rounded-full overflow-hidden border-2 border-border hover:border-indigo-500 transition-all shadow-md group shrink-0 ring-2 ring-background"
-                          >
-                            {/* eslint-disable-next-line @next/next/no-img-element */}
-                            <img
-                              src={ch.profilePictureUrl}
-                              alt={`${ch.handle} on ${ch.platform}`}
-                              className="w-full h-full object-cover group-hover:scale-105 transition duration-200"
-                            />
-                          </a>
+                      <div className="min-w-0">
+                        <div className="flex items-center gap-2">
+                          <span className="font-extrabold text-base sm:text-lg text-foreground tracking-tight">
+                            {single.platform}
+                          </span>
+                          {single.verificationStatus === 'VERIFIED' && (
+                            <ShellIcon name="CheckCircle" size={15} className="text-emerald-500 shrink-0" />
+                          )}
                         </div>
-                      )}
-
-                      {/* Right: Verified Badge */}
-                      <div className="shrink-0 flex items-center">
-                        <span className="text-[10px] sm:text-xs font-bold px-2.5 py-1 rounded-full bg-emerald-500/10 text-emerald-700 dark:text-emerald-300 border border-emerald-500/20 shadow-2xs whitespace-nowrap">
-                          Verified
-                        </span>
+                        <a
+                          href={single.profileUrl}
+                          target="_blank"
+                          rel="noopener noreferrer nofollow"
+                          onClick={() => handlePlatformClick(single.platform)}
+                          className="text-xs sm:text-sm text-muted-foreground hover:text-indigo-600 dark:hover:text-indigo-400 font-mono transition flex items-center gap-1.5 truncate mt-0.5"
+                        >
+                          <span className="truncate">{single.handle}</span>
+                          <ShellIcon name="ExternalLink" size={11} className="shrink-0" />
+                        </a>
                       </div>
                     </div>
 
-                    {/* Channel Stats Matrix */}
-                    <div className="grid grid-cols-3 gap-2 pt-2 border-t border-border/60 text-center">
-                      <div className="p-2 rounded-xl bg-muted/40">
-                        <div className="text-sm font-black text-foreground">
-                          {formatCompactCount(ch.followers)}
+                    {/* Middle: Prominent Connected Social Profile Picture & Details (Between INSTAGRAM and Verified Badge) */}
+                    {single.profilePictureUrl && (
+                      <div className="flex items-center gap-3.5 px-4 py-2.5 rounded-2xl bg-muted/30 border border-border/60">
+                        <a
+                          href={single.profileUrl}
+                          target="_blank"
+                          rel="noopener noreferrer nofollow"
+                          title={`Open ${single.handle} on ${single.platform}`}
+                          className="relative w-14 h-14 sm:w-16 sm:h-16 rounded-full overflow-hidden border-2 border-indigo-500/40 hover:border-indigo-500 transition-all shadow-md group shrink-0 ring-2 ring-background"
+                        >
+                          {/* eslint-disable-next-line @next/next/no-img-element */}
+                          <img
+                            src={single.profilePictureUrl}
+                            alt={`${single.handle} on ${single.platform}`}
+                            className="w-full h-full object-cover group-hover:scale-105 transition duration-200"
+                          />
+                        </a>
+                        <div className="min-w-0">
+                          <span className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground block">
+                            Connected {single.platform} Profile
+                          </span>
+                          <span className="text-xs sm:text-sm font-bold text-foreground truncate block font-mono">
+                            {single.handle}
+                          </span>
+                          <span className="text-[11px] text-emerald-600 dark:text-emerald-400 font-medium flex items-center gap-1 mt-0.5">
+                            <ShellIcon name="CheckCircle" size={11} />
+                            OAuth Verified
+                          </span>
                         </div>
-                        <div className="text-[10px] text-muted-foreground">Followers</div>
                       </div>
+                    )}
 
-                      <div className="p-2 rounded-xl bg-muted/40">
-                        <div className="text-sm font-black text-foreground">
-                          {ch.avgViews > 0 ? formatCompactCount(ch.avgViews) : '—'}
-                        </div>
-                        <div className="text-[10px] text-muted-foreground">24h Views</div>
-                      </div>
+                    {/* Right: Verified Badge */}
+                    <div className="shrink-0 flex items-center">
+                      <span className="text-xs sm:text-sm font-bold px-3.5 py-1.5 rounded-full bg-emerald-500/10 text-emerald-700 dark:text-emerald-300 border border-emerald-500/20 shadow-2xs whitespace-nowrap flex items-center gap-1.5">
+                        <ShellIcon name="CheckCircle" size={14} className="text-emerald-500" />
+                        Verified Channel
+                      </span>
+                    </div>
+                  </div>
 
-                      <div className="p-2 rounded-xl bg-muted/40">
-                        <div className="text-sm font-black text-foreground">
-                          {ch.contentCount > 0 ? ch.contentCount : '—'}
-                        </div>
-                        <div className="text-[10px] text-muted-foreground">Posts</div>
+                  {/* Channel Stats Matrix - Stretches across the full card */}
+                  <div className="grid grid-cols-3 gap-3 sm:gap-4 pt-3 border-t border-border/60 text-center">
+                    <div className="p-3 sm:p-4 rounded-xl bg-muted/40">
+                      <div className="text-base sm:text-xl font-black text-foreground">
+                        {formatCompactCount(single.followers)}
                       </div>
+                      <div className="text-xs text-muted-foreground mt-0.5">Followers</div>
+                    </div>
+
+                    <div className="p-3 sm:p-4 rounded-xl bg-muted/40">
+                      <div className="text-base sm:text-xl font-black text-foreground">
+                        {single.avgViews > 0 ? formatCompactCount(single.avgViews) : '—'}
+                      </div>
+                      <div className="text-xs text-muted-foreground mt-0.5">24h Views</div>
+                    </div>
+
+                    <div className="p-3 sm:p-4 rounded-xl bg-muted/40">
+                      <div className="text-base sm:text-xl font-black text-foreground">
+                        {single.contentCount > 0 ? single.contentCount : '—'}
+                      </div>
+                      <div className="text-xs text-muted-foreground mt-0.5">Posts</div>
                     </div>
                   </div>
 
                   {/* Verification & Stale Label */}
-                  <div className="pt-2 border-t border-border flex items-center justify-between text-[11px] text-muted-foreground">
-                    <span>{ch.verifiedLabel}</span>
-                    {ch.isStale && (
-                      <span className="text-amber-500 font-medium">Data as of {new Date(ch.fetchedAt).toLocaleDateString()}</span>
+                  <div className="pt-2 border-t border-border flex items-center justify-between text-xs text-muted-foreground">
+                    <span>{single.verifiedLabel}</span>
+                    {single.isStale && (
+                      <span className="text-amber-500 font-medium">Data as of {new Date(single.fetchedAt).toLocaleDateString()}</span>
                     )}
                   </div>
                 </div>
-              ))}
-            </div>
+              ) : (
+                // 2 or more channels: Responsive Grid
+                <div className={
+                  platformsList.length === 2
+                    ? "grid grid-cols-1 md:grid-cols-2 gap-4"
+                    : "grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4"
+                }>
+                  {platformsList.map((ch) => (
+                    <div
+                      key={ch.platform + ch.handle}
+                      className="p-5 rounded-2xl border border-border bg-card flex flex-col justify-between space-y-4 hover:border-border/80 transition shadow-2xs"
+                    >
+                      <div className="space-y-3">
+                        <div className="flex items-center justify-between gap-3">
+                          <div className="flex items-center gap-3 min-w-0">
+                            <div className="w-11 h-11 rounded-2xl overflow-hidden flex items-center justify-center shrink-0 shadow-xs bg-muted/20">
+                              <SocialPlatformIcon platform={ch.platform} size={44} />
+                            </div>
+                            <div className="min-w-0">
+                              <div className="flex items-center gap-1.5">
+                                <span className="font-bold text-sm text-foreground">{ch.platform}</span>
+                                {ch.verificationStatus === 'VERIFIED' && (
+                                  <ShellIcon name="CheckCircle" size={13} className="text-emerald-500 shrink-0" />
+                                )}
+                              </div>
+                              <a
+                                href={ch.profileUrl}
+                                target="_blank"
+                                rel="noopener noreferrer nofollow"
+                                onClick={() => handlePlatformClick(ch.platform)}
+                                className="text-xs text-muted-foreground hover:text-indigo-600 dark:hover:text-indigo-400 font-mono transition flex items-center gap-1 truncate"
+                              >
+                                <span className="truncate">{ch.handle}</span>
+                                <ShellIcon name="ExternalLink" size={10} className="shrink-0" />
+                              </a>
+                            </div>
+                          </div>
+
+                          {/* Middle: Prominent Social Profile Avatar */}
+                          {ch.profilePictureUrl && (
+                            <div className="flex items-center justify-center px-1">
+                              <a
+                                href={ch.profileUrl}
+                                target="_blank"
+                                rel="noopener noreferrer nofollow"
+                                title={`Open ${ch.handle} on ${ch.platform}`}
+                                className="relative w-12 h-12 rounded-full overflow-hidden border-2 border-border hover:border-indigo-500 transition-all shadow-md group shrink-0 ring-2 ring-background"
+                              >
+                                {/* eslint-disable-next-line @next/next/no-img-element */}
+                                <img
+                                  src={ch.profilePictureUrl}
+                                  alt={`${ch.handle} on ${ch.platform}`}
+                                  className="w-full h-full object-cover group-hover:scale-105 transition duration-200"
+                                />
+                              </a>
+                            </div>
+                          )}
+
+                          {/* Right: Verified Badge */}
+                          <div className="shrink-0 flex items-center">
+                            <span className="text-[10px] sm:text-xs font-bold px-2.5 py-1 rounded-full bg-emerald-500/10 text-emerald-700 dark:text-emerald-300 border border-emerald-500/20 shadow-2xs whitespace-nowrap">
+                              Verified
+                            </span>
+                          </div>
+                        </div>
+
+                        {/* Channel Stats Matrix */}
+                        <div className="grid grid-cols-3 gap-2 pt-2 border-t border-border/60 text-center">
+                          <div className="p-2 rounded-xl bg-muted/40">
+                            <div className="text-sm font-black text-foreground">
+                              {formatCompactCount(ch.followers)}
+                            </div>
+                            <div className="text-[10px] text-muted-foreground">Followers</div>
+                          </div>
+
+                        <div className="p-2 rounded-xl bg-muted/40">
+                          <div className="text-sm font-black text-foreground">
+                            {ch.avgViews > 0 ? formatCompactCount(ch.avgViews) : '—'}
+                          </div>
+                          <div className="text-[10px] text-muted-foreground">24h Views</div>
+                        </div>
+
+                        <div className="p-2 rounded-xl bg-muted/40">
+                          <div className="text-sm font-black text-foreground">
+                            {ch.contentCount > 0 ? ch.contentCount : '—'}
+                          </div>
+                          <div className="text-[10px] text-muted-foreground">Posts</div>
+                        </div>
+                      </div>
+                    </div>
+
+                    {/* Verification & Stale Label */}
+                    <div className="pt-2 border-t border-border flex items-center justify-between text-[11px] text-muted-foreground">
+                      <span>{ch.verifiedLabel}</span>
+                      {ch.isStale && (
+                        <span className="text-amber-500 font-medium">Data as of {new Date(ch.fetchedAt).toLocaleDateString()}</span>
+                      )}
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
           </section>
-        )}
+        );
+      })()}
 
         {/* =========================================================================
             3.3 AGGREGATE STATS SECTION

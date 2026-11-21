@@ -17,9 +17,9 @@ export async function GET(
     const normSlug = slug.toLowerCase().trim();
     let { profile, isRedirect, redirectSlug } = await getPublicProfileBySlug(normSlug);
 
-    // Auto-seed demo profile for @a_n_jha1 if testing demo
-    if (!profile && normSlug === 'a_n_jha1') {
-      profile = await seedDemoProfile('demo-creator-jha', 'a_n_jha1');
+    // Auto-seed demo profile for @a_n_jha1 / @anjha1 if testing demo
+    if (!profile && (normSlug === 'a_n_jha1' || normSlug === 'anjha1')) {
+      profile = await seedDemoProfile('creator_anjha1', normSlug);
     }
 
     // 301 Redirect for previous slugs
