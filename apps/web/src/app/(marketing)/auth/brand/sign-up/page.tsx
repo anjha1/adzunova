@@ -96,7 +96,7 @@ export default function BrandSignUpPage() {
     <AuthCard
       badgeText="Brand & Agency Portal"
       title="Register Organization"
-      subtitle="Discover verified creators, automate contracts, and protect funds with milestone escrow."
+      subtitle="Discover verified creators, automate contracts, and coordinate deliverables with milestone-based approvals."
     >
       <div className="space-y-4">
         <GoogleAuthButton role="BRAND" />

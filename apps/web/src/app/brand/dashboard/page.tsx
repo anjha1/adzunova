@@ -3,6 +3,7 @@ import Link from 'next/link';
 import { redirect } from 'next/navigation';
 import { getSession } from '@/lib/auth';
 import { Logo } from '@/components/brand/Logo';
+import { getActiveVerifiedCreatorCount } from '@/lib/social/social-repository';
 
 export const instant = false;
 
@@ -18,29 +19,47 @@ export default async function BrandDashboardPage() {
   }
 
   const { user, profile } = session;
+  const verifiedCreatorCount = await getActiveVerifiedCreatorCount();
+  const currency = profile?.currency || 'INR';
+  const formattedBudget = new Intl.NumberFormat('en-IN', {
+    style: 'currency',
+    currency,
+    maximumFractionDigits: 0,
+  }).format(0);
+
+  // Verification status reflects real business KYC and domain proof, never email verification alone
+  const verificationLabel =
+    profile?.verificationStatus === 'VERIFIED'
+      ? 'Verified Business'
+      : profile?.verificationStatus === 'PENDING'
+      ? 'Verification Pending'
+      : 'Unverified Business';
+
+  // Plan badge only shown if backed by a real subscription record; default: none shown
+  const planBadge = profile?.subscriptionPlan ? String(profile.subscriptionPlan).toUpperCase() : undefined;
 
   return (
-    <div className="min-h-screen bg-slate-50 dark:bg-slate-950">
+    <div className="min-h-screen bg-background text-foreground">
       {/* Top Bar */}
-      <header className="border-b border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 sticky top-0 z-30">
+      <header className="border-b border-border bg-card sticky top-0 z-30">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-16 flex items-center justify-between">
           <div className="flex items-center gap-3">
-            <Logo variant="full" size="md" href="/brand/dashboard" badgeText="ENTERPRISE" />
+            <Logo variant="full" size="md" href="/brand/dashboard" badgeText={planBadge} />
           </div>
 
           <div className="flex items-center gap-4">
             <div className="text-right hidden sm:block">
-              <div className="text-sm font-semibold text-slate-900 dark:text-white">
+              <div className="text-sm font-semibold text-foreground">
                 {profile?.companyName || user.email}
               </div>
-              <div className="text-xs text-slate-500 dark:text-slate-400">
-                {user.emailVerified ? 'Corporate Verified' : 'Pending Verification'}
+              <div className="text-xs text-muted-foreground">
+                {verificationLabel}
               </div>
             </div>
             <form action="/api/auth/logout?redirect=/auth/brand/sign-in" method="POST">
               <button
                 type="submit"
-                className="text-xs font-semibold px-3 py-1.5 rounded-lg border border-slate-300 dark:border-slate-700 hover:bg-slate-100 dark:hover:bg-slate-800 text-slate-700 dark:text-slate-300 transition"
+                className="text-xs font-semibold px-3 py-1.5 rounded-lg border border-border hover:bg-muted text-muted-foreground hover:text-foreground transition"
               >
                 Sign Out
               </button>
@@ -52,82 +71,86 @@ export default async function BrandDashboardPage() {
       {/* Main Content */}
       <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 space-y-8">
         {/* Welcome Banner */}
-        <div className="p-6 rounded-2xl bg-gradient-to-r from-slate-900 via-indigo-950 to-slate-900 text-white shadow-lg border border-slate-800">
-          <h1 className="text-2xl sm:text-3xl font-extrabold">
-            Welcome, {profile?.contactName || 'Marketing Leader'}!
+        <div className="p-6 rounded-2xl bg-card border border-border shadow-xs">
+          <h1 className="text-2xl sm:text-3xl font-extrabold text-foreground">
+            Welcome, {profile?.contactName || user.displayName || 'Brand Workspace'}!
           </h1>
-          <p className="mt-2 text-slate-300 max-w-2xl text-sm">
-            Launch creator discovery campaigns, approve contracts, track deliverable milestones, and automate escrow.
+          <p className="mt-2 text-muted-foreground max-w-2xl text-sm leading-relaxed">
+            Launch creator discovery campaigns, manage proposals, track deliverables, and coordinate campaign execution.
           </p>
         </div>
 
         {/* Metrics Grid */}
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-5">
-          <div className="bg-white dark:bg-slate-900 p-5 rounded-2xl border border-slate-200 dark:border-slate-800 shadow-sm">
-            <div className="text-xs font-semibold uppercase text-slate-500 dark:text-slate-400">
+          <div className="bg-card p-5 rounded-2xl border border-border shadow-2xs">
+            <div className="text-xs font-semibold uppercase text-muted-foreground">
               Live Campaigns
             </div>
-            <div className="text-2xl font-bold text-slate-900 dark:text-white mt-2">0</div>
-            <div className="text-xs text-slate-500 mt-1">Ready to create campaign brief</div>
+            <div className="text-2xl font-bold text-foreground mt-2">0</div>
+            <div className="text-xs text-muted-foreground mt-1">Ready to create campaign brief</div>
           </div>
 
-          <div className="bg-white dark:bg-slate-900 p-5 rounded-2xl border border-slate-200 dark:border-slate-800 shadow-sm">
-            <div className="text-xs font-semibold uppercase text-slate-500 dark:text-slate-400">
-              Escrow Allocated
+          <div className="bg-card p-5 rounded-2xl border border-border shadow-2xs">
+            <div className="text-xs font-semibold uppercase text-muted-foreground">
+              Allocated Budget
             </div>
-            <div className="text-2xl font-bold text-emerald-600 dark:text-emerald-400 mt-2">$0.00</div>
-            <div className="text-xs text-slate-500 mt-1">Institutional custodial protection</div>
+            <div className="text-2xl font-bold text-emerald-600 dark:text-emerald-400 mt-2">
+              {formattedBudget}
+            </div>
+            <div className="text-xs text-muted-foreground mt-1">Campaign budget committed</div>
           </div>
 
-          <div className="bg-white dark:bg-slate-900 p-5 rounded-2xl border border-slate-200 dark:border-slate-800 shadow-sm">
-            <div className="text-xs font-semibold uppercase text-slate-500 dark:text-slate-400">
+          <div className="bg-card p-5 rounded-2xl border border-border shadow-2xs">
+            <div className="text-xs font-semibold uppercase text-muted-foreground">
               Contracted Creators
             </div>
             <div className="text-2xl font-bold text-indigo-600 dark:text-indigo-400 mt-2">0</div>
-            <div className="text-xs text-slate-500 mt-1">Search 25,000+ verified talent</div>
+            <div className="text-xs text-muted-foreground mt-1">
+              Creators on Adzunova with verified data: {verifiedCreatorCount}
+            </div>
           </div>
 
-          <div className="bg-white dark:bg-slate-900 p-5 rounded-2xl border border-slate-200 dark:border-slate-800 shadow-sm">
-            <div className="text-xs font-semibold uppercase text-slate-500 dark:text-slate-400">
+          <div className="bg-card p-5 rounded-2xl border border-border shadow-2xs">
+            <div className="text-xs font-semibold uppercase text-muted-foreground">
               Company Status
             </div>
-            <div className="text-2xl font-bold text-slate-900 dark:text-white mt-2">
+            <div className="text-2xl font-bold text-foreground mt-2">
               {profile?.onboardingCompleted ? 'Active' : 'Setup'}
             </div>
-            <div className="text-xs text-slate-500 mt-1">
-              {profile?.industry || 'Enterprise'}
+            <div className="text-xs text-muted-foreground mt-1">
+              {profile?.industry || 'Unspecified'}
             </div>
           </div>
         </div>
 
         {/* Action Panel */}
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-          <div className="lg:col-span-2 bg-white dark:bg-slate-900 rounded-2xl border border-slate-200 dark:border-slate-800 p-6 shadow-sm">
-            <h2 className="text-lg font-bold text-slate-900 dark:text-white mb-4">
+          <div className="lg:col-span-2 bg-card rounded-2xl border border-border p-6 shadow-2xs">
+            <h2 className="text-lg font-bold text-foreground mb-4">
               Creator Pipeline & In-Review Deliverables
             </h2>
-            <div className="border border-dashed border-slate-200 dark:border-slate-800 rounded-xl p-8 text-center text-slate-500 dark:text-slate-400">
+            <div className="border border-dashed border-border rounded-xl p-8 text-center text-muted-foreground">
               <p className="text-sm font-medium">No active deliverables awaiting brand review.</p>
-              <p className="text-xs mt-1 text-slate-400">
-                When creators submit videos, UGC assets, or proof-of-posting, they appear here for your formal sign-off.
+              <p className="text-xs mt-1 text-muted-foreground/80">
+                When creators submit content or proof-of-posting, they appear here for your formal sign-off.
               </p>
             </div>
           </div>
 
-          <div className="bg-white dark:bg-slate-900 rounded-2xl border border-slate-200 dark:border-slate-800 p-6 shadow-sm space-y-4">
-            <h2 className="text-lg font-bold text-slate-900 dark:text-white">Management</h2>
+          <div className="bg-card rounded-2xl border border-border p-6 shadow-2xs space-y-4">
+            <h2 className="text-lg font-bold text-foreground">Management</h2>
             <div className="space-y-2">
               <Link
                 href="/brand/onboarding"
-                className="block w-full py-2.5 px-4 text-center rounded-xl text-sm font-semibold text-white bg-slate-900 hover:bg-slate-800 dark:bg-indigo-600 dark:hover:bg-indigo-700 transition"
+                className="block w-full py-2.5 px-4 text-center rounded-xl text-sm font-semibold text-primary-foreground bg-primary hover:bg-primary/90 transition shadow-2xs"
               >
-                Update Enterprise Profile
+                Company Profile & Setup
               </Link>
               <Link
-                href="/for-brands"
-                className="block w-full py-2.5 px-4 text-center rounded-xl text-sm font-semibold border border-slate-300 dark:border-slate-700 text-slate-800 dark:text-slate-200 bg-slate-50 dark:bg-slate-800 hover:bg-slate-100 dark:hover:bg-slate-700 transition"
+                href="/c/anjha1"
+                className="block w-full py-2.5 px-4 text-center rounded-xl text-sm font-semibold border border-border text-foreground bg-muted/40 hover:bg-muted transition"
               >
-                Read Brand Playbook
+                Discover Creators
               </Link>
             </div>
           </div>

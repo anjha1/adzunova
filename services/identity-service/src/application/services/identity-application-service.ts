@@ -319,7 +319,7 @@ export class IdentityService {
       profile = {
         userId,
         contactName: input.name,
-        companyName: `${input.name}'s Company`,
+        companyName: '',
         industry: 'General',
         businessType: 'Startup',
         country: 'Global',

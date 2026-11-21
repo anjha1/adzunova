@@ -20,18 +20,28 @@ function getAllFiles(dir, exts = ['.tsx', '.ts']) {
 
 const creatorAppDir = path.resolve('apps/web/src/app/creator');
 const creatorCompDir = path.resolve('apps/web/src/components/creator');
+const brandAppDir = path.resolve('apps/web/src/app/brand');
+const brandCompDir = path.resolve('apps/web/src/components/brand');
 
-const allCreatorFiles = [...getAllFiles(creatorAppDir), ...getAllFiles(creatorCompDir)];
-const creatorPageFiles = getAllFiles(creatorAppDir);
+const allAuditedFiles = [
+  ...getAllFiles(creatorAppDir),
+  ...getAllFiles(creatorCompDir),
+  ...getAllFiles(brandAppDir),
+  ...getAllFiles(brandCompDir),
+];
+const allAuditedPageFiles = [
+  ...getAllFiles(creatorAppDir),
+  ...getAllFiles(brandAppDir),
+];
 
-console.log(`[CI Guard] Checking ${allCreatorFiles.length} creator files...\n`);
+console.log(`[CI Guard] Checking ${allAuditedFiles.length} files (creator & brand)...\n`);
 
-// Guard (a): Hardcoded color utilities in creator code
+// Guard (a): Hardcoded color utilities in creator & brand code
 console.log('--- Guard (a): Hardcoded Color Utilities & Hex ---');
 const colorRegex = /\b(bg-white|bg-black|bg-slate-\d+|text-slate-\d+|border-slate-\d+|text-gray-\d+|border-gray-\d+|#[0-9a-fA-F]{3,6}|rgb\()/;
 let colorViolations = 0;
 
-for (const file of allCreatorFiles) {
+for (const file of allAuditedFiles) {
   const content = fs.readFileSync(file, 'utf8');
   const lines = content.split('\n');
   lines.forEach((line, idx) => {
@@ -51,12 +61,12 @@ if (colorViolations === 0) {
   console.error(`  FAIL: Found ${colorViolations} hardcoded color utilities.\n`);
 }
 
-// Guard (b): Imports from mock/fixtures/sample paths in app/creator/**
-console.log('--- Guard (b): Forbidden Mock/Fixture/Sample Imports in app/creator/** ---');
+// Guard (b): Imports from mock/fixtures/sample paths in app/creator/** and app/brand/**
+console.log('--- Guard (b): Forbidden Mock/Fixture/Sample Imports in app/(creator|brand)/** ---');
 const mockImportRegex = /from\s+['"][^'"]*(mock|fixtures|sample)[^'"]*['"]/;
 let mockImportViolations = 0;
 
-for (const file of creatorPageFiles) {
+for (const file of allAuditedPageFiles) {
   const content = fs.readFileSync(file, 'utf8');
   const lines = content.split('\n');
   lines.forEach((line, idx) => {
@@ -74,7 +84,7 @@ if (mockImportViolations === 0) {
 }
 
 // Guard (c): Deny-list grep of forbidden strings
-console.log('--- Guard (c): Forbidden Deny-List Strings in app/creator/** ---');
+console.log('--- Guard (c): Forbidden Deny-List Strings in app/(creator|brand)/** ---');
 const denyList = [
   'Lorem',
   'Coming soon',
@@ -88,10 +98,19 @@ const denyList = [
   'fine-tuned',
   'Zero-risk',
   'escrow protected',
+  '25,000',
+  'Corporate Verified',
+  'Institutional',
+  'custodial',
+  'Playbook',
+  'automate escrow',
+  'badgeText="ENTERPRISE"',
+  '>Enterprise<',
+  '(Enterprise)',
 ];
 
 let denyViolations = 0;
-for (const file of creatorPageFiles) {
+for (const file of allAuditedPageFiles) {
   const content = fs.readFileSync(file, 'utf8');
   const lines = content.split('\n');
   lines.forEach((line, idx) => {
@@ -99,7 +118,7 @@ for (const file of creatorPageFiles) {
     if (trimmed.startsWith('//') || trimmed.startsWith('*')) return;
     for (const term of denyList) {
       // Use word boundary for words, literal includes for phrases
-      const regex = term.includes(' ') || term.includes('/') || term.includes('₹')
+      const regex = term.includes(' ') || term.includes('/') || term.includes('₹') || term.includes('=') || term.includes('>') || term.includes('(')
         ? new RegExp(term.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'), 'i')
         : new RegExp(`\\b${term}\\b`, 'i');
       if (regex.test(line)) {
@@ -116,12 +135,12 @@ if (denyViolations === 0) {
   console.error(`  FAIL: Found ${denyViolations} deny-list violations.\n`);
 }
 
-// Guard (d): Number-literal heuristic lint for JSX text nodes in creator pages
-console.log('--- Guard (d): Unexplained Digits in JSX Text Nodes in app/creator/** ---');
+// Guard (d): Number-literal heuristic lint for JSX text nodes in creator & brand pages
+console.log('--- Guard (d): Unexplained Digits in JSX Text Nodes in app/(creator|brand)/** ---');
 // Match raw JSX text with digits like >482.5K<, >1.24M<, >1420<, >94 / 100<
 const unexplainedNumberRegex = />\s*(\d+(\.\d+)?([KkMm%])?)\s*</;
 let numberViolations = 0;
-for (const file of creatorPageFiles) {
+for (const file of allAuditedPageFiles) {
   const content = fs.readFileSync(file, 'utf8');
   const lines = content.split('\n');
   lines.forEach((line, idx) => {

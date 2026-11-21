@@ -16,7 +16,7 @@ export default function BrandOnboardingPage() {
     industry: 'D2C Consumer Goods',
     companySize: '11-50 employees',
     website: '',
-    targetBudget: '$10k - $50k / month',
+    targetBudget: '₹1,00,000 - ₹5,00,000 / month',
     primaryGoal: 'High-Converting Influencer Integrations',
   });
 
@@ -51,7 +51,7 @@ export default function BrandOnboardingPage() {
       }
     }
     verifyAuth();
-  }, [router]);
+  }, [router, formData.companyName]);
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) => {
     setFormData({ ...formData, [e.target.name]: e.target.value });
@@ -75,7 +75,7 @@ export default function BrandOnboardingPage() {
 
       const result = await res.json();
       if (!res.ok) {
-        throw new Error(result.error || 'Failed to save enterprise profile.');
+        throw new Error(result.error || 'Failed to save company profile.');
       }
 
       if (isFinal) {
@@ -84,7 +84,7 @@ export default function BrandOnboardingPage() {
         setStep(step + 1);
       }
     } catch (err: unknown) {
-      setError(err instanceof Error ? err.message : 'Failed to save enterprise profile.');
+      setError(err instanceof Error ? err.message : 'Failed to save company profile.');
     } finally {
       setLoading(false);
     }
@@ -92,16 +92,16 @@ export default function BrandOnboardingPage() {
 
   if (checkingAuth) {
     return (
-      <div className="min-h-screen bg-slate-50 dark:bg-slate-950 flex items-center justify-center">
-        <div className="text-sm font-semibold text-slate-500 animate-pulse">
-          Verifying enterprise session...
+      <div className="min-h-screen bg-background flex items-center justify-center">
+        <div className="text-sm font-semibold text-muted-foreground animate-pulse">
+          Verifying brand session...
         </div>
       </div>
     );
   }
 
   return (
-    <div className="min-h-screen bg-slate-50 dark:bg-slate-950 py-12 px-4 sm:px-6 lg:px-8 pb-32">
+    <div className="min-h-screen bg-background text-foreground py-12 px-4 sm:px-6 lg:px-8 pb-32">
       <div className="max-w-xl mx-auto">
         {/* Brand Logo Header */}
         <div className="flex justify-center mb-6">
@@ -111,25 +111,25 @@ export default function BrandOnboardingPage() {
         {/* Step indicator */}
         <div className="mb-8">
           <div className="flex items-center justify-between mb-2">
-            <span className="text-xs font-semibold uppercase tracking-wider text-slate-900 dark:text-white">
+            <span className="text-xs font-semibold uppercase tracking-wider text-foreground">
               Step {step} of 2
             </span>
-            <span className="text-xs text-slate-500 dark:text-slate-400">
+            <span className="text-xs text-muted-foreground">
               {step === 1 && 'Company Profile'}
               {step === 2 && 'Campaign Objectives'}
             </span>
           </div>
-          <div className="w-full bg-slate-200 dark:bg-slate-800 h-2 rounded-full overflow-hidden">
+          <div className="w-full bg-muted h-2 rounded-full overflow-hidden">
             <div
-              className="bg-slate-900 dark:bg-indigo-600 h-full transition-all duration-300"
+              className="bg-primary h-full transition-all duration-300"
               style={{ width: `${(step / 2) * 100}%` }}
             />
           </div>
         </div>
 
-        <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl p-6 sm:p-8 shadow-sm">
+        <div className="bg-card border border-border rounded-2xl p-6 sm:p-8 shadow-xs">
           {error && (
-            <div className="mb-6 p-3 text-sm rounded-lg bg-red-50 text-red-600 border border-red-200 dark:bg-red-950/30 dark:border-red-900/50 dark:text-red-400">
+            <div className="mb-6 p-3 text-sm rounded-lg bg-destructive/10 text-destructive border border-destructive/20">
               {error}
             </div>
           )}
@@ -137,14 +137,14 @@ export default function BrandOnboardingPage() {
           {step === 1 && (
             <div className="space-y-5">
               <div>
-                <h2 className="text-2xl font-bold text-slate-900 dark:text-white">Corporate Identity</h2>
-                <p className="text-sm text-slate-500 dark:text-slate-400 mt-1">
+                <h2 className="text-2xl font-bold text-foreground">Corporate Identity</h2>
+                <p className="text-sm text-muted-foreground mt-1">
                   Establish your brand profile for creator collaborations.
                 </p>
               </div>
 
               <div>
-                <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">
+                <label className="block text-sm font-medium text-foreground mb-1">
                   Organization / Brand Name
                 </label>
                 <input
@@ -153,19 +153,19 @@ export default function BrandOnboardingPage() {
                   value={formData.companyName}
                   onChange={handleChange}
                   placeholder="e.g. Acme Innovations Inc."
-                  className="w-full px-4 py-2.5 rounded-xl border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-900 dark:text-white focus:ring-2 focus:ring-indigo-600 outline-none"
+                  className="w-full px-4 py-2.5 rounded-xl border border-border bg-background text-foreground focus:ring-2 focus:ring-primary outline-none"
                 />
               </div>
 
               <div>
-                <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">
+                <label className="block text-sm font-medium text-foreground mb-1">
                   Industry Vertical
                 </label>
                 <select
                   name="industry"
                   value={formData.industry}
                   onChange={handleChange}
-                  className="w-full px-4 py-2.5 rounded-xl border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-900 dark:text-white focus:ring-2 focus:ring-indigo-600 outline-none"
+                  className="w-full px-4 py-2.5 rounded-xl border border-border bg-background text-foreground focus:ring-2 focus:ring-primary outline-none"
                 >
                   <option value="D2C Consumer Goods">D2C & Consumer Products</option>
                   <option value="SaaS & Technology">SaaS & B2B Technology</option>
@@ -177,19 +177,19 @@ export default function BrandOnboardingPage() {
               </div>
 
               <div>
-                <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">
+                <label className="block text-sm font-medium text-foreground mb-1">
                   Company Size
                 </label>
                 <select
                   name="companySize"
                   value={formData.companySize}
                   onChange={handleChange}
-                  className="w-full px-4 py-2.5 rounded-xl border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-900 dark:text-white focus:ring-2 focus:ring-indigo-600 outline-none"
+                  className="w-full px-4 py-2.5 rounded-xl border border-border bg-background text-foreground focus:ring-2 focus:ring-primary outline-none"
                 >
                   <option value="1-10 employees">1 - 10 (Early Stage)</option>
                   <option value="11-50 employees">11 - 50 (Growth)</option>
                   <option value="51-200 employees">51 - 200 (Scale-up)</option>
-                  <option value="200+ employees">200+ (Enterprise)</option>
+                  <option value="200+ employees">200+ employees</option>
                 </select>
               </div>
 
@@ -197,7 +197,7 @@ export default function BrandOnboardingPage() {
                 type="button"
                 onClick={() => handleNext(false)}
                 disabled={loading}
-                className="w-full py-3 px-4 rounded-xl font-semibold text-white bg-slate-900 hover:bg-slate-800 dark:bg-indigo-600 dark:hover:bg-indigo-700 transition duration-200 mt-4"
+                className="w-full py-3 px-4 rounded-xl font-semibold text-primary-foreground bg-primary hover:bg-primary/90 transition duration-200 mt-4"
               >
                 Proceed to Campaign Goals →
               </button>
@@ -207,38 +207,38 @@ export default function BrandOnboardingPage() {
           {step === 2 && (
             <div className="space-y-5">
               <div>
-                <h2 className="text-2xl font-bold text-slate-900 dark:text-white">Marketing Scope</h2>
-                <p className="text-sm text-slate-500 dark:text-slate-400 mt-1">
-                  Specify budget targets to access curated tier-1 creator talent.
+                <h2 className="text-2xl font-bold text-foreground">Marketing Scope</h2>
+                <p className="text-sm text-muted-foreground mt-1">
+                  Specify budget targets to match with relevant creators.
                 </p>
               </div>
 
               <div>
-                <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">
+                <label className="block text-sm font-medium text-foreground mb-1">
                   Estimated Monthly Creator Budget
                 </label>
                 <select
                   name="targetBudget"
                   value={formData.targetBudget}
                   onChange={handleChange}
-                  className="w-full px-4 py-2.5 rounded-xl border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-900 dark:text-white focus:ring-2 focus:ring-indigo-600 outline-none"
+                  className="w-full px-4 py-2.5 rounded-xl border border-border bg-background text-foreground focus:ring-2 focus:ring-primary outline-none"
                 >
-                  <option value="<$10k / month">&lt; $10k / month</option>
-                  <option value="$10k - $50k / month">$10k - $50k / month</option>
-                  <option value="$50k - $200k / month">$50k - $200k / month</option>
-                  <option value="$200k+ / month">$200k+ / month (Enterprise)</option>
+                  <option value="< ₹1,00,000 / month">&lt; ₹1,00,000 / month</option>
+                  <option value="₹1,00,000 - ₹5,00,000 / month">₹1,00,000 - ₹5,00,000 / month</option>
+                  <option value="₹5,00,000 - ₹20,00,000 / month">₹5,00,000 - ₹20,00,000 / month</option>
+                  <option value="₹20,00,000+ / month">₹20,00,000+ / month</option>
                 </select>
               </div>
 
               <div>
-                <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">
+                <label className="block text-sm font-medium text-foreground mb-1">
                   Primary Objective
                 </label>
                 <select
                   name="primaryGoal"
                   value={formData.primaryGoal}
                   onChange={handleChange}
-                  className="w-full px-4 py-2.5 rounded-xl border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-900 dark:text-white focus:ring-2 focus:ring-indigo-600 outline-none"
+                  className="w-full px-4 py-2.5 rounded-xl border border-border bg-background text-foreground focus:ring-2 focus:ring-primary outline-none"
                 >
                   <option value="High-Converting Influencer Integrations">High-Converting Influencer Integrations</option>
                   <option value="Scale UGC Production for Paid Ads">Scale UGC Production for Paid Ads</option>
@@ -251,7 +251,7 @@ export default function BrandOnboardingPage() {
                 <button
                   type="button"
                   onClick={() => setStep(step - 1)}
-                  className="w-1/3 py-3 px-4 rounded-xl font-semibold border border-slate-300 dark:border-slate-700 text-slate-700 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-800 transition"
+                  className="w-1/3 py-3 px-4 rounded-xl font-semibold border border-border text-foreground hover:bg-muted transition"
                 >
                   ← Back
                 </button>
@@ -259,9 +259,9 @@ export default function BrandOnboardingPage() {
                   type="button"
                   onClick={() => handleNext(true)}
                   disabled={loading}
-                  className="w-2/3 py-3 px-4 rounded-xl font-semibold text-white bg-slate-900 hover:bg-slate-800 dark:bg-indigo-600 dark:hover:bg-indigo-700 shadow-md transition"
+                  className="w-2/3 py-3 px-4 rounded-xl font-semibold text-primary-foreground bg-primary hover:bg-primary/90 shadow-xs transition"
                 >
-                  {loading ? 'Completing Setup...' : 'Enter Brand Dashboard 🏢'}
+                  {loading ? 'Completing Setup...' : 'Enter Brand Dashboard'}
                 </button>
               </div>
             </div>

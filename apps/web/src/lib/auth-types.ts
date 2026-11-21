@@ -31,6 +31,9 @@ export interface BrandProfileData {
   country?: string;
   onboardingCompleted?: boolean;
   onboardingStep?: number;
+  verificationStatus?: 'UNVERIFIED' | 'PENDING' | 'VERIFIED' | 'SUSPENDED';
+  subscriptionPlan?: string;
+  currency?: string;
 }
 
 export interface AuthSession {

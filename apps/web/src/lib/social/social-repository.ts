@@ -957,6 +957,44 @@ export async function getSocialAuditLogs(creatorId: string, limit = 50): Promise
 }
 
 /**
+ * Returns the real count of distinct creators with active, verified social accounts.
+ * Zero guessing, zero hardcoded numbers.
+ */
+export async function getActiveVerifiedCreatorCount(): Promise<number> {
+  const mongoDb = await getMongoDb();
+  if (mongoDb) {
+    try {
+      const distinctCreators = await mongoDb
+        .collection('social_accounts')
+        .distinct('creator_id', { status: 'ACTIVE' });
+      return distinctCreators.length;
+    } catch {
+      return 0;
+    }
+  }
+
+  const pool = getPool();
+  if (pool) {
+    try {
+      await initSocialDbTables();
+      const res = await pool.query(
+        `SELECT COUNT(DISTINCT creator_id) as count FROM social_accounts WHERE status = 'ACTIVE'`
+      );
+      return Number(res.rows[0]?.count || 0);
+    } catch {
+      return 0;
+    }
+  }
+
+  const unique = new Set(
+    Array.from(inMemoryAccounts.values())
+      .filter((a) => a.status === 'ACTIVE')
+      .map((a) => a.creator_id)
+  );
+  return unique.size;
+}
+
+/**
  * Clears in-memory storage (for unit test sandbox isolation only)
  */
 export function _resetInMemoryStore(): void {
