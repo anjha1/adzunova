@@ -271,7 +271,32 @@ export function createAuthRouter(identityService: IdentityService): Router {
     }
   });
 
-  // 8. Onboarding Update
+  // 8. Onboarding Update & Retrieval
+  router.get('/onboarding', async (req: Request, res: Response) => {
+    try {
+      const authHeader = req.headers.authorization;
+      const token = authHeader?.startsWith('Bearer ') ? authHeader.slice(7) : req.headers['x-session-token'] as string;
+      if (!token) return res.status(401).json({ error: 'Unauthorized.' });
+
+      const session = await identityService.validateSession(token);
+      if (!session) return res.status(401).json({ error: 'Invalid session.' });
+
+      return res.status(200).json({
+        user: session.user,
+        profile: session.profile,
+        checklistState: (session.profile as any)?.checklistState || {
+          profile: Boolean((session.profile as any)?.companyName),
+          domainProof: Boolean((session.profile as any)?.domainVerified),
+          businessVerification: Boolean((session.profile as any)?.verificationStatus === 'VERIFIED'),
+          paymentMethod: false,
+          firstCampaign: false,
+        },
+      });
+    } catch (err: any) {
+      return res.status(400).json({ error: err.message || 'Failed to retrieve onboarding state.' });
+    }
+  });
+
   router.post('/onboarding', async (req: Request, res: Response) => {
     try {
       const authHeader = req.headers.authorization;
@@ -293,6 +318,38 @@ export function createAuthRouter(identityService: IdentityService): Router {
       return res.status(200).json({ profile: updatedProfile });
     } catch (err: any) {
       return res.status(400).json({ error: err.message || 'Failed to update onboarding.' });
+    }
+  });
+
+  // 8b. Statutory Business Verification
+  router.post('/verify-business', async (req: Request, res: Response) => {
+    try {
+      const authHeader = req.headers.authorization;
+      const token = authHeader?.startsWith('Bearer ') ? authHeader.slice(7) : req.headers['x-session-token'] as string;
+      if (!token) return res.status(401).json({ error: 'Unauthorized.' });
+
+      const session = await identityService.validateSession(token);
+      if (!session || session.user.role !== 'BRAND') {
+        return res.status(403).json({ error: 'Access restricted to brand accounts.' });
+      }
+
+      const { companyLegalName, brandName, pan, gstin, cin } = req.body;
+      if (!companyLegalName) {
+        return res.status(400).json({ error: 'Company Legal Name is required.' });
+      }
+
+      const clientIp = req.ip || (req.headers['x-forwarded-for'] as string) || req.socket.remoteAddress;
+      const userAgent = req.headers['user-agent'];
+
+      const result = await identityService.verifyBrandBusiness(
+        session.user._id,
+        { companyLegalName, brandName, pan, gstin, cin },
+        { ip: clientIp, userAgent }
+      );
+
+      return res.status(200).json(result);
+    } catch (err: any) {
+      return res.status(400).json({ error: err.message || 'Business verification failed.' });
     }
   });
 

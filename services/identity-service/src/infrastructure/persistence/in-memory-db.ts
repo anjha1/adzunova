@@ -20,6 +20,7 @@ export interface IDatabaseStore {
 
 export interface ICollection<T> {
   findOne(filter: any): Promise<T | null>;
+  find(filter?: any): { toArray(): Promise<T[]> };
   insertOne(doc: any): Promise<{ insertedId: any }>;
   updateOne(filter: any, update: any): Promise<{ modifiedCount: number }>;
   updateMany(filter: any, update: any): Promise<{ modifiedCount: number }>;
@@ -57,6 +58,22 @@ class InMemoryCollection<T extends Record<string, any>> implements ICollection<T
       return true;
     });
     return match ? JSON.parse(JSON.stringify(match)) : null;
+  }
+
+  find(filter: any = {}): { toArray(): Promise<T[]> } {
+    const matches = this.docs.filter((doc) => {
+      for (const key of Object.keys(filter)) {
+        if (key === '$or') {
+          if (!filter.$or.some((sub: any) => this.matchesSub(doc, sub))) return false;
+        } else if (doc[key] !== filter[key]) {
+          return false;
+        }
+      }
+      return true;
+    });
+    return {
+      toArray: async () => JSON.parse(JSON.stringify(matches)),
+    };
   }
 
   private matchesSub(doc: any, sub: any): boolean {

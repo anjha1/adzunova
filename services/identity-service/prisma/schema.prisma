@@ -30,6 +30,19 @@ enum ProfileStatus {
   REJECTED
 }
 
+enum BrandVerificationState {
+  PENDING
+  VERIFIED
+  RESTRICTED
+  SUSPENDED
+}
+
+enum BrandAccountType {
+  BRAND
+  AGENCY
+  ENTERPRISE
+}
+
 enum OtpPurpose {
   EMAIL_VERIFICATION
   PASSWORD_RESET
@@ -101,24 +114,51 @@ model CreatorProfile {
 }
 
 model BrandProfile {
-  id                  String        @id @default(auto()) @map("_id") @db.ObjectId
-  userId              String        @unique @db.ObjectId
-  user                User          @relation(fields: [userId], references: [id], onDelete: Cascade)
+  id                  String                 @id @default(auto()) @map("_id") @db.ObjectId
+  userId              String                 @unique @db.ObjectId
+  user                User                   @relation(fields: [userId], references: [id], onDelete: Cascade)
   contactName         String
   companyName         String
+  brandName           String?
   website             String?
   industry            String?
   businessType        String?
+  accountType         BrandAccountType       @default(BRAND)
   country             String?
   logoUrl             String?
   companySize         String?
-  onboardingCompleted Boolean       @default(false)
-  onboardingStep      Int           @default(1)
-  profileStatus       ProfileStatus @default(DRAFT)
-  createdAt           DateTime      @default(now())
-  updatedAt           DateTime      @updatedAt
+  pan                 String?
+  gstin               String?
+  cin                 String?
+  legalAddress        Json?
+  billingContact      Json?
+  verificationStatus  BrandVerificationState @default(PENDING)
+  verificationDetails String?
+  verifiedAt          DateTime?
+  domainVerified      Boolean                @default(false)
+  dpdpConsent         Json?
+  checklistState      Json?
+  onboardingCompleted Boolean                @default(false)
+  onboardingStep      Int                    @default(1)
+  profileStatus       ProfileStatus          @default(DRAFT)
+  createdAt           DateTime               @default(now())
+  updatedAt           DateTime               @updatedAt
 
   @@map("brand_profiles")
+}
+
+model VerificationAuditLog {
+  id             String                 @id @default(auto()) @map("_id") @db.ObjectId
+  brandProfileId String                 @db.ObjectId
+  actorId        String                 @db.ObjectId
+  previousState  BrandVerificationState
+  newState       BrandVerificationState
+  reason         String
+  metadata       Json?
+  createdAt      DateTime               @default(now())
+
+  @@index([brandProfileId])
+  @@map("verification_audit_logs")
 }
 
 model Session {

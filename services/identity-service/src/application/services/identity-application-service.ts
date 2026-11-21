@@ -17,6 +17,11 @@ import {
 } from '../../infrastructure/security/crypto';
 import crypto from 'crypto';
 import { evaluateWorkEmail } from '../../domain/services/work-email-policy';
+import {
+  getBusinessVerificationAdapter,
+  computeBrandVerificationBadge,
+  BusinessVerificationInput,
+} from '../../domain/services/business-verification-service';
 
 export class IdentityService {
   /**
@@ -101,7 +106,8 @@ export class IdentityService {
     const db = await getDatabase();
 
     // Strict Domain Policy Engine check for Brand registration
-    const evalResult = await evaluateWorkEmail(input.workEmail);
+    const rawEmail = input.workEmail || (input as any).email;
+    const evalResult = await evaluateWorkEmail(rawEmail);
     if (!evalResult.allowed) {
       const err = new Error(
         evalResult.errorMessage ||
@@ -498,11 +504,73 @@ export class IdentityService {
       );
       return db.collection('creator_profiles').findOne({ userId });
     } else {
+      const currentProfile = await db.collection<BrandProfileEntity>('brand_profiles').findOne({ userId });
       const updateData: any = {
         ...data,
         onboardingStep: step,
         updatedAt: now,
       };
+
+      // If statutory details provided, evaluate business verification
+      if (data.pan || data.gstin || data.cin) {
+        const adapter = getBusinessVerificationAdapter();
+        const vResult = await adapter.verify({
+          companyLegalName: data.companyName || currentProfile?.companyName || '',
+          brandName: data.brandName || currentProfile?.brandName,
+          pan: data.pan,
+          gstin: data.gstin,
+          cin: data.cin,
+        });
+
+        updateData.verificationStatus = vResult.verificationStatus;
+        updateData.verificationDetails = vResult.details;
+        if (vResult.verificationStatus === 'VERIFIED') {
+          updateData.verifiedAt = now;
+        }
+
+        // Record verification audit log on submission / update
+        await db.collection('verification_audit_logs').insertOne({
+          _id: crypto.randomBytes(12).toString('hex'),
+          brandProfileId: currentProfile?._id || userId,
+          actorId: userId,
+          previousState: currentProfile?.verificationStatus || 'PENDING',
+          newState: vResult.verificationStatus,
+          reason: vResult.details || 'Statutory KYC documents submitted during onboarding',
+          metadata: { pan: data.pan, gstin: data.gstin, cin: data.cin },
+          createdAt: now,
+        });
+      }
+
+      // Log DPDP consent if submitted
+      if (data.dpdpConsent) {
+        updateData.dpdpConsent = {
+          version: data.dpdpConsent.version || '2026.1',
+          timestamp: data.dpdpConsent.timestamp || now.toISOString(),
+          ip: data.dpdpConsent.ip,
+          userAgent: data.dpdpConsent.userAgent,
+          purposes: data.dpdpConsent.purposes || [
+            'CREATOR_DISCOVERY',
+            'PAYMENT_ESCROW',
+            'TAX_INVOICING',
+            'COMMUNICATION',
+          ],
+        };
+      }
+
+      // Compute setup checklist state
+      const merged = { ...currentProfile, ...updateData };
+      const checklistState = {
+        profile: Boolean(merged.companyName && merged.industry && merged.website),
+        domainProof: Boolean(merged.domainVerified),
+        businessVerification: Boolean(
+          merged.verificationStatus === 'VERIFIED' ||
+          (merged.verificationStatus === 'PENDING' && (merged.pan || merged.gstin))
+        ),
+        paymentMethod: Boolean(merged.checklistState?.paymentMethod),
+        firstCampaign: Boolean(merged.checklistState?.firstCampaign),
+      };
+      updateData.checklistState = checklistState;
+
       if (completed) {
         updateData.onboardingCompleted = true;
         updateData.profileStatus = 'COMPLETED';
@@ -514,6 +582,59 @@ export class IdentityService {
       );
       return db.collection('brand_profiles').findOne({ userId });
     }
+  }
+
+  /**
+   * Statutory Business Verification Service
+   */
+  async verifyBrandBusiness(
+    userId: string,
+    input: { companyLegalName: string; brandName?: string; pan?: string; gstin?: string; cin?: string },
+    auditContext?: { ip?: string; userAgent?: string }
+  ): Promise<any> {
+    const db = await getDatabase();
+    const adapter = getBusinessVerificationAdapter();
+    const result = await adapter.verify(input);
+    const now = new Date();
+
+    const current = await db.collection<BrandProfileEntity>('brand_profiles').findOne({ userId });
+
+    const updateFields: any = {
+      pan: input.pan?.trim().toUpperCase(),
+      gstin: input.gstin?.trim().toUpperCase(),
+      cin: input.cin?.trim().toUpperCase(),
+      companyName: input.companyLegalName.trim(),
+      brandName: input.brandName?.trim(),
+      verificationStatus: result.verificationStatus,
+      verificationDetails: result.details,
+      updatedAt: now,
+    };
+
+    if (result.verificationStatus === 'VERIFIED') {
+      updateFields.verifiedAt = now;
+    }
+
+    await db.collection('brand_profiles').updateOne(
+      { userId },
+      { $set: updateFields }
+    );
+
+    // Record audit log
+    await db.collection('verification_audit_logs').insertOne({
+      _id: crypto.randomBytes(12).toString('hex'),
+      brandProfileId: current?._id || userId,
+      actorId: userId,
+      previousState: current?.verificationStatus || 'PENDING',
+      newState: result.verificationStatus,
+      reason: result.details,
+      metadata: { input, result, auditContext },
+      createdAt: now,
+    });
+
+    return {
+      result,
+      profile: await db.collection('brand_profiles').findOne({ userId }),
+    };
   }
 
   /**

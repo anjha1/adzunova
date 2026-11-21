@@ -26,15 +26,48 @@ export interface CreatorProfileData {
 export interface BrandProfileData {
   contactName?: string;
   companyName?: string;
+  brandName?: string;
   website?: string;
   industry?: string;
   businessType?: string;
+  accountType?: 'BRAND' | 'AGENCY' | 'ENTERPRISE';
   country?: string;
+  logoUrl?: string;
+  companySize?: string;
   onboardingCompleted?: boolean;
   onboardingStep?: number;
-  verificationStatus?: 'UNVERIFIED' | 'PENDING' | 'VERIFIED' | 'SUSPENDED';
+  verificationStatus?: 'UNVERIFIED' | 'PENDING' | 'VERIFIED' | 'RESTRICTED' | 'SUSPENDED';
+  verificationDetails?: string;
+  verifiedAt?: string;
   subscriptionPlan?: string;
   currency?: string;
+  pan?: string;
+  gstin?: string;
+  cin?: string;
+  domainVerified?: boolean;
+  legalAddress?: {
+    street?: string;
+    city?: string;
+    state?: string;
+    pincode?: string;
+  };
+  billingContact?: {
+    name?: string;
+    email?: string;
+    phone?: string;
+  };
+  dpdpConsent?: {
+    version: string;
+    timestamp: string;
+    purposes: string[];
+  };
+  checklistState?: {
+    profile: boolean;
+    domainProof: boolean;
+    businessVerification: boolean;
+    paymentMethod: boolean;
+    firstCampaign: boolean;
+  };
 }
 
 export interface AuthSession {

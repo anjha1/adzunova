@@ -71,13 +71,50 @@ export type BrandBusinessType =
   | 'Other Business';
 
 export interface BrandProfileEntity {
+  _id?: any;
   userId: string;
   contactName: string;
   companyName: string;
+  brandName?: string;
   website?: string;
   industry: string;
   businessType: BrandBusinessType;
+  accountType?: 'BRAND' | 'AGENCY' | 'ENTERPRISE';
   country: string;
+  logoUrl?: string;
+  companySize?: string;
+  pan?: string;
+  gstin?: string;
+  cin?: string;
+  legalAddress?: {
+    street?: string;
+    city?: string;
+    state?: string;
+    pincode?: string;
+  };
+  billingContact?: {
+    name?: string;
+    email?: string;
+    phone?: string;
+  };
+  verificationStatus?: 'PENDING' | 'VERIFIED' | 'RESTRICTED' | 'SUSPENDED';
+  verificationDetails?: string;
+  verifiedAt?: Date;
+  domainVerified?: boolean;
+  dpdpConsent?: {
+    version: string;
+    timestamp: string;
+    ip?: string;
+    userAgent?: string;
+    purposes: string[];
+  };
+  checklistState?: {
+    profile: boolean;
+    domainProof: boolean;
+    businessVerification: boolean;
+    paymentMethod: boolean;
+    firstCampaign: boolean;
+  };
   objectives?: string[];
   teamSize?: string;
   onboardingCompleted: boolean;

@@ -4,6 +4,7 @@ import { redirect } from 'next/navigation';
 import { getSession } from '@/lib/auth';
 import { Logo } from '@/components/brand/Logo';
 import { getActiveVerifiedCreatorCount } from '@/lib/social/social-repository';
+import { computeBrandVerificationBadge } from '@/lib/statutory/business-verification';
 
 export const instant = false;
 
@@ -27,13 +28,12 @@ export default async function BrandDashboardPage() {
     maximumFractionDigits: 0,
   }).format(0);
 
-  // Verification status reflects real business KYC and domain proof, never email verification alone
-  const verificationLabel =
-    profile?.verificationStatus === 'VERIFIED'
-      ? 'Verified Business'
-      : profile?.verificationStatus === 'PENDING'
-      ? 'Verification Pending'
-      : 'Unverified Business';
+  // Combined Verification Badge: requires BOTH domain proof and business KYC
+  const badgeInfo = computeBrandVerificationBadge({
+    domainVerified: Boolean(profile?.domainVerified),
+    businessVerificationStatus: (profile?.verificationStatus as any) || 'PENDING',
+    businessVerifiedAt: profile?.verifiedAt,
+  });
 
   // Plan badge only shown if backed by a real subscription record; default: none shown
   const planBadge = profile?.subscriptionPlan ? String(profile.subscriptionPlan).toUpperCase() : undefined;
@@ -116,13 +116,13 @@ export default async function BrandDashboardPage() {
 
           <div className="bg-card p-5 rounded-2xl border border-border shadow-2xs">
             <div className="text-xs font-semibold uppercase text-muted-foreground">
-              Company Status
+              Verification State
             </div>
-            <div className="text-2xl font-bold text-foreground mt-2">
-              {profile?.onboardingCompleted ? 'Active' : 'Setup'}
+            <div className="text-xl font-bold text-foreground mt-2 truncate">
+              {badgeInfo.label}
             </div>
-            <div className="text-xs text-muted-foreground mt-1">
-              {profile?.industry || 'Unspecified'}
+            <div className="text-xs text-muted-foreground mt-1 truncate">
+              {badgeInfo.subtext}
             </div>
           </div>
         </div>

@@ -5,6 +5,7 @@ import { getSession } from '@/lib/auth';
 import { BrandShell } from '@/components/brand/shell/brand-shell';
 import { Logo } from '@/components/brand/Logo';
 import { BrandUserRole } from '@/components/brand/shell/brand-nav-config';
+import { computeBrandVerificationBadge } from '@/lib/statutory/business-verification';
 
 function BrandContentSkeleton() {
   return (
@@ -114,13 +115,12 @@ async function BrandAuthGuard({ children }: { children: React.ReactNode }) {
     return <BrandForbiddenView email={user.email} role={user.role} />;
   }
 
-  // Derive verification label and plan badge honestly from real DB records
-  const verificationLabel =
-    profile?.verificationStatus === 'VERIFIED'
-      ? 'Verified Business'
-      : profile?.verificationStatus === 'PENDING'
-      ? 'Verification Pending'
-      : 'Unverified Business';
+  // Combined Verification Badge: requires BOTH domain proof and business KYC
+  const badgeInfo = computeBrandVerificationBadge({
+    domainVerified: Boolean(profile?.domainVerified),
+    businessVerificationStatus: (profile?.verificationStatus as any) || 'PENDING',
+    businessVerifiedAt: profile?.verifiedAt,
+  });
 
   const planBadge = profile?.subscriptionPlan ? String(profile.subscriptionPlan).toUpperCase() : undefined;
   const isAgency = profile?.businessType === 'AGENCY';
@@ -132,7 +132,7 @@ async function BrandAuthGuard({ children }: { children: React.ReactNode }) {
       companyName={profile?.companyName}
       contactName={profile?.contactName}
       role={role}
-      verificationLabel={verificationLabel}
+      verificationLabel={badgeInfo.label}
       planBadge={planBadge}
       isAgency={isAgency}
       unreadCount={0}
