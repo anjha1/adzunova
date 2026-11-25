@@ -134,6 +134,16 @@ export interface SocialAccountLatest {
   } | null;
   viewsSeries: Array<{ timestamp: string; value: number }>;
   followersSeries: Array<{ timestamp: string; value: number }>;
+  youtubeSummary?: {
+    totalChannelViews: number;
+    recentViews30d: number | null;
+    watchMinutes30d: number | null;
+    subscribersGained30d: number | null;
+    subscribersLost30d: number | null;
+    dataThroughDate: string | null;
+    analyticsDailyReason?: string;
+    viewerDemographicsReason?: string;
+  } | null;
 }
 
 /**
@@ -171,12 +181,18 @@ export function formatVerifiedViaLabel(date: Date | string | null, locale?: stri
  */
 export async function getSocialAccountLatest(
   creatorId: string,
-  options: { locale?: string; email?: string } = {}
+  options: { locale?: string; email?: string; provider?: 'instagram' | 'youtube' } = {}
 ): Promise<SocialAccountLatest> {
   const accounts = await getSocialAccountsByCreatorId(creatorId, options.email);
   const activeAccounts = accounts.filter((a) => a.status === 'ACTIVE');
   const activeInstagram = activeAccounts.filter((a) => a.provider === 'instagram');
-  const primary = activeInstagram[0] || activeAccounts[0] || accounts[0] || null;
+  const activeYoutube = activeAccounts.filter((a) => a.provider === 'youtube');
+  const primary =
+    options.provider === 'youtube'
+      ? activeYoutube[0] || accounts.find((a) => a.provider === 'youtube') || null
+      : options.provider === 'instagram'
+      ? activeInstagram[0] || accounts.find((a) => a.provider === 'instagram') || null
+      : activeInstagram[0] || activeAccounts[0] || accounts[0] || null;
 
   const perPlatform = activeAccounts.map((a) => {
     const isYt = a.provider === 'youtube';
@@ -238,15 +254,45 @@ export async function getSocialAccountLatest(
     };
   }
 
-  // 1. Fetch latest time series & demographics snapshot
+  // 1. Fetch latest time series & demographics snapshot for the selected primary account
   const thirtyDaysAgo = new Date(Date.now() - 30 * 86400 * 1000);
   const now = new Date();
 
-  const [viewsSeriesResult, followersSeriesResult, snapshot] = await Promise.all([
-    getMetricSeries(primary.id, 'views', thirtyDaysAgo, now),
-    getMetricSeries(primary.id, 'followers_count', thirtyDaysAgo, now),
-    getLatestAudienceSnapshot(primary.id),
-  ]);
+  const isYouTubePrimary = primary.provider === 'youtube';
+  const [viewsSeriesResult, followersSeriesResult, watchSeriesResult, gainedSeriesResult, lostSeriesResult, snapshot] =
+    await Promise.all([
+      getMetricSeries(primary.id, isYouTubePrimary ? 'daily_views' : 'views', thirtyDaysAgo, now),
+      getMetricSeries(primary.id, isYouTubePrimary ? 'subscribers' : 'followers_count', thirtyDaysAgo, now),
+      isYouTubePrimary ? getMetricSeries(primary.id, 'watch_minutes', thirtyDaysAgo, now) : Promise.resolve({ metric: 'watch_minutes', points: [] }),
+      isYouTubePrimary ? getMetricSeries(primary.id, 'subscribers_gained', thirtyDaysAgo, now) : Promise.resolve({ metric: 'subscribers_gained', points: [] }),
+      isYouTubePrimary ? getMetricSeries(primary.id, 'subscribers_lost', thirtyDaysAgo, now) : Promise.resolve({ metric: 'subscribers_lost', points: [] }),
+      getLatestAudienceSnapshot(primary.id),
+    ]);
+
+  const youtubeSummary = isYouTubePrimary
+    ? {
+        totalChannelViews: Number(primary.capabilities?.totalChannelViews || 0),
+        recentViews30d:
+          viewsSeriesResult.points.length > 0
+            ? viewsSeriesResult.points.reduce((s, p) => s + Number(p.value || 0), 0)
+            : null,
+        watchMinutes30d:
+          watchSeriesResult.points.length > 0
+            ? watchSeriesResult.points.reduce((s, p) => s + Number(p.value || 0), 0)
+            : null,
+        subscribersGained30d:
+          gainedSeriesResult.points.length > 0
+            ? gainedSeriesResult.points.reduce((s, p) => s + Number(p.value || 0), 0)
+            : null,
+        subscribersLost30d:
+          lostSeriesResult.points.length > 0
+            ? lostSeriesResult.points.reduce((s, p) => s + Number(p.value || 0), 0)
+            : null,
+        dataThroughDate: primary.capabilities?.dataThroughDate || null,
+        analyticsDailyReason: primary.capabilities?.analyticsDailySeries?.reason,
+        viewerDemographicsReason: primary.capabilities?.viewerDemographics?.reason,
+      }
+    : null;
 
   // Extract latest 24h view point
   const latestViewPoint = viewsSeriesResult.points.length > 0
@@ -451,6 +497,7 @@ export async function getSocialAccountLatest(
       : null,
     viewsSeries: viewsSeriesResult.points,
     followersSeries: followersSeriesResult.points,
+    youtubeSummary,
   };
 }
 

@@ -12,6 +12,7 @@ import {
 import { encryptToken } from '@/lib/social/security/encryption';
 import { maskId, scrubSensitiveData } from '@/lib/social/security/log-scrubber';
 import { saveSocialAccountAndCredentials } from '@/lib/social/social-repository';
+import { syncYouTubeAccount } from '@/lib/social/youtube-sync';
 
 function debugLog(step: string, payload: Record<string, unknown>) {
   if (process.env.DEBUG_OAUTH !== 'true') return;
@@ -185,8 +186,9 @@ export async function GET(req: NextRequest) {
     // 10. Encrypt refresh token and persist account + credential in one transaction
     const encryptedRefresh = encryptToken(tokenRes.data.refresh_token);
 
+    let savedAccountId: string;
     try {
-      await saveSocialAccountAndCredentials(
+      const saved = await saveSocialAccountAndCredentials(
         {
           creator_id: session.user.id,
           creator_email: session.user.email,
@@ -222,6 +224,7 @@ export async function GET(req: NextRequest) {
           rotated_at: null,
         }
       );
+      savedAccountId = saved.accountId;
     } catch (saveErr: any) {
       if (saveErr?.message?.includes('already linked to another creator')) {
         return NextResponse.redirect(
@@ -229,6 +232,16 @@ export async function GET(req: NextRequest) {
         );
       }
       throw saveErr;
+    }
+
+    // 11. Run initial YouTube Analytics + Top Videos backfill immediately (non-fatal if Analytics lags)
+    try {
+      await syncYouTubeAccount(savedAccountId, { isInitialBackfill: true });
+    } catch (syncErr) {
+      console.warn(
+        `[YouTubeCallback] Initial sync deferred (correlationId=${correlationId}):`,
+        syncErr instanceof Error ? scrubSensitiveData(syncErr.message) : 'Unknown error'
+      );
     }
 
     return NextResponse.redirect(

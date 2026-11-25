@@ -11,11 +11,15 @@ export async function GET(req: Request) {
       return NextResponse.json({ error: 'Unauthorized: Creator session required' }, { status: 401 });
     }
 
-    const { headers } = req;
+    const { headers, url } = req;
     const acceptLanguage = headers.get('accept-language');
     const locale = acceptLanguage ? acceptLanguage.split(',')[0].split(';')[0].trim() : undefined;
+    const reqUrl = new URL(url);
+    const providerParam = reqUrl.searchParams.get('provider');
+    const provider =
+      providerParam === 'youtube' || providerParam === 'instagram' ? providerParam : undefined;
 
-    const latest = await getSocialAccountLatest(creatorId, { locale });
+    const latest = await getSocialAccountLatest(creatorId, { locale, provider });
 
     return NextResponse.json({
       hasConnectedAccount: latest.hasConnectedAccount,
@@ -33,6 +37,7 @@ export async function GET(req: Request) {
       demographics: latest.demographics?.raw || null,
       enrichedDemographics: latest.demographics,
       verificationLabel: latest.verificationLabel,
+      youtubeSummary: latest.youtubeSummary || null,
     });
   } catch (err) {
     return NextResponse.json(

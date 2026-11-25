@@ -56,23 +56,34 @@ interface AnalyticsData {
     countries?: Array<{ countryCode: string; countryName: string; percentage: number; count: number }>;
     genderUnknownShare?: number;
   } | null;
+  youtubeSummary?: {
+    totalChannelViews: number;
+    recentViews30d: number | null;
+    watchMinutes30d: number | null;
+    subscribersGained30d: number | null;
+    subscribersLost30d: number | null;
+    dataThroughDate: string | null;
+    analyticsDailyReason?: string;
+    viewerDemographicsReason?: string;
+  } | null;
 }
 
 export default function AnalyticsPage() {
   const [data, setData] = useState<AnalyticsData | null>(null);
-  const [selectedProvider, setSelectedProvider] = useState<'instagram' | 'youtube'>('instagram');
+  const [selectedProvider, setSelectedProvider] = useState<'instagram' | 'youtube' | null>(null);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
     async function fetchAnalytics() {
       setLoading(true);
       try {
-        const res = await fetch('/api/creator/analytics');
+        const qs = selectedProvider ? `?provider=${selectedProvider}` : '';
+        const res = await fetch(`/api/creator/analytics${qs}`);
         if (res.ok) {
           const json = await res.json();
           setData(json);
-          if (json.account?.provider === 'youtube') {
-            setSelectedProvider('youtube');
+          if (!selectedProvider && (json.account?.provider === 'youtube' || json.account?.provider === 'instagram')) {
+            setSelectedProvider(json.account.provider);
           }
         }
       } catch (err) {
@@ -82,7 +93,7 @@ export default function AnalyticsPage() {
       }
     }
     fetchAnalytics();
-  }, []);
+  }, [selectedProvider]);
 
   if (loading) {
     return (
@@ -175,32 +186,69 @@ export default function AnalyticsPage() {
       {/* Top Level Metric Cards */}
       <div className="grid grid-cols-1 desk:grid-cols-4 gap-4">
         <StatCard
-          label="Total audience (followers + subscribers)"
-          value={hasConnected ? data?.totalReach.toLocaleString() : '—'}
-          subValue={hasConnected ? 'Verified followers & subscribers' : 'Connect account to verify'}
+          label={isYouTube ? 'Subscribers (YouTube)' : 'Total audience (followers + subscribers)'}
+          value={
+            isYouTube
+              ? (activePlatformAccount as any)?.hiddenSubscriberCount ||
+                (activePlatformAccount as any)?.capabilities?.hiddenSubscriberCount
+                ? 'Hidden by creator'
+                : activePlatformAccount?.followersCount?.toLocaleString() ?? '—'
+              : hasConnected
+              ? data?.totalReach.toLocaleString()
+              : '—'
+          }
+          subValue={
+            isYouTube
+              ? 'Subscribers (as reported by YouTube)'
+              : hasConnected
+              ? 'Verified followers & subscribers'
+              : 'Connect account to verify'
+          }
           icon={<ShellIcon name="Users" size={16} />}
         />
         <StatCard
-          label="24h View Impressions"
-          value={hasConnected && data?.totalViews !== undefined && data?.totalViews !== null ? data.totalViews.toLocaleString() : '—'}
-          subValue={hasConnected ? 'Last 24h (Meta API)' : 'Awaiting data sync'}
+          label={isYouTube ? 'Channel Views (30d / Lifetime)' : '24h View Impressions'}
+          value={
+            isYouTube
+              ? data?.youtubeSummary?.recentViews30d !== null && data?.youtubeSummary?.recentViews30d !== undefined
+                ? data.youtubeSummary.recentViews30d.toLocaleString()
+                : data?.youtubeSummary?.totalChannelViews?.toLocaleString() ?? '—'
+              : hasConnected && data?.totalViews !== undefined && data?.totalViews !== null
+              ? data.totalViews.toLocaleString()
+              : '—'
+          }
+          subValue={
+            isYouTube
+              ? data?.youtubeSummary?.watchMinutes30d !== null && data?.youtubeSummary?.watchMinutes30d !== undefined
+                ? `${data.youtubeSummary.watchMinutes30d.toLocaleString()} watch mins (30d)`
+                : `Lifetime views: ${(data?.youtubeSummary?.totalChannelViews ?? 0).toLocaleString()}`
+              : hasConnected
+              ? 'Last 24h (Meta API)'
+              : 'Awaiting data sync'
+          }
           icon={<ShellIcon name="Eye" size={16} />}
         />
         <StatCard
-          label="18+ Audience Share"
+          label={isYouTube ? '18+ Viewer Share (Google estimate)' : '18+ Audience Share'}
           value={demographics ? `${Math.round(demographics.share_18_plus * 100)}%` : '—'}
           subValue={
             demographics
               ? `Minor share (13–17): ${Math.round(demographics.share_13_17 * 100)}%`
+              : isYouTube && data?.youtubeSummary?.viewerDemographicsReason
+              ? `Not available: ${data.youtubeSummary.viewerDemographicsReason}`
               : 'Requires demographics sync'
           }
           icon={<ShellIcon name="CheckCircle" size={16} />}
         />
         <StatCard
-          label="Audience Quality Score"
-          value={data?.audienceScoreDisplay || 'Not enough data'}
+          label={isYouTube ? 'Published Videos' : 'Audience Quality Score'}
+          value={isYouTube ? (activePlatformAccount?.mediaCount?.toLocaleString() ?? '0') : data?.audienceScoreDisplay || 'Not enough data'}
           subValue={
-            quality?.status === 'COMPLETE'
+            isYouTube
+              ? data?.youtubeSummary?.subscribersGained30d !== null && data?.youtubeSummary?.subscribersGained30d !== undefined
+                ? `+${data.youtubeSummary.subscribersGained30d} / -${data.youtubeSummary.subscribersLost30d ?? 0} subs (30d)`
+                : 'YouTube Data API v3'
+              : quality?.status === 'COMPLETE'
               ? 'Verified organic audience'
               : 'Minimum history required'
           }
@@ -259,7 +307,11 @@ export default function AnalyticsPage() {
                     <div key={item.bucket} className="space-y-1">
                       <div className="flex justify-between text-xs">
                         <span className="font-semibold text-foreground">
-                          {item.bucket === '13-17' ? '13–17 (Meta estimate)' : item.bucket}
+                          {item.bucket === '13-17'
+                            ? isYouTube
+                              ? '13–17 (Google estimate)'
+                              : '13–17 (Meta estimate)'
+                            : item.bucket}
                         </span>
                         <span className="text-muted-foreground">
                           {Math.round(item.percentage * 100)}% ({item.count.toLocaleString()})
