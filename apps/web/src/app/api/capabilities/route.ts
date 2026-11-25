@@ -1,4 +1,5 @@
 import { NextResponse } from 'next/server';
+import { connection } from 'next/server';
 import { getYouTubeConfigStatus } from '@/lib/config';
 
 export interface ProviderCapability {
@@ -25,6 +26,7 @@ export interface PlatformCapabilities {
 }
 
 export async function GET() {
+  await connection();
   const youtubeStatus = getYouTubeConfigStatus();
   const capabilities: PlatformCapabilities = {
     social: {

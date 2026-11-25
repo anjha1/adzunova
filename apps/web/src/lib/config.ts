@@ -101,11 +101,14 @@ export function getYouTubeConfigStatus(): YouTubeConfigStatus {
     };
   }
 
-  if (isProd && (!appBaseIsHttps || !apiBaseIsHttps || !redirectMatchesAppBase)) {
+  if (isProd && (!appBase || !appBaseIsHttps || !redirectMatchesAppBase)) {
     const issues: string[] = [];
-    if (!appBaseIsHttps) issues.push('APP_BASE_URL must use https://');
-    if (!apiBaseIsHttps) issues.push('API_BASE_URL must use https://');
-    if (!redirectMatchesAppBase) issues.push('YOUTUBE_REDIRECT_URI mismatch with APP_BASE_URL');
+    if (!appBase) {
+      issues.push('APP_BASE_URL is not set');
+    } else {
+      if (!appBaseIsHttps) issues.push('APP_BASE_URL must use https://');
+      if (!redirectMatchesAppBase) issues.push('YOUTUBE_REDIRECT_URI does not match ${APP_BASE_URL}/api/auth/youtube/callback');
+    }
     return {
       configured: false,
       status: 'NOT_CONFIGURED',
