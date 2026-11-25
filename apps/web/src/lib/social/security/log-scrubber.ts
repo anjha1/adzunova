@@ -5,10 +5,16 @@
 
 const TOKEN_PATTERNS = [
   /EA[A-Za-z0-9_=-]{30,}/g,                        // Meta user/page access tokens (start with EA...)
-  /(access_token=)([^&]+)/gi,                       // Query parameter access_token
-  /(client_secret=)([^&]+)/gi,                      // Query parameter client_secret
-  /(["']?access_token["']?\s*[:=]\s*["'])([^"']+)(["'])/gi, // JSON access_token field
+  /ya29\.[A-Za-z0-9._-]{20,}/g,                    // Google OAuth2 access tokens (start with ya29.)
+  /1\/\/[A-Za-z0-9._-]{20,}/g,                     // Google OAuth2 refresh tokens (start with 1//)
+  /(access_token=)([^&\s]+)/gi,                    // Query parameter access_token
+  /(refresh_token=)([^&\s]+)/gi,                   // Query parameter refresh_token
+  /(client_secret=)([^&\s]+)/gi,                   // Query parameter client_secret
+  /(key=)([^&\s]+)/gi,                             // Query parameter key
+  /(["']?access_token["']?\s*[:=]\s*["'])([^"']+)(["'])/gi,  // JSON access_token field
+  /(["']?refresh_token["']?\s*[:=]\s*["'])([^"']+)(["'])/gi, // JSON refresh_token field
   /(["']?client_secret["']?\s*[:=]\s*["'])([^"']+)(["'])/gi, // JSON client_secret field
+  /(["']?id_token["']?\s*[:=]\s*["'])([^"']+)(["'])/gi,      // JSON id_token field
 ];
 
 /**
@@ -21,9 +27,16 @@ export function scrubSensitiveData(input: string): string {
   // Redact Meta tokens
   sanitized = sanitized.replace(/EA[A-Za-z0-9_=-]{30,}/g, '[REDACTED_META_TOKEN]');
 
+  // Redact Google OAuth access & refresh tokens
+  sanitized = sanitized.replace(/ya29\.[A-Za-z0-9._-]{20,}/g, '[REDACTED_GOOGLE_ACCESS_TOKEN]');
+  sanitized = sanitized.replace(/1\/\/[A-Za-z0-9._-]{20,}/g, '[REDACTED_GOOGLE_REFRESH_TOKEN]');
+
   // Redact query parameter credentials
-  sanitized = sanitized.replace(/(access_token=)([^&]+)/gi, '$1[REDACTED]');
-  sanitized = sanitized.replace(/(client_secret=)([^&]+)/gi, '$1[REDACTED]');
+  sanitized = sanitized.replace(/(access_token=)([^&\s]+)/gi, '$1[REDACTED]');
+  sanitized = sanitized.replace(/(refresh_token=)([^&\s]+)/gi, '$1[REDACTED]');
+  sanitized = sanitized.replace(/(client_secret=)([^&\s]+)/gi, '$1[REDACTED]');
+  sanitized = sanitized.replace(/([?&]key=)([^&\s]+)/gi, '$1[REDACTED]');
+  sanitized = sanitized.replace(/([?&]code=)([^&\s]+)/gi, '$1[REDACTED]');
 
   // Redact JSON credentials
   sanitized = sanitized.replace(
@@ -31,7 +44,15 @@ export function scrubSensitiveData(input: string): string {
     '$1[REDACTED]$3'
   );
   sanitized = sanitized.replace(
+    /(["']?refresh_token["']?\s*[:=]\s*["'])([^"']+)(["'])/gi,
+    '$1[REDACTED]$3'
+  );
+  sanitized = sanitized.replace(
     /(["']?client_secret["']?\s*[:=]\s*["'])([^"']+)(["'])/gi,
+    '$1[REDACTED]$3'
+  );
+  sanitized = sanitized.replace(
+    /(["']?id_token["']?\s*[:=]\s*["'])([^"']+)(["'])/gi,
     '$1[REDACTED]$3'
   );
 

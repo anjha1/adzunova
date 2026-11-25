@@ -537,7 +537,7 @@ export function PublicProfileClient({ profile }: PublicProfileClientProps) {
 
             <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
               <div className="p-4 rounded-2xl border border-border bg-card">
-                <span className="text-xs text-muted-foreground block mb-1">Total Verified Reach</span>
+                <span className="text-xs text-muted-foreground block mb-1">Total audience (followers + subscribers)</span>
                 <div className="text-2xl font-black text-foreground">
                   {formatCompactCount(profile.stats.totalVerifiedReach)}
                 </div>

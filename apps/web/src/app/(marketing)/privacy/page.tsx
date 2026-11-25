@@ -97,7 +97,16 @@ export default function PrivacyPolicyPage() {
           </p>
           <ul className="list-disc pl-5 space-y-2 text-muted-foreground">
             <li>
-              <strong className="text-foreground">Instant Disconnection:</strong> Disconnecting an account via the Creator Accounts dashboard revokes access and immediately deletes stored credentials.
+              <strong className="text-foreground">Instant Disconnection &amp; Google Revocation:</strong> Disconnecting an account via the Creator Accounts dashboard revokes access and immediately deletes stored credentials. For YouTube, you can also revoke Adzunova&apos;s access anytime via{' '}
+              <a
+                href="https://myaccount.google.com/permissions"
+                target="_blank"
+                rel="noopener noreferrer"
+                className="text-indigo-600 dark:text-indigo-400 font-bold hover:underline"
+              >
+                Google Security Settings
+              </a>
+              . Upon disconnection or if YouTube data is not refreshed within 30 days of revocation, stored YouTube API metrics are purged when requested or upon retention expiry.
             </li>
             <li>
               <strong className="text-foreground">Meta Data Deletion Callback:</strong> When you remove Adzunova from your Facebook Apps &amp; Websites settings, Meta triggers our automated deletion callback.
@@ -111,10 +120,53 @@ export default function PrivacyPolicyPage() {
           </ul>
         </section>
 
-        {/* Section 6 */}
+        {/* Section 5b: YouTube API Services & Google Limited Use */}
         <section className="space-y-3">
           <h2 className="text-xl desk:text-2xl font-bold text-foreground">
-            6. Contact & Grievance Redressal
+            6. YouTube API Services &amp; Google Limited Use Disclosure
+          </h2>
+          <p className="text-muted-foreground">
+            Adzunova uses YouTube API Services solely in read-only mode (<code className="text-foreground">youtube.readonly</code> and <code className="text-foreground">yt-analytics.readonly</code>) to verify creator subscriber counts, channel views, and aggregated viewer demographics for brand sponsorships. Adzunova does not write to, upload to, or modify your YouTube account.
+          </p>
+          <p className="text-muted-foreground">
+            By connecting your YouTube channel, you acknowledge that Adzunova uses YouTube API Services and that your data is subject to the{' '}
+            <a
+              href="https://www.youtube.com/t/terms"
+              target="_blank"
+              rel="noopener noreferrer"
+              className="text-indigo-600 dark:text-indigo-400 font-bold hover:underline"
+            >
+              YouTube Terms of Service
+            </a>{' '}
+            and the{' '}
+            <a
+              href="https://policies.google.com/privacy"
+              target="_blank"
+              rel="noopener noreferrer"
+              className="text-indigo-600 dark:text-indigo-400 font-bold hover:underline"
+            >
+              Google Privacy Policy
+            </a>
+            .
+          </p>
+          <p className="font-semibold text-foreground">
+            Adzunova&apos;s use and transfer to any other app of information received from Google APIs will adhere to the{' '}
+            <a
+              href="https://developers.google.com/terms/api-services-user-data-policy"
+              target="_blank"
+              rel="noopener noreferrer"
+              className="text-indigo-600 dark:text-indigo-400 font-bold hover:underline"
+            >
+              Google API Services User Data Policy
+            </a>
+            , including the Limited Use requirements. Specifically, Adzunova does not use Google or YouTube user data for targeted advertising, does not sell it, and does not use it to train generalized AI or machine learning models.
+          </p>
+        </section>
+
+        {/* Section 7 */}
+        <section className="space-y-3">
+          <h2 className="text-xl desk:text-2xl font-bold text-foreground">
+            7. Contact & Grievance Redressal
           </h2>
           <p className="text-muted-foreground">
             For privacy inquiries, GDPR/CCPA data export requests, or grievance redressal under DPDP Act 2023, please contact our Data Protection Officer at:

@@ -6,7 +6,7 @@ export interface SocialAccount {
   id: string;
   creator_id: string;
   creator_email?: string;
-  provider: 'instagram';
+  provider: 'instagram' | 'youtube';
   provider_user_id: string;
   username: string;
   account_type: string;
@@ -209,7 +209,7 @@ export async function initSocialDbTables(): Promise<void> {
  * Finds account by provider and provider_user_id
  */
 export async function findSocialAccountByProviderId(
-  provider: 'instagram',
+  provider: 'instagram' | 'youtube',
   providerUserId: string
 ): Promise<SocialAccount | null> {
   const mongoDb = await getMongoDb();
@@ -462,22 +462,38 @@ export async function saveSocialAccountAndCredentials(
 }
 
 /**
- * Disconnects an account: deletes credentials, marks REVOKED, emits SocialDisconnected
+ * Disconnects an account: deletes credentials, marks REVOKED, emits SocialDisconnected,
+ * and optionally deletes stored metrics when creator requests removal.
  */
-export async function disconnectSocialAccount(creatorId: string, provider: 'instagram'): Promise<boolean> {
+export async function disconnectSocialAccount(
+  creatorId: string,
+  provider: 'instagram' | 'youtube',
+  options?: { deleteMetrics?: boolean }
+): Promise<boolean> {
   const mongoDb = await getMongoDb();
   if (mongoDb) {
     const acc = await mongoDb.collection('social_accounts').findOne({ creator_id: creatorId, provider });
     if (acc) {
       await mongoDb.collection('social_credentials').deleteOne({ account_id: acc.id });
       await mongoDb.collection('social_accounts').updateOne({ id: acc.id }, { $set: { status: 'REVOKED' } });
+      if (options?.deleteMetrics) {
+        await Promise.allSettled([
+          mongoDb.collection('social_metrics_snapshots').deleteMany({ account_id: acc.id }),
+          mongoDb.collection('social_analytics_series').deleteMany({ account_id: acc.id }),
+          mongoDb.collection('social_demographics').deleteMany({ account_id: acc.id }),
+        ]);
+      }
       await mongoDb.collection('social_outbox_events').insertOne({
         id: crypto.randomUUID(),
         event_type: 'SocialDisconnected',
         aggregate_id: creatorId,
-        payload: { creatorId, provider, accountId: acc.id },
+        payload: { creatorId, provider, accountId: acc.id, deleteMetrics: Boolean(options?.deleteMetrics) },
         created_at: new Date(),
         processed: false,
+      });
+      await logSocialAuditAction(creatorId, 'DISCONNECTED', provider, {
+        accountId: acc.id,
+        deleteMetrics: Boolean(options?.deleteMetrics),
       });
       return true;
     }
@@ -664,6 +680,27 @@ export async function getDataDeletionStatus(confirmationCode: string): Promise<D
 /**
  * Finds account by ID
  */
+export async function markSocialAccountReconnectRequired(
+  accountId: string,
+  creatorId: string,
+  provider: 'instagram' | 'youtube',
+  reason: string
+): Promise<void> {
+  await updateSocialAccountSyncState(accountId, {
+    status: 'RECONNECT_REQUIRED',
+  });
+  await emitSocialOutboxEvent('SocialTokenInvalid', creatorId, {
+    creatorId,
+    provider,
+    accountId,
+    reason,
+  });
+  await logSocialAuditAction(creatorId, 'TOKEN_INVALIDATED', provider, {
+    accountId,
+    reason,
+  });
+}
+
 export async function getSocialAccountById(id: string): Promise<SocialAccount | null> {
   const mongoDb = await getMongoDb();
   if (mongoDb) {
@@ -1061,6 +1098,46 @@ export async function getAllActiveSocialAccounts(limit = 100): Promise<SocialAcc
       failure_count: 0,
     },
   ];
+}
+
+/**
+ * Purges stored YouTube metrics & credentials for accounts that have been REVOKED
+ * or unrefreshed past the retention window (default 30 days) for Google Limited Use compliance.
+ */
+export async function purgeStaleRevokedYouTubeData(retentionDays = 30): Promise<{ purgedAccounts: number }> {
+  const cutoff = new Date(Date.now() - retentionDays * 86400 * 1000);
+  const mongoDb = await getMongoDb();
+  let purgedAccounts = 0;
+
+  if (mongoDb) {
+    const staleAccounts = await mongoDb
+      .collection('social_accounts')
+      .find({
+        provider: 'youtube',
+        status: 'REVOKED',
+        $or: [{ last_synced_at: { $lt: cutoff } }, { last_synced_at: null, connected_at: { $lt: cutoff } }],
+      })
+      .toArray();
+
+    for (const acc of staleAccounts) {
+      await Promise.allSettled([
+        mongoDb.collection('social_credentials').deleteMany({ account_id: acc.id }),
+        mongoDb.collection('social_metric_points').deleteMany({ accountId: acc.id }),
+        mongoDb.collection('social_audience_snapshots').deleteMany({ accountId: acc.id }),
+      ]);
+      purgedAccounts++;
+    }
+    return { purgedAccounts };
+  }
+
+  for (const acc of inMemoryAccounts.values()) {
+    const refDate = acc.last_synced_at || acc.connected_at;
+    if (acc.provider === 'youtube' && acc.status === 'REVOKED' && refDate < cutoff) {
+      inMemoryCredentials.delete(acc.id);
+      purgedAccounts++;
+    }
+  }
+  return { purgedAccounts };
 }
 
 /**

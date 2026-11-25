@@ -71,7 +71,25 @@ export default function TermsOfServicePage() {
             4. Third-Party Platform Terms
           </h2>
           <p className="text-muted-foreground">
-            When connecting your social accounts, you also agree to comply with third-party platform terms, including Meta Platform Terms, Instagram Community Guidelines, and YouTube Terms of Service.
+            When connecting your social accounts, you also agree to comply with third-party platform terms, including Meta Platform Terms, Instagram Community Guidelines, the{' '}
+            <a
+              href="https://www.youtube.com/t/terms"
+              target="_blank"
+              rel="noopener noreferrer"
+              className="text-indigo-600 dark:text-indigo-400 font-bold hover:underline"
+            >
+              YouTube Terms of Service
+            </a>
+            , and the{' '}
+            <a
+              href="https://policies.google.com/privacy"
+              target="_blank"
+              rel="noopener noreferrer"
+              className="text-indigo-600 dark:text-indigo-400 font-bold hover:underline"
+            >
+              Google Privacy Policy
+            </a>
+            . Adzunova accesses YouTube data strictly in read-only mode and never modifies your YouTube channel.
           </p>
         </section>
 

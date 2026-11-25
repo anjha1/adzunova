@@ -135,11 +135,13 @@ export default function MediaKitPage() {
           {/* Key Verified Stats Strip */}
           <div className="grid grid-cols-2 desk:grid-cols-4 gap-4">
             <div className="p-4 rounded-2xl bg-muted/30 border border-border">
-              <span className="text-xs text-muted-foreground font-semibold">Total Verified Reach</span>
+              <span className="text-xs text-muted-foreground font-semibold">Total audience (followers + subscribers)</span>
               <div className="text-2xl font-black text-foreground mt-1">
                 {Number(account?.followersCount || 0).toLocaleString()}
               </div>
-              <span className="text-[11px] text-muted-foreground">Followers</span>
+              <span className="text-[11px] text-muted-foreground">
+                {account?.provider === 'youtube' ? 'Subscribers' : 'Followers'}
+              </span>
             </div>
 
             <div className="p-4 rounded-2xl bg-muted/30 border border-border">

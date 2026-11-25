@@ -47,6 +47,8 @@ const geistMono = localFont({
 // ---------------------------------------------------------------------------
 // Metadata
 // ---------------------------------------------------------------------------
+const appBaseUrl = process.env.APP_BASE_URL || process.env.NEXT_PUBLIC_APP_URL || process.env.APP_URL;
+
 export const metadata: Metadata = {
   title: {
     default: 'Adzunova — Global Creator & Brand Collaboration Marketplace',
@@ -54,11 +56,11 @@ export const metadata: Metadata = {
   },
   description:
     'Adzunova connects creators, influencers, actors, and brands worldwide. Launch campaigns, discover talent, and build lasting partnerships on the leading collaboration marketplace.',
-  metadataBase: new URL('https://adzunova.com'),
+  ...(appBaseUrl ? { metadataBase: new URL(appBaseUrl) } : {}),
   openGraph: {
     type: 'website',
     locale: 'en_US',
-    url: 'https://adzunova.com',
+    ...(appBaseUrl ? { url: appBaseUrl } : {}),
     siteName: 'Adzunova',
     title: 'Adzunova — Global Creator & Brand Collaboration Marketplace',
     description:

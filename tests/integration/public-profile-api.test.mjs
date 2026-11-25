@@ -10,7 +10,6 @@ import {
   recordProfileEvent,
   recordProfileReport,
   getProfileAnalytics,
-  seedDemoProfile,
   getCreatorPackages,
   getCreatorTopContent,
 } from '../../apps/web/src/lib/public-profile/public-profile-repository.ts';
@@ -158,18 +157,12 @@ test('Public Profile Repository: Persistence & Business Rules', async (t) => {
     assert.ok(true, 'Report logged without error');
   });
 
-  await t.test('seeds demo profile @a_n_jha1 with verified data and packages', async () => {
-    const demoCreatorId = 'demo-test-jha';
-    const demo = await seedDemoProfile(demoCreatorId, 'a_n_jha1');
+  await t.test('truthfully returns empty packages and top content when not created', async () => {
+    const unconfiguredCreatorId = 'creator-unconfigured-123';
+    const pkgs = getCreatorPackages(unconfiguredCreatorId);
+    assert.deepEqual(pkgs, [], 'Should have 0 packages when creator has not created any');
 
-    assert.equal(demo.slug, 'a_n_jha1');
-    assert.equal(demo.displayName, 'Achhuta Nand Jha');
-    assert.equal(demo.isPublished, true);
-
-    const pkgs = getCreatorPackages(demoCreatorId);
-    assert.ok(pkgs.length >= 2, 'Should have at least 2 demo packages');
-
-    const topContent = getCreatorTopContent(demoCreatorId);
-    assert.ok(topContent.length >= 2, 'Should have featured portfolio items');
+    const topContent = getCreatorTopContent(unconfiguredCreatorId);
+    assert.deepEqual(topContent, [], 'Should have 0 top content items when not configured');
   });
 });

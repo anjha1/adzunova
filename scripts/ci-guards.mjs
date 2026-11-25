@@ -200,6 +200,188 @@ if (messagingViolations === 0) {
   console.error(`  FAIL: Found ${messagingViolations} forbidden Meta messaging references.\n`);
 }
 
+// Guard (f): Stock Photo URLs in apps/web/src/** (outside detection deny-list)
+console.log('--- Guard (f): Stock Photo URLs in apps/web/src/** ---');
+const stockPhotoDomains = [
+  'images.unsplash.com',
+  'unsplash.com',
+  'images.pexels.com',
+  'pexels.com',
+  'pixabay.com',
+  'picsum.photos',
+  'dicebear.com',
+  'randomuser.me',
+  'placeholder.com',
+];
+let stockPhotoViolations = 0;
+for (const file of allWebSourceFiles) {
+  // Allow formatters.ts which defines the detection deny-list
+  if (file.endsWith('formatters.ts')) continue;
+  const content = fs.readFileSync(file, 'utf8');
+  const lines = content.split('\n');
+  lines.forEach((line, idx) => {
+    const trimmed = line.trim();
+    if (trimmed.startsWith('//') || trimmed.startsWith('*')) return;
+    for (const domain of stockPhotoDomains) {
+      if (line.includes(domain)) {
+        console.error(`  FAIL [Stock Photo URL "${domain}"]: ${path.relative(process.cwd(), file)}:${idx + 1}: ${line.trim()}`);
+        stockPhotoViolations++;
+        failed = true;
+      }
+    }
+  });
+}
+if (stockPhotoViolations === 0) {
+  console.log(`  PASS: Zero stock photo URLs found across ${allWebSourceFiles.length} files.\n`);
+} else {
+  console.error(`  FAIL: Found ${stockPhotoViolations} stock photo URL violations.\n`);
+}
+
+// Guard (g): Synthesized Profile Seed & Fake Fallback Profiles
+console.log('--- Guard (g): Zero Synthetic Demo Seeds in apps/web/src/** ---');
+const syntheticSeedPatterns = [
+  /\bseedDemoProfile\b/,
+  /\bgetInitialDefaultSeedItems\b/,
+  /Industry benchmark standard/i,
+  /100% Platform Verified/i,
+];
+let seedViolations = 0;
+for (const file of allWebSourceFiles) {
+  const content = fs.readFileSync(file, 'utf8');
+  const lines = content.split('\n');
+  lines.forEach((line, idx) => {
+    const trimmed = line.trim();
+    if (trimmed.startsWith('//') || trimmed.startsWith('*')) return;
+    for (const pattern of syntheticSeedPatterns) {
+      if (pattern.test(line)) {
+        console.error(`  FAIL [Synthetic Seed Violation]: ${path.relative(process.cwd(), file)}:${idx + 1}: ${line.trim()}`);
+        seedViolations++;
+        failed = true;
+      }
+    }
+  });
+}
+if (seedViolations === 0) {
+  console.log(`  PASS: Zero synthetic seeds or benchmark fabrications found.\n`);
+} else {
+  console.error(`  FAIL: Found ${seedViolations} synthetic seed violations.\n`);
+}
+
+// Guard (h): Verification Date Integrity (Zero Render-Time new Date() formatted as Verification Date)
+console.log('--- Guard (h): Verification Date Integrity in apps/web/src/** ---');
+let dateViolations = 0;
+const publicRenderFiles = [
+  ...getAllFiles(path.resolve('apps/web/src/app/c')),
+  ...getAllFiles(path.resolve('apps/web/src/components/creator/public-profile')),
+  ...getAllFiles(path.resolve('apps/web/src/app/brand/discover')),
+];
+for (const file of publicRenderFiles) {
+  const content = fs.readFileSync(file, 'utf8');
+  const lines = content.split('\n');
+  lines.forEach((line, idx) => {
+    const trimmed = line.trim();
+    if (trimmed.startsWith('//') || trimmed.startsWith('*')) return;
+    // Check if new Date() is being called directly inline inside "Verified on" or "Verified via"
+    if (/Verified.*new Date\(\)/i.test(line) || /new Date\(\).*Verified/i.test(line)) {
+      console.error(`  FAIL [Render-time verification date]: ${path.relative(process.cwd(), file)}:${idx + 1}: ${line.trim()}`);
+      dateViolations++;
+      failed = true;
+    }
+  });
+}
+if (dateViolations === 0) {
+  console.log(`  PASS: Zero render-time fake verification dates found in public render paths.\n`);
+} else {
+  console.error(`  FAIL: Found ${dateViolations} fake verification date violations.\n`);
+}
+
+// Guard (i): Discovery Read Model Integrity (Zero faker / Math.random in discovery & rate card logic)
+console.log('--- Guard (i): Discovery Read Model & Rate Card Logic Integrity ---');
+const coreTruthFiles = [
+  ...getAllFiles(path.resolve('apps/web/src/lib/discovery')),
+  ...getAllFiles(path.resolve('apps/web/src/lib/public-profile')),
+  ...getAllFiles(path.resolve('apps/web/src/lib/rate-card')),
+];
+let coreTruthViolations = 0;
+for (const file of coreTruthFiles) {
+  const content = fs.readFileSync(file, 'utf8');
+  const lines = content.split('\n');
+  lines.forEach((line, idx) => {
+    const trimmed = line.trim();
+    if (trimmed.startsWith('//') || trimmed.startsWith('*')) return;
+    if (/\bMath\.random\(\)/.test(line)) {
+      console.error(`  FAIL [Randomized Metric]: ${path.relative(process.cwd(), file)}:${idx + 1}: ${line.trim()}`);
+      coreTruthViolations++;
+      failed = true;
+    }
+    if (/\bfaker\b/.test(line)) {
+      console.error(`  FAIL [Faker Import/Call]: ${path.relative(process.cwd(), file)}:${idx + 1}: ${line.trim()}`);
+      coreTruthViolations++;
+      failed = true;
+    }
+  });
+}
+if (coreTruthViolations === 0) {
+  console.log(`  PASS: Zero random metrics or faker calls in discovery & public profile engines.\n`);
+} else {
+  console.error(`  FAIL: Found ${coreTruthViolations} truth violations in discovery logic.\n`);
+}
+
+// Guard (j): No literal deployment hostnames in non-test source files
+console.log('--- Guard (j): Zero Literal Deployment Hostnames in Non-Test Source ---');
+const serviceDirs = fs.existsSync(path.resolve('services'))
+  ? fs.readdirSync(path.resolve('services'), { withFileTypes: true })
+      .filter((d) => d.isDirectory())
+      .map((d) => path.resolve('services', d.name, 'src'))
+  : [];
+const nonTestSrcFiles = [
+  ...allWebSourceFiles,
+  ...serviceDirs.flatMap((d) => getAllFiles(d, ['.ts', '.tsx', '.js', '.mjs'])),
+];
+const literalHostnameRegex = /https?:\/\/[^\s'"`]*(adzunova\.tech|adzunova\.com|onrender\.com)/i;
+let hostnameViolations = 0;
+for (const file of nonTestSrcFiles) {
+  const content = fs.readFileSync(file, 'utf8');
+  const lines = content.split('\n');
+  lines.forEach((line, idx) => {
+    const trimmed = line.trim();
+    if (trimmed.startsWith('//') || trimmed.startsWith('*')) return;
+    if (literalHostnameRegex.test(line)) {
+      console.error(`  FAIL [Literal Hostname]: ${path.relative(process.cwd(), file)}:${idx + 1}: ${line.trim()}`);
+      hostnameViolations++;
+      failed = true;
+    }
+  });
+}
+if (hostnameViolations === 0) {
+  console.log(`  PASS: Zero literal deployment hostnames across ${nonTestSrcFiles.length} non-test source files.\n`);
+} else {
+  console.error(`  FAIL: Found ${hostnameViolations} literal deployment hostname violations.\n`);
+}
+
+// Guard (k): Forbidden YouTube Write / Monetary Scopes
+console.log('--- Guard (k): Zero Forbidden YouTube Write or Monetary Scopes ---');
+const forbiddenYouTubeScopeRegex = /(yt-analytics-monetary\.readonly|auth\/youtube\.force-ssl|auth\/youtube\.upload|auth\/youtubepartner|auth\/youtube['"\s])/i;
+let ytScopeViolations = 0;
+for (const file of nonTestSrcFiles) {
+  const content = fs.readFileSync(file, 'utf8');
+  const lines = content.split('\n');
+  lines.forEach((line, idx) => {
+    const trimmed = line.trim();
+    if (trimmed.startsWith('//') || trimmed.startsWith('*')) return;
+    if (forbiddenYouTubeScopeRegex.test(line)) {
+      console.error(`  FAIL [Forbidden YouTube Scope]: ${path.relative(process.cwd(), file)}:${idx + 1}: ${line.trim()}`);
+      ytScopeViolations++;
+      failed = true;
+    }
+  });
+}
+if (ytScopeViolations === 0) {
+  console.log(`  PASS: Zero YouTube write or monetary scopes across ${nonTestSrcFiles.length} non-test source files.\n`);
+} else {
+  console.error(`  FAIL: Found ${ytScopeViolations} forbidden YouTube scope violations.\n`);
+}
+
 if (failed) {
   console.error('\n[CI Guard] FAILED. Fix violations above before proceeding.');
   process.exit(1);

@@ -27,9 +27,34 @@ export interface EnrichedCountryItem {
   count: number;
 }
 
+export type AudienceSizeKind = 'FOLLOWERS' | 'SUBSCRIBERS' | null;
+export type DemographicsBasis = 'FOLLOWERS' | 'VIEWERS';
+
+export interface AudienceSize {
+  value: number | null;
+  kind: AudienceSizeKind;
+  hidden?: boolean;
+  label: string;
+}
+
+export interface AudienceBreakdown {
+  totalAudience: number;
+  totalFollowers: number;
+  totalSubscribers: number;
+  hasHiddenSubscribers: boolean;
+  perPlatform: Array<{
+    provider: string;
+    kind: AudienceSizeKind;
+    value: number | null;
+    hidden: boolean;
+    label: string;
+  }>;
+}
+
 export interface SocialAccountLatest {
   hasConnectedAccount: boolean;
   totalReach: number;
+  audienceBreakdown?: AudienceBreakdown;
   totalViews24h: number | null;
   audienceScore: number | null;
   audienceScoreDisplay: string;
@@ -42,10 +67,11 @@ export interface SocialAccountLatest {
   account: {
     id: string;
     username: string;
-    provider: 'instagram';
+    provider: 'instagram' | 'youtube';
     accountType: string;
     profilePictureUrl: string | null;
     followersCount: number;
+    audienceSize?: AudienceSize;
     mediaCount: number;
     status: 'ACTIVE' | 'RECONNECT_REQUIRED' | 'REVOKED' | 'SUSPENDED';
     scopes: string[];
@@ -55,6 +81,8 @@ export interface SocialAccountLatest {
       demographics_gender_age: boolean;
       demographics_country: boolean;
       errors?: Record<string, string>;
+      dataThroughDate?: string | null;
+      hiddenSubscriberCount?: boolean;
     };
     connectedAt: string;
     lastSyncedAt: string | null;
@@ -65,16 +93,24 @@ export interface SocialAccountLatest {
     id: string;
     username: string;
     provider: string;
+    accountType?: string;
     followersCount: number;
     followers_count: number;
+    audienceSize?: AudienceSize;
+    hiddenSubscriberCount?: boolean;
+    dataThroughDate?: string | null;
     mediaCount: number;
     status: string;
     profilePictureUrl: string | null;
     syncTier: string;
     sync_tier: string;
     lastSyncedAt: string | null;
+    nextSyncAt?: string | null;
+    capabilities?: Record<string, any>;
   }>;
   demographics: {
+    basis?: DemographicsBasis;
+    basisLabel?: string;
     raw: DerivedAudienceMetrics | null;
     share18Plus: number | null;
     share13To17: number | null;
@@ -138,10 +174,43 @@ export async function getSocialAccountLatest(
   options: { locale?: string; email?: string } = {}
 ): Promise<SocialAccountLatest> {
   const accounts = await getSocialAccountsByCreatorId(creatorId, options.email);
-  const activeInstagram = accounts.filter((a) => a.provider === 'instagram' && a.status === 'ACTIVE');
-  const primary = activeInstagram[0] || accounts.find((a) => a.provider === 'instagram') || null;
+  const activeAccounts = accounts.filter((a) => a.status === 'ACTIVE');
+  const activeInstagram = activeAccounts.filter((a) => a.provider === 'instagram');
+  const primary = activeInstagram[0] || activeAccounts[0] || accounts[0] || null;
 
-  const totalReach = activeInstagram.reduce((sum, a) => sum + Number(a.followers_count || 0), 0);
+  const perPlatform = activeAccounts.map((a) => {
+    const isYt = a.provider === 'youtube';
+    const hidden = Boolean(a.capabilities?.hiddenSubscriberCount);
+    const val = isYt && hidden ? null : Number(a.followers_count || 0);
+    return {
+      provider: a.provider,
+      kind: (isYt ? 'SUBSCRIBERS' : 'FOLLOWERS') as AudienceSizeKind,
+      value: val,
+      hidden,
+      label: isYt
+        ? hidden
+          ? 'Hidden by creator'
+          : 'Subscribers (as reported by YouTube)'
+        : 'Followers',
+    };
+  });
+
+  const totalFollowers = perPlatform
+    .filter((p) => p.kind === 'FOLLOWERS' && p.value !== null)
+    .reduce((sum, p) => sum + (p.value || 0), 0);
+  const totalSubscribers = perPlatform
+    .filter((p) => p.kind === 'SUBSCRIBERS' && p.value !== null)
+    .reduce((sum, p) => sum + (p.value || 0), 0);
+  const hasHiddenSubscribers = perPlatform.some((p) => p.hidden);
+  const totalReach = totalFollowers + totalSubscribers;
+
+  const audienceBreakdown: AudienceBreakdown = {
+    totalAudience: totalReach,
+    totalFollowers,
+    totalSubscribers,
+    hasHiddenSubscribers,
+    perPlatform,
+  };
 
   if (!primary) {
     return {
@@ -294,6 +363,7 @@ export async function getSocialAccountLatest(
   return {
     hasConnectedAccount: true,
     totalReach,
+    audienceBreakdown,
     totalViews24h,
     audienceScore: calculatedScore,
     audienceScoreDisplay,
@@ -306,33 +376,79 @@ export async function getSocialAccountLatest(
     account: {
       id: primary.id,
       username: primary.username,
-      provider: 'instagram',
+      provider: primary.provider,
       accountType: primary.account_type,
       profilePictureUrl: primary.profile_picture_url,
       followersCount: Number(primary.followers_count),
+      audienceSize: {
+        value:
+          primary.provider === 'youtube' && primary.capabilities?.hiddenSubscriberCount
+            ? null
+            : Number(primary.followers_count),
+        kind: primary.provider === 'youtube' ? 'SUBSCRIBERS' : 'FOLLOWERS',
+        hidden: Boolean(primary.capabilities?.hiddenSubscriberCount),
+        label:
+          primary.provider === 'youtube'
+            ? primary.capabilities?.hiddenSubscriberCount
+              ? 'Hidden by creator'
+              : 'Subscribers (as reported by YouTube)'
+            : 'Followers',
+      },
       mediaCount: Number(primary.media_count),
       status: primary.status,
       scopes: primary.scopes,
-      capabilities: reconciledCapabilities,
+      capabilities: {
+        ...reconciledCapabilities,
+        dataThroughDate: primary.capabilities?.dataThroughDate || null,
+        hiddenSubscriberCount: Boolean(primary.capabilities?.hiddenSubscriberCount),
+      },
       connectedAt: primary.connected_at instanceof Date ? primary.connected_at.toISOString() : String(primary.connected_at),
       lastSyncedAt: primary.last_synced_at instanceof Date ? primary.last_synced_at.toISOString() : (primary.last_synced_at ? String(primary.last_synced_at) : null),
       nextSyncAt: primary.next_sync_at instanceof Date ? primary.next_sync_at.toISOString() : (primary.next_sync_at ? String(primary.next_sync_at) : null),
       syncTier: primary.sync_tier,
     },
-    accounts: accounts.map((a) => ({
-      id: a.id,
-      username: a.username,
-      provider: a.provider,
-      followersCount: Number(a.followers_count),
-      followers_count: Number(a.followers_count),
-      mediaCount: Number(a.media_count),
-      status: a.status,
-      profilePictureUrl: a.profile_picture_url,
-      syncTier: a.sync_tier,
-      sync_tier: a.sync_tier,
-      lastSyncedAt: a.last_synced_at instanceof Date ? a.last_synced_at.toISOString() : (a.last_synced_at ? String(a.last_synced_at) : null),
-    })),
-    demographics: enrichedDemographics,
+    accounts: accounts.map((a) => {
+      const isYt = a.provider === 'youtube';
+      const hidden = Boolean(a.capabilities?.hiddenSubscriberCount);
+      return {
+        id: a.id,
+        username: a.username,
+        provider: a.provider,
+        accountType: a.account_type,
+        followersCount: Number(a.followers_count),
+        followers_count: Number(a.followers_count),
+        audienceSize: {
+          value: isYt && hidden ? null : Number(a.followers_count),
+          kind: isYt ? 'SUBSCRIBERS' : 'FOLLOWERS',
+          hidden,
+          label: isYt
+            ? hidden
+              ? 'Hidden by creator'
+              : 'Subscribers (as reported by YouTube)'
+            : 'Followers',
+        },
+        hiddenSubscriberCount: hidden,
+        dataThroughDate: a.capabilities?.dataThroughDate || null,
+        mediaCount: Number(a.media_count),
+        status: a.status,
+        profilePictureUrl: a.profile_picture_url,
+        syncTier: a.sync_tier,
+        sync_tier: a.sync_tier,
+        lastSyncedAt: a.last_synced_at instanceof Date ? a.last_synced_at.toISOString() : (a.last_synced_at ? String(a.last_synced_at) : null),
+        nextSyncAt: a.next_sync_at instanceof Date ? a.next_sync_at.toISOString() : (a.next_sync_at ? String(a.next_sync_at) : null),
+        capabilities: a.capabilities || {},
+      };
+    }),
+    demographics: enrichedDemographics
+      ? {
+          ...enrichedDemographics,
+          basis: primary.provider === 'youtube' ? 'VIEWERS' : 'FOLLOWERS',
+          basisLabel:
+            primary.provider === 'youtube'
+              ? 'Viewer age/gender (Google estimate)'
+              : 'Follower age/gender (Meta estimate)',
+        }
+      : null,
     viewsSeries: viewsSeriesResult.points,
     followersSeries: followersSeriesResult.points,
   };

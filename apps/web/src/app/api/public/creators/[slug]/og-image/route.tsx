@@ -117,7 +117,7 @@ export async function GET(
             }}
           >
             <span style={{ fontSize: '18px', color: '#6B7280' }}>
-              https://adzunova.com/c/{profile?.slug || slug}
+              {(process.env.APP_BASE_URL || process.env.NEXT_PUBLIC_APP_URL || process.env.APP_URL || '').replace(/\/$/, '')}/c/{profile?.slug || slug}
             </span>
             <div
               style={{

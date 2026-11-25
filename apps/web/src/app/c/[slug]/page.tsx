@@ -1,5 +1,6 @@
 import { Metadata } from 'next';
 import { notFound, redirect, RedirectType } from 'next/navigation';
+import { connection } from 'next/server';
 
 export const instant = false;
 import {
@@ -21,6 +22,7 @@ interface PageProps {
  * Dynamic SEO & OpenGraph Metadata
  */
 export async function generateMetadata({ params }: PageProps): Promise<Metadata> {
+  await connection();
   const { slug } = await params;
   if (!slug) return {};
 
@@ -105,6 +107,7 @@ export async function generateMetadata({ params }: PageProps): Promise<Metadata>
  * Public Creator Profile Page (SSR / ISR)
  */
 export default async function PublicCreatorProfilePage({ params }: PageProps) {
+  await connection();
   const { slug } = await params;
   if (!slug) notFound();
 

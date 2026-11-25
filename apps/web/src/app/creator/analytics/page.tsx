@@ -17,7 +17,23 @@ interface AnalyticsData {
     status: string;
     lastSyncedAt: string | null;
     syncTier: string;
+    capabilities?: {
+      dataThroughDate?: string | null;
+      hiddenSubscriberCount?: boolean;
+    };
   };
+  accounts?: Array<{
+    id: string;
+    username: string;
+    provider: string;
+    followersCount: number;
+    mediaCount: number;
+    status: string;
+    dataThroughDate?: string | null;
+    hiddenSubscriberCount?: boolean;
+    lastSyncedAt: string | null;
+    syncTier: string;
+  }>;
   totalReach: number;
   totalViews: number;
   totalViews24h?: number | null;
@@ -35,6 +51,8 @@ interface AnalyticsData {
   viewsSeries: { timestamp: string; value: number }[];
   demographics: DerivedAudienceMetrics | null;
   enrichedDemographics?: {
+    basis?: 'FOLLOWERS' | 'VIEWERS';
+    basisLabel?: string;
     countries?: Array<{ countryCode: string; countryName: string; percentage: number; count: number }>;
     genderUnknownShare?: number;
   } | null;
@@ -42,6 +60,7 @@ interface AnalyticsData {
 
 export default function AnalyticsPage() {
   const [data, setData] = useState<AnalyticsData | null>(null);
+  const [selectedProvider, setSelectedProvider] = useState<'instagram' | 'youtube'>('instagram');
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
@@ -52,6 +71,9 @@ export default function AnalyticsPage() {
         if (res.ok) {
           const json = await res.json();
           setData(json);
+          if (json.account?.provider === 'youtube') {
+            setSelectedProvider('youtube');
+          }
         }
       } catch (err) {
         console.warn('Failed to load analytics:', err);
@@ -76,6 +98,10 @@ export default function AnalyticsPage() {
   }
 
   const hasConnected = data?.hasConnectedAccount;
+  const connectedAccounts = data?.accounts || (data?.account ? [data.account] : []);
+  const activePlatformAccount =
+    connectedAccounts.find((a) => a.provider === selectedProvider) || data?.account || null;
+  const isYouTube = activePlatformAccount?.provider === 'youtube';
   const demographics = data?.demographics;
   const quality = data?.qualityEvaluation;
 
@@ -83,12 +109,41 @@ export default function AnalyticsPage() {
     <div className="space-y-6 animate-in fade-in duration-300">
       <PageHeader
         title="Verified Audience Analytics"
-        description="First-party verified metrics ingested via Meta Graph API OAuth. Never self-reported."
+        description={
+          isYouTube
+            ? 'First-party verified metrics ingested via YouTube Data & Analytics APIs (Google estimate). Never self-reported.'
+            : 'First-party verified metrics ingested via Meta Graph API OAuth. Never self-reported.'
+        }
         action={
           hasConnected ? (
-            <div className="flex items-center gap-2">
+            <div className="flex flex-wrap items-center gap-2">
+              {connectedAccounts.length > 0 && (
+                <div className="inline-flex rounded-xl border border-border bg-card p-1">
+                  {(['instagram', 'youtube'] as const).map((prov) => {
+                    const exists = connectedAccounts.some((a) => a.provider === prov);
+                    if (!exists) return null;
+                    const active = selectedProvider === prov;
+                    return (
+                      <button
+                        key={prov}
+                        type="button"
+                        onClick={() => setSelectedProvider(prov)}
+                        className={`px-3 py-1 rounded-lg text-xs font-semibold capitalize transition ${
+                          active
+                            ? 'bg-primary text-primary-foreground'
+                            : 'text-muted-foreground hover:text-foreground'
+                        }`}
+                      >
+                        {prov === 'youtube' ? 'YouTube' : 'Instagram'}
+                      </button>
+                    );
+                  })}
+                </div>
+              )}
               <span className="text-xs font-semibold px-3 py-1.5 rounded-xl bg-card border border-border text-foreground shadow-xs">
-                Period: Last 24h (Meta API)
+                {isYouTube
+                  ? `Data through: ${(activePlatformAccount as any)?.dataThroughDate || 'Pending sync'}`
+                  : 'Period: Last 24h (Meta API)'}
               </span>
             </div>
           ) : undefined
@@ -96,18 +151,20 @@ export default function AnalyticsPage() {
       />
 
       {/* Sync Status Banner */}
-      {hasConnected && data?.account && (
+      {hasConnected && activePlatformAccount && (
         <div className="flex flex-wrap items-center justify-between gap-3 p-4 rounded-2xl bg-card border border-border text-xs">
           <div className="flex items-center gap-2">
             <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" />
-            <span className="font-bold text-foreground">@{data.account.username}</span>
+            <span className="font-bold text-foreground">
+              {isYouTube ? activePlatformAccount.username : `@${activePlatformAccount.username}`}
+            </span>
             <span className="text-muted-foreground">
-              &bull; Official Instagram Graph API ({data.account.syncTier} tier)
+              &bull; {isYouTube ? 'Official YouTube Data & Analytics API' : 'Official Instagram Graph API'} ({activePlatformAccount.syncTier} tier)
             </span>
           </div>
           <div className="text-muted-foreground">
-            {data.account.lastSyncedAt ? (
-              <span>Last synced: {new Date(data.account.lastSyncedAt).toLocaleString()}</span>
+            {activePlatformAccount.lastSyncedAt ? (
+              <span>Last synced: {new Date(activePlatformAccount.lastSyncedAt).toLocaleString()}</span>
             ) : (
               <span>Initial sync in progress</span>
             )}
@@ -118,9 +175,9 @@ export default function AnalyticsPage() {
       {/* Top Level Metric Cards */}
       <div className="grid grid-cols-1 desk:grid-cols-4 gap-4">
         <StatCard
-          label="Total Verified Reach"
+          label="Total audience (followers + subscribers)"
           value={hasConnected ? data?.totalReach.toLocaleString() : '—'}
-          subValue={hasConnected ? 'Live Instagram followers' : 'Connect account to verify'}
+          subValue={hasConnected ? 'Verified followers & subscribers' : 'Connect account to verify'}
           icon={<ShellIcon name="Users" size={16} />}
         />
         <StatCard
@@ -180,8 +237,14 @@ export default function AnalyticsPage() {
             <div className="p-6 rounded-3xl bg-card border border-border shadow-xs space-y-4">
               <div className="flex items-center justify-between pb-3 border-b border-border">
                 <div>
-                  <h3 className="font-bold text-sm text-foreground">Follower Age Distribution</h3>
-                  <p className="text-xs text-muted-foreground">All 7 standard Meta demographic brackets</p>
+                  <h3 className="font-bold text-sm text-foreground">
+                    {isYouTube ? 'Viewer Age Distribution (Google estimate)' : 'Follower Age Distribution'}
+                  </h3>
+                  <p className="text-xs text-muted-foreground">
+                    {isYouTube
+                      ? 'YouTube Analytics viewer brackets (Google estimate)'
+                      : 'All 7 standard Meta demographic brackets'}
+                  </p>
                 </div>
                 {demographics?.dominant_age_bucket && (
                   <span className="px-2.5 py-1 rounded-full bg-indigo-500/10 text-indigo-600 dark:text-indigo-400 text-xs font-bold">
@@ -222,8 +285,14 @@ export default function AnalyticsPage() {
             <div className="p-6 rounded-3xl bg-card border border-border shadow-xs space-y-4">
               <div className="flex items-center justify-between pb-3 border-b border-border">
                 <div>
-                  <h3 className="font-bold text-sm text-foreground">Follower Gender Distribution</h3>
-                  <p className="text-xs text-muted-foreground">Self-reported and modeled by Meta</p>
+                  <h3 className="font-bold text-sm text-foreground">
+                    {isYouTube ? 'Viewer Gender Distribution (Google estimate)' : 'Follower Gender Distribution'}
+                  </h3>
+                  <p className="text-xs text-muted-foreground">
+                    {isYouTube
+                      ? 'Viewer breakdown reported by Google (includes Unknown / Not Reported)'
+                      : 'Self-reported and modeled by Meta'}
+                  </p>
                 </div>
               </div>
 

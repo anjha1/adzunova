@@ -227,7 +227,7 @@ export default function ProfilePage() {
 
   const publicUrl = typeof window !== 'undefined'
     ? `${window.location.origin}/c/${slug}`
-    : `https://adzunova.com/c/${slug}`;
+    : `${(process.env.NEXT_PUBLIC_APP_URL || '').replace(/\/$/, '')}/c/${slug}`;
 
   const handleCopyPublicLink = () => {
     navigator.clipboard.writeText(publicUrl);
@@ -397,7 +397,7 @@ export default function ProfilePage() {
                 <div>
                   <div className="flex items-center justify-between mb-1">
                     <label className="font-semibold text-foreground">Custom Shareable URL Slug</label>
-                    <span className="text-[11px] text-muted-foreground">https://adzunova.com/c/<strong>{slug || '...'}</strong></span>
+                    <span className="text-[11px] text-muted-foreground">/c/<strong>{slug || '...'}</strong></span>
                   </div>
                   <div className="relative">
                     <span className="absolute left-3 top-2.5 font-mono text-muted-foreground text-xs">/c/</span>
@@ -537,7 +537,7 @@ export default function ProfilePage() {
                         setAvatarUrl(e.target.value || null);
                         setIsDirty(true);
                       }}
-                      placeholder={loginAvatar || "https://images.unsplash.com/..."}
+                      placeholder={loginAvatar || "https://example.com/avatar.jpg"}
                       className="w-full rounded-xl border border-border bg-background px-3 py-2 text-foreground font-mono text-[11px]"
                     />
                   </div>
@@ -551,7 +551,7 @@ export default function ProfilePage() {
                         setCoverUrl(e.target.value || null);
                         setIsDirty(true);
                       }}
-                      placeholder="https://images.unsplash.com/..."
+                      placeholder="https://example.com/banner.jpg"
                       className="w-full rounded-xl border border-border bg-background px-3 py-2 text-foreground font-mono text-[11px]"
                     />
                   </div>
@@ -594,7 +594,7 @@ export default function ProfilePage() {
               <div className="space-y-3 pt-2">
                 {[
                   { id: 'platforms', label: 'Connected Platforms Strip', desc: 'Display official platform logos, handles, and verified badges.' },
-                  { id: 'stats', label: 'Aggregate Stats Matrix', desc: 'Show Total Verified Reach, published content, and engagement benchmark.' },
+                  { id: 'stats', label: 'Aggregate Stats Matrix', desc: 'Show total audience (followers + subscribers), published content, and engagement.' },
                   { id: 'audience', label: 'Audience Insights (Aggregated)', desc: 'Show age segments, gender split, and geography (minors protected).' },
                   { id: 'topContent', label: 'Featured Portfolio / Top Posts', desc: 'Showcase pinned and recent high-performing creative content.' },
                   { id: 'rateCard', label: 'Creator Rate Card', desc: 'Display active deliverables, SLA turnaround, revisions, and starting rates.' },

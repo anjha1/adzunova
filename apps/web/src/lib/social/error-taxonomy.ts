@@ -157,3 +157,131 @@ export function getSocialErrorDetails(
     }
   }
 }
+
+export type YouTubeConnectErrorCode =
+  | 'consent_denied'
+  | 'missing_scope'
+  | 'no_refresh_token'
+  | 'no_channel'
+  | 'account_already_linked'
+  | 'state_invalid_or_expired'
+  | 'google_api_error'
+  | 'youtube_not_configured'
+  | 'discovery_failed_server';
+
+export interface YouTubeErrorDetails {
+  code: YouTubeConnectErrorCode;
+  title: string;
+  message: string;
+  actionText: string;
+  actionHref: string;
+  supportId?: string;
+  reason?: string;
+}
+
+export function getYouTubeErrorDetails(
+  rawCode: string | null | undefined,
+  context: {
+    reason?: string | null;
+    missing?: string | null;
+    supportId?: string | null;
+  } = {}
+): YouTubeErrorDetails {
+  const reconnectHref = '/creator/me/social-accounts/youtube/connect';
+  const reason = context.reason || undefined;
+  const supportId = context.supportId || undefined;
+
+  switch (rawCode) {
+    case 'consent_denied':
+      return {
+        code: 'consent_denied',
+        title: 'YouTube Consent Cancelled',
+        message:
+          'Google authorization was cancelled. Adzunova requires read-only YouTube access to verify your channel and analytics.',
+        actionText: 'Reconnect YouTube',
+        actionHref: reconnectHref,
+      };
+
+    case 'missing_scope':
+      return {
+        code: 'missing_scope',
+        title: 'Required Permissions Not Granted',
+        message:
+          'Both read-only permissions (YouTube Data & YouTube Analytics) must be checked on the Google consent screen so we can verify your channel stats and viewer analytics.',
+        actionText: 'Grant Permissions & Retry',
+        actionHref: reconnectHref,
+        reason: context.missing || undefined,
+      };
+
+    case 'no_refresh_token':
+      return {
+        code: 'no_refresh_token',
+        title: 'Offline Refresh Token Missing',
+        message:
+          'Google did not issue an offline refresh token for background syncing. Please reconnect and approve offline access on the Google prompt.',
+        actionText: 'Reconnect YouTube',
+        actionHref: reconnectHref,
+      };
+
+    case 'no_channel':
+      return {
+        code: 'no_channel',
+        title: 'No YouTube Channel Found',
+        message:
+          'The selected Google account does not have an active YouTube channel. If your channel is on a Brand Account, select the Brand Account during Google consent.',
+        actionText: 'Select Channel & Retry',
+        actionHref: reconnectHref,
+      };
+
+    case 'account_already_linked':
+      return {
+        code: 'account_already_linked',
+        title: 'YouTube Channel Already Connected',
+        message:
+          'This YouTube channel is already linked to another creator profile on Adzunova. Contact support if you own this channel and need an ownership review.',
+        actionText: 'Contact Support',
+        actionHref: 'mailto:support@adzunova.com?subject=YouTube%20Channel%20Ownership%20Review',
+      };
+
+    case 'state_invalid_or_expired':
+      return {
+        code: 'state_invalid_or_expired',
+        title: 'Connection Session Expired',
+        message:
+          'Your OAuth connection session expired or was already used (10-minute window). Please start a fresh YouTube connection.',
+        actionText: 'Start New Connection',
+        actionHref: reconnectHref,
+      };
+
+    case 'youtube_not_configured':
+      return {
+        code: 'youtube_not_configured',
+        title: 'YouTube Connect Not Configured',
+        message: reason || 'YouTube OAuth credentials are not configured in this environment.',
+        actionText: 'Back to Accounts',
+        actionHref: '/creator/accounts',
+        reason,
+      };
+
+    case 'google_api_error':
+      return {
+        code: 'google_api_error',
+        title: 'Google API Error',
+        message: `Google returned an API error${reason ? ` (${reason})` : ''}. Please wait a moment and try reconnecting.`,
+        actionText: 'Retry Connection',
+        actionHref: reconnectHref,
+        reason,
+      };
+
+    case 'discovery_failed_server':
+    default:
+      return {
+        code: 'discovery_failed_server',
+        title: 'Temporary Connection Failure',
+        message: `An unexpected server error occurred while connecting YouTube.${supportId ? ` Support Reference: ${supportId}.` : ''} Please try again.`,
+        actionText: 'Try Again',
+        actionHref: reconnectHref,
+        supportId,
+      };
+  }
+}

@@ -38,9 +38,16 @@ export async function POST(req: NextRequest) {
     // 2. Perform deletion and generate confirmation code
     const deletionRecord = await recordDataDeletionRequest(metaUserId, 'instagram');
 
-    // 3. Construct public confirmation URL
-    const appUrl = process.env.NEXT_PUBLIC_APP_URL || process.env.APP_URL || 'https://adzunova-web.onrender.com';
-    const statusUrl = `${appUrl.replace(/\/$/, '')}/data-deletion-status?code=${deletionRecord.confirmation_code}`;
+    // 3. Construct public confirmation URL from env (no hard-coded hostname)
+    const appUrl = (
+      process.env.APP_BASE_URL ||
+      process.env.NEXT_PUBLIC_APP_URL ||
+      process.env.APP_URL ||
+      ''
+    ).replace(/\/$/, '');
+    const statusUrl = appUrl
+      ? `${appUrl}/data-deletion-status?code=${deletionRecord.confirmation_code}`
+      : `/data-deletion-status?code=${deletionRecord.confirmation_code}`;
 
     // 4. Return Meta-mandated JSON response format
     return NextResponse.json({

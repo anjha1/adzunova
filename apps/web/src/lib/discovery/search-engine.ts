@@ -152,16 +152,24 @@ export class CreatorSearchEngine implements SearchPort {
       // Track platform facet
       facets.platforms[acc.provider] = (facets.platforms[acc.provider] || 0) + 1;
 
+      const isHiddenSubs = acc.provider === 'youtube' && Boolean(acc.capabilities?.hiddenSubscriberCount);
       const followers = Number(acc.followers_count || 0);
 
-      // Track follower band facet
-      if (followers < 10000) facets.followerBands.under10k++;
-      else if (followers < 50000) facets.followerBands.k10to50k++;
-      else if (followers < 200000) facets.followerBands.k50to200k++;
-      else if (followers < 1000000) facets.followerBands.k200kto1m++;
-      else facets.followerBands.over1m++;
+      // Hidden subscriber counts are excluded from subscriber-range filters, never guessed
+      if (isHiddenSubs && (query.minFollowers !== undefined || query.maxFollowers !== undefined)) {
+        continue;
+      }
 
-      // Filter by followers
+      // Track follower/subscriber band facet (exclude hidden counts)
+      if (!isHiddenSubs) {
+        if (followers < 10000) facets.followerBands.under10k++;
+        else if (followers < 50000) facets.followerBands.k10to50k++;
+        else if (followers < 200000) facets.followerBands.k50to200k++;
+        else if (followers < 1000000) facets.followerBands.k200kto1m++;
+        else facets.followerBands.over1m++;
+      }
+
+      // Filter by followers / subscribers
       if (query.minFollowers !== undefined && followers < query.minFollowers) continue;
       if (query.maxFollowers !== undefined && followers > query.maxFollowers) continue;
 

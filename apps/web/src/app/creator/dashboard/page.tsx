@@ -194,8 +194,8 @@ export default async function CreatorDashboardPage() {
               </h2>
               <p className="text-xs text-muted-foreground">
                 {hasConnectedAccount
-                  ? `Total Verified Reach: ${totalFollowers.toLocaleString()} followers`
-                  : 'Official OAuth API status & verified follower metrics'}
+                  ? `Total audience (followers + subscribers): ${totalFollowers.toLocaleString()}`
+                  : 'Official OAuth API status & verified audience metrics'}
               </p>
             </div>
             <Link

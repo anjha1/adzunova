@@ -54,7 +54,7 @@ export function serializePublicProfile({
   rateCardItems,
   packages = [],
   topContent = [],
-  domain = process.env.NEXT_PUBLIC_APP_URL || 'https://adzunova.com',
+  domain = process.env.APP_BASE_URL || process.env.NEXT_PUBLIC_APP_URL || process.env.APP_URL || '',
 }: SerializeOptions): PublicCreatorProfileDTO {
   const vis = profile.sectionVisibility;
   const canonicalUrl = `${domain.replace(/\/$/, '')}/c/${profile.slug}`;
@@ -84,7 +84,7 @@ export function serializePublicProfile({
 
       const profileUrl = isInstagram
         ? `https://instagram.com/${acc.username}`
-        : `https://adzunova.com/c/${profile.slug}`;
+        : `${domain ? domain.replace(/\/$/, '') : ''}/c/${profile.slug}`;
 
       const rawSocialPic = sanitizeExternalUrl(
         acc.profilePictureUrl ||

@@ -5,6 +5,7 @@
 
 import { getDueAccountsForSync, updateSocialAccountSyncState, SocialAccount } from './social-repository';
 import { syncInstagramAccount, SyncResult } from './sync-worker';
+import { YouTubeProviderAdapter } from './youtube-sync';
 import { getJobDeduplicationKey } from './rate-limiter';
 
 export interface SchedulerOptions {
@@ -113,7 +114,10 @@ export async function runSchedulerIteration(
     const chunkPromises = chunk.map(async (acc) => {
       jobsDispatched++;
       try {
-        const res = await syncInstagramAccount(acc.id);
+        const res =
+          acc.provider === 'youtube'
+            ? await YouTubeProviderAdapter.syncAccount(acc.id)
+            : await syncInstagramAccount(acc.id);
         if (res.success) {
           successCount++;
         } else {

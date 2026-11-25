@@ -1,4 +1,5 @@
 import { NextResponse } from 'next/server';
+import { getYouTubeConfigStatus } from '@/lib/config';
 
 export interface ProviderCapability {
   configured: boolean;
@@ -24,12 +25,13 @@ export interface PlatformCapabilities {
 }
 
 export async function GET() {
+  const youtubeStatus = getYouTubeConfigStatus();
   const capabilities: PlatformCapabilities = {
     social: {
       googleYouTube: {
-        configured: Boolean(process.env.GOOGLE_CLIENT_ID && process.env.GOOGLE_CLIENT_SECRET),
-        status: process.env.GOOGLE_CLIENT_ID ? 'ACTIVE' : 'NOT_CONFIGURED',
-        reason: !process.env.GOOGLE_CLIENT_ID ? 'Missing GOOGLE_CLIENT_ID in server configuration' : undefined,
+        configured: youtubeStatus.configured,
+        status: youtubeStatus.status,
+        reason: youtubeStatus.reason,
       },
       metaInstagram: {
         configured: Boolean(process.env.META_APP_ID && process.env.META_APP_SECRET),

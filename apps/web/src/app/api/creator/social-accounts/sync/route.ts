@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server';
 import { getSession } from '@/lib/auth';
 import { getSocialAccountsByCreatorId } from '@/lib/social/social-repository';
 import { syncInstagramAccount } from '@/lib/social/sync-worker';
+import { YouTubeProviderAdapter } from '@/lib/social/youtube-sync';
 
 export async function POST(req: Request) {
   try {
@@ -41,8 +42,11 @@ export async function POST(req: Request) {
       }
     }
 
-    // Run synchronization
-    const result = await syncInstagramAccount(targetAccount.id);
+    // Run synchronization via unified provider dispatch
+    const result =
+      targetAccount.provider === 'youtube'
+        ? await YouTubeProviderAdapter.syncAccount(targetAccount.id)
+        : await syncInstagramAccount(targetAccount.id);
 
     return NextResponse.json({
       success: result.success,
