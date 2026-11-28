@@ -9,6 +9,7 @@ import {
 } from '@adzunova/payments-db';
 import { resolveServerBookingQuote } from '@/lib/bookings/quote-service';
 import { isCreatorDateBlackout } from '@/lib/creator/availability-repository';
+import { validateAndLinkBookingAttachments } from '@/lib/storage/upload-service';
 
 export async function GET(req: NextRequest) {
   const session = await getSession();
@@ -109,6 +110,19 @@ export async function POST(req: NextRequest) {
       ? body.assetIds.map(String).map((s) => s.trim()).filter(Boolean).slice(0, 10)
       : [];
 
+    if (assetIds.length > 0) {
+      await validateAndLinkBookingAttachments({
+        actor: {
+          userId: session.user.id,
+          tenantId: `brand:${session.user.id}`,
+          ownerType: 'BRAND',
+          ownerId: session.user.id,
+        },
+        bookingId: `pending:${session.user.id}`,
+        assetIds,
+      });
+    }
+
     const brandName =
       brandProfile?.brandName ||
       brandProfile?.companyName ||
@@ -138,6 +152,19 @@ export async function POST(req: NextRequest) {
       feeConfigVersion: resolved.feeConfigVersion,
       rateCardItemVersion: resolved.itemVersion,
     });
+
+    if (assetIds.length > 0) {
+      await validateAndLinkBookingAttachments({
+        actor: {
+          userId: session.user.id,
+          tenantId: `brand:${session.user.id}`,
+          ownerType: 'BRAND',
+          ownerId: session.user.id,
+        },
+        bookingId: booking.bookingId,
+        assetIds,
+      });
+    }
 
     return NextResponse.json({ booking }, { status: 201 });
   } catch (err) {

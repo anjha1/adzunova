@@ -27,6 +27,11 @@ export const StorageEnvSchema = z.object({
   MAX_IMAGE_SIZE_BYTES: positiveIntFromEnv(10 * 1024 * 1024),
   MAX_PDF_SIZE_BYTES: positiveIntFromEnv(25 * 1024 * 1024),
   MAX_VIDEO_SIZE_BYTES: positiveIntFromEnv(500 * 1024 * 1024),
+  CLAMAV_HOST: z.string().trim().optional(),
+  CLAMAV_PORT: positiveIntFromEnv(3310),
+  CLAMAV_TIMEOUT_MS: positiveIntFromEnv(15_000),
+  CLAMAV_MAX_STREAM_BYTES: positiveIntFromEnv(25 * 1024 * 1024),
+  SCAN_WORKER_CONCURRENCY: positiveIntFromEnv(2),
   MONGODB_URI: z.string().trim().min(1),
 });
 

@@ -4,6 +4,7 @@ import React, { useCallback, useEffect, useState } from 'react';
 import { PageHeader, EmptyState, StatCard } from '@/components/creator/ui';
 import { ShellIcon } from '@/components/creator/shell/shell-icons';
 import { BookingAgreementPanel } from '@/components/bookings/booking-agreement-panel';
+import { BookingAttachmentsPanel } from '@/components/bookings/booking-attachments-panel';
 
 const REJECTION_REASONS = [
   'Budget too low',
@@ -22,6 +23,7 @@ interface InboxBooking {
   quantity: number;
   deliveryDate: string;
   brief: string;
+  assetIds?: string[];
   counterRound: number;
   expiresAt: string;
   quoteSnapshot: {
@@ -240,6 +242,11 @@ export default function OffersPage() {
                 <p className="text-xs text-muted-foreground bg-muted/40 p-3 rounded-xl border border-border">
                   {offer.brief}
                 </p>
+
+                <BookingAttachmentsPanel
+                  bookingId={offer.bookingId}
+                  assetCount={Array.isArray(offer.assetIds) ? offer.assetIds.length : 0}
+                />
 
                 <BookingAgreementPanel
                   bookingId={offer.bookingId}

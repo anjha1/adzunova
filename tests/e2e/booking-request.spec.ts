@@ -1,6 +1,6 @@
 import { test, expect } from '@playwright/test';
 import AxeBuilder from '@axe-core/playwright';
-import { MongoClient } from 'mongodb';
+import { MongoClient, ObjectId } from 'mongodb';
 import crypto from 'node:crypto';
 import fs from 'node:fs';
 import path from 'node:path';
@@ -17,6 +17,7 @@ const MONGO_URI =
 const IDENTITY_URL = process.env.IDENTITY_SERVICE_URL || 'http://127.0.0.1:4101';
 const PAYMENTS_DB = process.env.PAYMENTS_MONGODB_DB_NAME || 'adzunova_payments';
 const APP_DB = process.env.MONGODB_DB_NAME || 'adzunova';
+const STORAGE_DB = process.env.STORAGE_MONGODB_DB_NAME || 'adzunova_storage';
 const SCREENSHOT_DIR = path.resolve('tests/e2e/screenshots/m3');
 
 const RUN_ID = Date.now().toString(36);
@@ -374,6 +375,121 @@ test.describe('M3 Booking Lifecycle E2E (Request -> Counter -> Accept)', () => {
     await expect(brandPage.getByText('SIGNED').first()).toBeVisible();
     await expect(brandPage.getByText('Agreement signed. Payment is not enabled yet.').first()).toBeVisible();
     await expect(brandPage.getByRole('button', { name: /Pay Now|Checkout/i })).toHaveCount(0);
+
+    // M5 Attachment Quarantine & Release Gate E2E check
+    const storageDb = mongoClient.db(STORAGE_DB);
+    const attAssetOid = new ObjectId();
+    const attVersionOid = new ObjectId();
+    const attBlobOid = new ObjectId();
+    const attAssetId = attAssetOid.toHexString();
+    const attNow = new Date();
+    await storageDb.collection('storage_asset_blobs').insertOne({
+      _id: attBlobOid,
+      sha256Hex: crypto.createHash('sha256').update(`e2e-m5-pdf-${RUN_ID}-${attAssetId}`).digest('hex'),
+      sizeBytes: 1024,
+      contentType: 'application/pdf',
+      dataClass: 'internal',
+      bucket: 'adzunova-dev-quarantine',
+      objectKey: `ingest/e2e/${attAssetId}/payload.bin`,
+      storageClass: 'STANDARD',
+      state: 'ACTIVE',
+      refCount: 1,
+      ownerType: 'BRAND',
+      ownerId: brandId,
+      tenantId: `brand:${brandId}`,
+      visibility: 'PRIVATE',
+      createdAt: attNow,
+      updatedAt: attNow,
+    });
+    await storageDb.collection('storage_asset_versions').insertOne({
+      _id: attVersionOid,
+      assetId: attAssetOid,
+      versionNumber: 1,
+      blobId: attBlobOid,
+      scanStatus: 'QUARANTINED',
+      releaseStatus: 'BLOCKED',
+      releasedBucket: null,
+      releasedKey: null,
+      tenantId: `brand:${brandId}`,
+      ownerType: 'BRAND',
+      ownerId: brandId,
+      createdBy: brandId,
+      visibility: 'PRIVATE',
+      createdAt: attNow,
+    });
+    await storageDb.collection('storage_media_assets').insertOne({
+      _id: attAssetOid,
+      assetUuid: crypto.randomUUID().replace(/-/g, ''),
+      idempotencyKey: `idem_e2e_${attAssetId}`,
+      ownerType: 'BRAND',
+      ownerId: brandId,
+      tenantId: `brand:${brandId}`,
+      visibility: 'PRIVATE',
+      dataClass: 'internal',
+      purpose: 'campaign_deliverable_draft',
+      originalFileName: 'e2e-brief.pdf',
+      scanStatus: 'QUARANTINED',
+      releaseStatus: 'BLOCKED',
+      currentVersionId: attVersionOid,
+      status: 'ACTIVE',
+      deletedAt: null,
+      createdAt: attNow,
+      updatedAt: attNow,
+    });
+    await storageDb.collection('storage_asset_links').insertOne({
+      assetId: attAssetOid,
+      blobId: attBlobOid,
+      entityType: 'booking',
+      entityId: bookingId,
+      fieldRole: 'brief_attachment',
+      ownerType: 'BRAND',
+      ownerId: brandId,
+      tenantId: `brand:${brandId}`,
+      visibility: 'PRIVATE',
+      createdAt: attNow,
+    });
+    await payDb.collection('pay_bookings').updateOne(
+      { bookingId },
+      { $set: { assetIdsJson: JSON.stringify([attAssetId]) } }
+    );
+
+    // Reload Creator offers: sees "Uploaded — scan pending" and NO Download button; download route returns 403
+    await creatorPage.reload();
+    await expect(creatorPage.getByText('e2e-brief.pdf')).toBeVisible();
+    await expect(creatorPage.getByText('Uploaded — scan pending')).toBeVisible();
+    await expect(creatorPage.getByRole('button', { name: 'Download' })).toHaveCount(0);
+
+    const pendingRes = await creatorPage.request.get(
+      `/api/bookings/${bookingId}/attachments/${attAssetId}/download`
+    );
+    expect(pendingRes.status()).toBe(403);
+
+    // Simulate clean scan release -> Creator refreshes and sees "Ready" + Download button
+    await storageDb.collection('storage_asset_versions').updateOne(
+      { _id: attVersionOid },
+      {
+        $set: {
+          scanStatus: 'CLEAN',
+          releaseStatus: 'RELEASED',
+          releasedBucket: 'adzunova-dev-private',
+          releasedKey: `private/e2e/${attAssetId}/v1.pdf`,
+        },
+      }
+    );
+    await storageDb.collection('storage_media_assets').updateOne(
+      { _id: attAssetOid },
+      { $set: { scanStatus: 'CLEAN', releaseStatus: 'RELEASED' } }
+    );
+
+    await creatorPage.reload();
+    await expect(creatorPage.getByText('Ready').first()).toBeVisible();
+    await expect(creatorPage.getByRole('button', { name: 'Download' })).toBeVisible();
+
+    // Cleanup M5 test attachment docs
+    await storageDb.collection('storage_asset_links').deleteMany({ entityId: bookingId });
+    await storageDb.collection('storage_media_assets').deleteMany({ _id: attAssetOid });
+    await storageDb.collection('storage_asset_versions').deleteMany({ _id: attVersionOid });
+    await storageDb.collection('storage_asset_blobs').deleteMany({ _id: attBlobOid });
 
     // Axe check on creator inbox & brand offers
     const axeCreator = await new AxeBuilder({ page: creatorPage })

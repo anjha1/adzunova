@@ -9,7 +9,7 @@ export interface UploadedAssetResult {
   assetUuid: string;
   purpose: StoragePurpose;
   visibility: 'PUBLIC' | 'PRIVATE';
-  scanStatus: 'REENCODED' | 'NOT_SCANNED';
+  scanStatus: 'REENCODED' | 'QUARANTINED' | 'SCANNING' | 'CLEAN' | 'REJECTED' | 'SCAN_FAILED' | 'NOT_SCANNED';
   sha256Hex: string;
   sizeBytes: number;
   contentType: string;

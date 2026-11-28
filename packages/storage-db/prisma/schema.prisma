@@ -136,3 +136,35 @@ model UploadSession {
   @@index([tenantId, status, createdAt(sort: Desc)])
   @@map("storage_upload_sessions")
 }
+
+model StorageScanJob {
+  id               String    @id @default(auto()) @map("_id") @db.ObjectId
+  jobId            String    @unique
+  dedupKey         String    @unique
+  assetId          String    @db.ObjectId
+  versionId        String    @db.ObjectId
+  versionNumber    Int
+  tenantId         String
+  purpose          String
+  quarantineBucket String
+  quarantineKey    String
+  sha256Hex        String
+  sizeBytes        BigInt
+  contentType      String
+  status           String    @default("PENDING") // 'PENDING' | 'LEASED' | 'CLEAN' | 'REJECTED' | 'SCAN_FAILED' | 'DLQ' | 'SUPERSEDED'
+  attempts         Int       @default(0)
+  maxAttempts      Int       @default(5)
+  runAt            DateTime  @default(now())
+  lockedBy         String?
+  lockedUntil      DateTime?
+  lastError        String?
+  verdictSignature String?
+  scannerProvider  String?
+  completedAt      DateTime?
+  createdAt        DateTime  @default(now())
+  updatedAt        DateTime  @updatedAt
+
+  @@index([status, runAt, lockedUntil])
+  @@index([assetId, versionNumber])
+  @@map("storage_scan_jobs")
+}

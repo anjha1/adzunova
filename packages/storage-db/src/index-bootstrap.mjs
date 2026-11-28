@@ -48,6 +48,28 @@ export const RAW_INDEX_SPECS = [
     name: 'idx_media_assets_tenant_keyset',
     key: { tenantId: 1, createdAt: -1, _id: -1 },
   },
+  {
+    collection: 'storage_scan_jobs',
+    name: 'uniq_storage_scan_job_id',
+    key: { jobId: 1 },
+    unique: true,
+  },
+  {
+    collection: 'storage_scan_jobs',
+    name: 'uniq_storage_scan_dedupKey',
+    key: { dedupKey: 1 },
+    unique: true,
+  },
+  {
+    collection: 'storage_scan_jobs',
+    name: 'idx_storage_scan_poll',
+    key: { status: 1, runAt: 1, lockedUntil: 1 },
+  },
+  {
+    collection: 'storage_scan_jobs',
+    name: 'idx_storage_scan_asset_ver',
+    key: { assetId: 1, versionNumber: 1 },
+  },
 ];
 
 export async function runIndexBootstrap(mode = 'up', uri = loadEnvUri(), dbName = process.env.STORAGE_MONGODB_DB_NAME || 'adzunova_storage') {

@@ -7,7 +7,9 @@ import { buildIngestKey, buildPrivateKey, buildPublicKey, computeTenantShard } f
 import { buildPublicCdnUrl, HARD_MAX_PRESIGN_GET_TTL_SECONDS } from './delivery';
 import { StoragePortError, scrubStorageSecrets } from './errors';
 import { getStorageAdapterForRole } from './runtime';
+import type { ObjectStoragePort } from './port';
 import { getUserStorageQuotaBytes } from './rate-limit';
+import { enqueueAssetScanJob } from './scan-worker';
 import {
   getPurposeUploadRules,
   reencodePublicImage,
@@ -178,10 +180,10 @@ export async function createUploadSession(params: {
       const uploadUrl =
         existing.mode === 'single'
           ? await signer.port.presignPut(existing.bucket, existing.objectKey, {
-              contentType: existing.contentType,
-              contentLength: Number(existing.expectedBytes),
-              expiresInSeconds: ttlSeconds,
-            })
+            contentType: existing.contentType,
+            contentLength: Number(existing.expectedBytes),
+            expiresInSeconds: ttlSeconds,
+          })
           : undefined;
       return {
         sessionId: existing.sessionUuid,
@@ -389,10 +391,10 @@ export async function abortUploadSession(params: { actor: AuthActor; sessionId: 
   const processor = getStorageAdapterForRole('processor');
 
   if (session.mode === 'multipart' && session.uploadId && signer.ok) {
-    await signer.port.abortMultipart(session.bucket, session.objectKey, session.uploadId).catch(() => {});
+    await signer.port.abortMultipart(session.bucket, session.objectKey, session.uploadId).catch(() => { });
   }
   if (processor.ok) {
-    await processor.port.delete(session.bucket, session.objectKey).catch(() => {});
+    await processor.port.delete(session.bucket, session.objectKey).catch(() => { });
   }
 
   const db = await getStorageMongoDb();
@@ -507,7 +509,7 @@ export async function completeUploadSession(params: {
   }
 
   const cleanupQuarantine = async () => {
-    await processor.port.delete(session.bucket, session.objectKey).catch(() => {});
+    await processor.port.delete(session.bucket, session.objectKey).catch(() => { });
   };
 
   // 2. Stream from quarantine: magic bytes, size, SHA-256, conservative PDF check
@@ -601,7 +603,8 @@ export async function completeUploadSession(params: {
   let finalMime = validation.detectedMime;
   let publicUrl: string | null = null;
   let thumbUrl: string | null = null;
-  let scanStatus: 'REENCODED' | 'NOT_SCANNED' = 'NOT_SCANNED';
+  let scanStatus: 'REENCODED' | 'QUARANTINED' | 'CLEAN' | 'REJECTED' | 'SCAN_FAILED' | 'NOT_SCANNED' = 'QUARANTINED';
+  let releaseStatus: 'RELEASED' | 'BLOCKED' = 'BLOCKED';
 
   if (isPublicImage && rules.imageBounds) {
     if (!validation.bufferedIfSmall) {
@@ -639,8 +642,16 @@ export async function completeUploadSession(params: {
     finalBytes = processed.mainBuffer.length;
     finalMime = 'image/webp';
     scanStatus = 'REENCODED';
+    releaseStatus = 'RELEASED';
     publicUrl = buildDevOrCdnPublicUrl(finalKey, processor.runtime.cdnBase, processor.runtime.isDevTarget);
     thumbUrl = buildDevOrCdnPublicUrl(thumbKey, processor.runtime.cdnBase, processor.runtime.isDevTarget);
+    await cleanupQuarantine();
+  } else if (policy.scanPolicy === 'REQUIRED_MALWARE_SCAN') {
+    // M5: Keep untrusted bytes in private quarantine bucket until malware scan passes
+    finalBucket = session.bucket;
+    finalKey = session.objectKey;
+    scanStatus = 'QUARANTINED';
+    releaseStatus = 'BLOCKED';
   } else {
     const shard = computeTenantShard(params.actor.tenantId);
     finalKey = buildPrivateKey({
@@ -653,9 +664,9 @@ export async function completeUploadSession(params: {
     });
     await processor.port.copy(session.bucket, session.objectKey, finalBucket, finalKey);
     scanStatus = 'NOT_SCANNED';
+    releaseStatus = 'RELEASED';
+    await cleanupQuarantine();
   }
-
-  await cleanupQuarantine();
 
   // 4. Persist metadata: blob (dedup + atomic refCount), media_asset, asset_version, asset_event
   const now = new Date();
@@ -694,6 +705,11 @@ export async function completeUploadSession(params: {
     assetId: assetOid,
     versionNumber: 1,
     blobId: new ObjectId(blobId),
+    sha256Hex: finalSha256,
+    scanStatus,
+    releaseStatus,
+    releasedBucket: releaseStatus === 'RELEASED' ? finalBucket : null,
+    releasedKey: releaseStatus === 'RELEASED' ? finalKey : null,
     tenantId: params.actor.tenantId,
     ownerType: params.actor.ownerType,
     ownerId: params.actor.ownerId,
@@ -714,12 +730,28 @@ export async function completeUploadSession(params: {
     purpose,
     originalFileName: session.fileName,
     scanStatus,
+    releaseStatus,
     currentVersionId: versionOid,
     status: 'ACTIVE',
     deletedAt: null,
     createdAt: now,
     updatedAt: now,
   });
+
+  if (policy.scanPolicy === 'REQUIRED_MALWARE_SCAN') {
+    await enqueueAssetScanJob({
+      assetId,
+      versionId: versionOid.toHexString(),
+      versionNumber: 1,
+      tenantId: params.actor.tenantId,
+      purpose,
+      quarantineBucket: finalBucket,
+      quarantineKey: finalKey,
+      sha256Hex: finalSha256,
+      sizeBytes: finalBytes,
+      contentType: finalMime,
+    });
+  }
 
   const eventRepo = new AppendOnlyAssetEventRepository();
   await eventRepo.insert({
@@ -761,6 +793,8 @@ export async function completeUploadSession(params: {
 export async function issueAuthorizedDownloadUrl(params: {
   actor: AuthActor;
   assetId: string;
+  bookingId?: string;
+  readerOverride?: Pick<ObjectStoragePort, 'presignGet'>;
 }) {
   if (!ObjectId.isValid(params.assetId)) {
     throw new StoragePortError({
@@ -774,11 +808,36 @@ export async function issueAuthorizedDownloadUrl(params: {
   }
 
   const db = await getStorageMongoDb();
-  const asset = await db.collection('storage_media_assets').findOne({
-    _id: new ObjectId(params.assetId),
-    tenantId: params.actor.tenantId,
-    deletedAt: null,
-  });
+  const assetOid = new ObjectId(params.assetId);
+
+  let asset;
+  if (params.bookingId) {
+    const link = await db.collection('storage_asset_links').findOne({
+      entityType: 'booking',
+      entityId: params.bookingId,
+      assetId: assetOid,
+    });
+    if (!link) {
+      throw new StoragePortError({
+        type: 'urn:adzunova:problems:storage-forbidden',
+        title: 'Attachment Not Linked',
+        status: 403,
+        detail: 'This attachment does not belong to the specified booking.',
+        code: 'ATTACHMENT_NOT_LINKED',
+        retryable: false,
+      });
+    }
+    asset = await db.collection('storage_media_assets').findOne({
+      _id: assetOid,
+      deletedAt: null,
+    });
+  } else {
+    asset = await db.collection('storage_media_assets').findOne({
+      _id: assetOid,
+      tenantId: params.actor.tenantId,
+      deletedAt: null,
+    });
+  }
 
   if (!asset) {
     throw new StoragePortError({
@@ -793,7 +852,7 @@ export async function issueAuthorizedDownloadUrl(params: {
 
   const version = await db.collection('storage_asset_versions').findOne({ _id: asset.currentVersionId });
   const blob = version ? await db.collection('storage_asset_blobs').findOne({ _id: version.blobId }) : null;
-  if (!blob) {
+  if (!blob || !version) {
     throw new StoragePortError({
       type: 'urn:adzunova:problems:storage-asset-not-found',
       title: 'Asset Blob Not Found',
@@ -804,14 +863,80 @@ export async function issueAuthorizedDownloadUrl(params: {
     });
   }
 
-  const reader = getStorageAdapterForRole('reader');
-  if (!reader.ok) {
+  // M5 Centralized Release Gate: fail closed for any un-scanned, quarantined, rejected, or failed file
+  const policy = getClassificationPolicy(String(asset.purpose) as StoragePurpose);
+  if (policy.scanPolicy === 'REQUIRED_MALWARE_SCAN') {
+    const sStatus = String(asset.scanStatus || 'NOT_SCANNED');
+    const rStatus = String(version.releaseStatus || asset.releaseStatus || 'BLOCKED');
+    if (sStatus === 'REJECTED') {
+      throw new StoragePortError({
+        type: 'urn:adzunova:problems:storage-attachment-rejected',
+        title: 'File Rejected',
+        status: 403,
+        detail: 'File rejected by malware scan and cannot be accessed.',
+        code: 'ATTACHMENT_REJECTED',
+        retryable: false,
+      });
+    }
+    if (sStatus === 'SCAN_FAILED') {
+      throw new StoragePortError({
+        type: 'urn:adzunova:problems:storage-scan-unavailable',
+        title: 'Scan Unavailable',
+        status: 503,
+        detail: 'Malware scan unavailable. File access remains blocked.',
+        code: 'ATTACHMENT_SCAN_UNAVAILABLE',
+        retryable: true,
+      });
+    }
+    if (
+      sStatus !== 'CLEAN' ||
+      rStatus !== 'RELEASED' ||
+      !version.releasedBucket ||
+      !version.releasedKey
+    ) {
+      throw new StoragePortError({
+        type: 'urn:adzunova:problems:storage-scan-pending',
+        title: 'Scan Pending',
+        status: 403,
+        detail: 'Uploaded — scan pending. File access is blocked until malware scan completes.',
+        code: 'ATTACHMENT_SCAN_PENDING',
+        retryable: true,
+      });
+    }
+  }
+
+  let readerPort: Pick<ObjectStoragePort, 'presignGet'>;
+  let quarantineBucket = '';
+  if (params.readerOverride) {
+    readerPort = params.readerOverride;
+  } else {
+    const reader = getStorageAdapterForRole('reader');
+    if (!reader.ok) {
+      throw new StoragePortError({
+        type: 'urn:adzunova:problems:storage-not-configured',
+        title: 'Storage Not Configured',
+        status: 503,
+        detail: reader.reason,
+        code: 'STORAGE_NOT_CONFIGURED',
+        retryable: false,
+      });
+    }
+    readerPort = reader.port;
+    quarantineBucket = reader.runtime.buckets.quarantine;
+  }
+
+  const targetBucket = version.releasedBucket ? String(version.releasedBucket) : String(blob.bucket);
+  const targetKey = version.releasedKey ? String(version.releasedKey) : String(blob.objectKey);
+  if (
+    (quarantineBucket && targetBucket === quarantineBucket) ||
+    targetKey.startsWith('ingest/')
+  ) {
     throw new StoragePortError({
-      type: 'urn:adzunova:problems:storage-not-configured',
-      title: 'Storage Not Configured',
-      status: 503,
-      detail: reader.reason,
-      code: 'STORAGE_NOT_CONFIGURED',
+      type: 'urn:adzunova:problems:storage-quarantine-blocked',
+      title: 'Quarantine Access Forbidden',
+      status: 403,
+      detail: 'Quarantined objects can never be downloaded directly.',
+      code: 'QUARANTINE_ACCESS_FORBIDDEN',
       retryable: false,
     });
   }
@@ -820,7 +945,7 @@ export async function issueAuthorizedDownloadUrl(params: {
   const ttl = Math.max(1, Math.min(envTtl, HARD_MAX_PRESIGN_GET_TTL_SECONDS));
   const safeName = sanitizeDownloadFilename(asset.originalFileName || 'document.pdf');
   const disposition = `attachment; filename="${safeName}"`;
-  const url = await reader.port.presignGet(blob.bucket, blob.objectKey, ttl, disposition);
+  const url = await readerPort.presignGet(targetBucket, targetKey, ttl, disposition);
 
   return {
     assetId: params.assetId,
@@ -829,6 +954,142 @@ export async function issueAuthorizedDownloadUrl(params: {
     scanStatus: asset.scanStatus || 'NOT_SCANNED',
     fileName: safeName,
   };
+}
+
+export async function validateAndLinkBookingAttachments(params: {
+  actor: AuthActor;
+  bookingId: string;
+  assetIds: string[];
+}): Promise<void> {
+  if (params.assetIds.length === 0) return;
+  const db = await getStorageMongoDb();
+
+  for (const assetId of params.assetIds) {
+    if (!ObjectId.isValid(assetId)) {
+      throw new StoragePortError({
+        type: 'urn:adzunova:problems:storage-invalid-attachment',
+        title: 'Invalid Attachment',
+        status: 400,
+        detail: `Invalid attachment ID: ${assetId}`,
+        code: 'INVALID_ATTACHMENT_ID',
+        retryable: false,
+      });
+    }
+
+    const assetOid = new ObjectId(assetId);
+    const asset = await db.collection('storage_media_assets').findOne({
+      _id: assetOid,
+      tenantId: params.actor.tenantId,
+      ownerId: params.actor.ownerId,
+      deletedAt: null,
+    });
+
+    if (!asset) {
+      throw new StoragePortError({
+        type: 'urn:adzunova:problems:storage-forbidden',
+        title: 'Unauthorized Attachment',
+        status: 403,
+        detail: 'You do not own one or more attached files.',
+        code: 'ATTACHMENT_OWNERSHIP_DENIED',
+        retryable: false,
+      });
+    }
+
+    if (asset.purpose !== 'campaign_deliverable_draft' && asset.purpose !== 'contract_pdf') {
+      throw new StoragePortError({
+        type: 'urn:adzunova:problems:storage-invalid-purpose',
+        title: 'Invalid Attachment Purpose',
+        status: 400,
+        detail: `Asset purpose "${asset.purpose}" cannot be attached to a booking.`,
+        code: 'INVALID_ATTACHMENT_PURPOSE',
+        retryable: false,
+      });
+    }
+
+    const existingOtherLink = await db.collection('storage_asset_links').findOne({
+      assetId: assetOid,
+      entityType: 'booking',
+      entityId: { $ne: params.bookingId },
+    });
+
+    if (existingOtherLink) {
+      throw new StoragePortError({
+        type: 'urn:adzunova:problems:storage-attachment-reused',
+        title: 'Attachment Already Linked',
+        status: 409,
+        detail: 'This file is already linked to another booking.',
+        code: 'ATTACHMENT_REUSE_FORBIDDEN',
+        retryable: false,
+      });
+    }
+
+    const version = await db.collection('storage_asset_versions').findOne({ _id: asset.currentVersionId });
+    await db.collection('storage_asset_links').updateOne(
+      {
+        entityType: 'booking',
+        entityId: params.bookingId,
+        fieldRole: 'brief_attachment',
+        assetId: assetOid,
+      },
+      {
+        $setOnInsert: {
+          assetId: assetOid,
+          blobId: version?.blobId ?? assetOid,
+          entityType: 'booking',
+          entityId: params.bookingId,
+          fieldRole: 'brief_attachment',
+          ownerType: params.actor.ownerType,
+          ownerId: params.actor.ownerId,
+          tenantId: params.actor.tenantId,
+          visibility: 'PRIVATE',
+          createdAt: new Date(),
+        },
+      },
+      { upsert: true }
+    );
+  }
+}
+
+export async function listBookingAttachmentsStatus(params: {
+  bookingId: string;
+  assetIds: string[];
+}): Promise<
+  Array<{
+    assetId: string;
+    fileName: string;
+    contentType: string;
+    scanStatus: string;
+    releaseStatus: string;
+    canDownload: boolean;
+    isOwnerTenant: string;
+  }>
+> {
+  if (params.assetIds.length === 0) return [];
+  const db = await getStorageMongoDb();
+  const validOids = params.assetIds.filter((id) => ObjectId.isValid(id)).map((id) => new ObjectId(id));
+  if (validOids.length === 0) return [];
+
+  const assets = await db
+    .collection('storage_media_assets')
+    .find({ _id: { $in: validOids }, deletedAt: null })
+    .toArray();
+
+  const results = [];
+  for (const asset of assets) {
+    const version = await db.collection('storage_asset_versions').findOne({ _id: asset.currentVersionId });
+    const scanStatus = String(asset.scanStatus || 'NOT_SCANNED');
+    const releaseStatus = String(version?.releaseStatus || asset.releaseStatus || 'BLOCKED');
+    results.push({
+      assetId: String(asset._id),
+      fileName: String(asset.originalFileName || 'attachment'),
+      contentType: String(version?.contentType || 'application/octet-stream'),
+      scanStatus,
+      releaseStatus,
+      canDownload: scanStatus === 'CLEAN' && releaseStatus === 'RELEASED',
+      isOwnerTenant: String(asset.tenantId),
+    });
+  }
+  return results;
 }
 
 export function safeLogStorageError(context: string, err: unknown): void {

@@ -4,6 +4,7 @@ import React, { useCallback, useEffect, useState } from 'react';
 import Link from 'next/link';
 import { BrandPageContainer, BrandEmptyState } from '@/components/brand/shell/brand-page-container';
 import { BookingAgreementPanel } from '@/components/bookings/booking-agreement-panel';
+import { BookingAttachmentsPanel } from '@/components/bookings/booking-attachments-panel';
 
 interface BookingItem {
   bookingId: string;
@@ -16,6 +17,7 @@ interface BookingItem {
   quantity: number;
   deliveryDate: string;
   brief: string;
+  assetIds?: string[];
   counterRound: number;
   rejectionReason: string | null;
   expiresAt: string;
@@ -174,6 +176,11 @@ export default function BrandOffersPage() {
                 <p className="text-xs text-muted-foreground bg-muted/40 p-3 rounded-xl border border-border">
                   {b.brief}
                 </p>
+
+                <BookingAttachmentsPanel
+                  bookingId={b.bookingId}
+                  assetCount={Array.isArray(b.assetIds) ? b.assetIds.length : 0}
+                />
 
                 <BookingAgreementPanel
                   bookingId={b.bookingId}
