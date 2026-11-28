@@ -12,6 +12,7 @@ export const BOOKING_STATUSES = [
   'EXPIRED',
   'CANCELLED',
   'AGREEMENT_PENDING',
+  'SIGNED',
 ] as const;
 
 export type BookingStatus = (typeof BOOKING_STATUSES)[number];
@@ -23,7 +24,8 @@ export const BOOKING_TRANSITIONS: Record<BookingStatus, readonly BookingStatus[]
   REJECTED: [],
   EXPIRED: [],
   CANCELLED: [],
-  AGREEMENT_PENDING: [],
+  AGREEMENT_PENDING: ['SIGNED', 'EXPIRED'],
+  SIGNED: [],
 };
 
 export const OPEN_BOOKING_STATUSES: readonly BookingStatus[] = ['REQUESTED', 'COUNTERED'];
@@ -505,6 +507,39 @@ export async function acceptBooking(params: {
     notifyRole: 'BRAND',
     notifyTitle: 'Collaboration Accepted',
     notifyMessage: `${existing.creatorName} accepted your request for "${existing.itemTitle}".`,
+  });
+}
+
+export async function acceptCounterOffer(params: {
+  bookingId: string;
+  brandId: string;
+}): Promise<BookingRecord> {
+  const existing = await getBookingById(params.bookingId);
+  if (!existing) {
+    throw new AppProblemError({
+      status: 404,
+      code: 'BOOKING_NOT_FOUND',
+      title: 'Booking Not Found',
+      detail: `Booking ${params.bookingId} does not exist`,
+    });
+  }
+  if (existing.status !== 'COUNTERED') {
+    throw new AppProblemError({
+      status: 409,
+      code: 'ILLEGAL_BOOKING_TRANSITION',
+      title: 'Illegal Booking State Transition',
+      detail: `Brand can only accept a COUNTERED offer (current status: ${existing.status})`,
+    });
+  }
+  return transitionBooking({
+    bookingId: params.bookingId,
+    actorId: params.brandId,
+    actorRole: 'BRAND',
+    toStatus: 'ACCEPTED',
+    notifyUserId: existing.creatorId,
+    notifyRole: 'CREATOR',
+    notifyTitle: 'Counter Offer Accepted',
+    notifyMessage: `${existing.brandName} accepted your counter offer for "${existing.itemTitle}".`,
   });
 }
 

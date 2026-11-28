@@ -318,3 +318,52 @@ model PayNotification {
   @@index([userId, readAt, createdAt(sort: Desc)])
   @@map("pay_notifications")
 }
+
+model PayAgreement {
+  id                         String    @id @default(auto()) @map("_id") @db.ObjectId
+  agreementId                String    @unique
+  bookingId                  String
+  bookingVersion             Int
+  version                    Int       @default(1)
+  isActive                   Boolean   @default(true)
+  idempotencyKey             String    @unique
+  templateVersion            String
+  status                     String    // GENERATING | PENDING_SIGNATURES | SIGNED | EXPIRED | SUPERSEDED
+  termsSnapshotJson          String
+  pdfBucket                  String?
+  pdfObjectKey               String?
+  pdfSha256                  String?
+  pdfSizeBytes               Int?
+  signedPdfBucket            String?
+  signedPdfObjectKey         String?
+  signedPdfSha256            String?
+  provider                   String    @default("UNCONFIGURED")
+  providerEnvelopeId         String?
+  brandSignedAt              DateTime?
+  brandSignerId              String?
+  brandSignatureEvidenceJson String?
+  creatorSignedAt            DateTime?
+  creatorSignerId            String?
+  creatorSignatureEvidenceJson String?
+  expiresAt                  DateTime
+  signedAt                   DateTime?
+  createdAt                  DateTime  @default(now())
+  updatedAt                  DateTime  @updatedAt
+
+  @@index([bookingId, version(sort: Desc)])
+  @@index([status, expiresAt])
+  @@map("pay_agreements")
+}
+
+model PayAgreementCallback {
+  id             String   @id @default(auto()) @map("_id") @db.ObjectId
+  callbackId     String   @unique
+  agreementId    String
+  provider       String
+  signerRole     String
+  payloadHash    String
+  processedAt    DateTime @default(now())
+
+  @@index([agreementId, processedAt(sort: Desc)])
+  @@map("pay_agreement_callbacks")
+}

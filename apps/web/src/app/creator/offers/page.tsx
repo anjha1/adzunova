@@ -3,6 +3,7 @@
 import React, { useCallback, useEffect, useState } from 'react';
 import { PageHeader, EmptyState, StatCard } from '@/components/creator/ui';
 import { ShellIcon } from '@/components/creator/shell/shell-icons';
+import { BookingAgreementPanel } from '@/components/bookings/booking-agreement-panel';
 
 const REJECTION_REASONS = [
   'Budget too low',
@@ -240,11 +241,12 @@ export default function OffersPage() {
                   {offer.brief}
                 </p>
 
-                {offer.status === 'ACCEPTED' && (
-                  <div className="p-3 rounded-xl border border-emerald-500/30 bg-emerald-500/10 text-xs text-emerald-700 dark:text-emerald-300 font-medium">
-                    Accepted. Agreement step is not enabled yet.
-                  </div>
-                )}
+                <BookingAgreementPanel
+                  bookingId={offer.bookingId}
+                  bookingStatus={offer.status}
+                  viewerRole="CREATOR"
+                  onStatusUpdated={() => void loadInbox()}
+                />
 
                 {canRespond && (
                   <div className="flex flex-wrap items-center gap-2 pt-2 border-t border-border">

@@ -61,6 +61,7 @@ export {
   maskContactInfo,
   createBookingRequest,
   acceptBooking,
+  acceptCounterOffer,
   rejectBooking,
   counterBooking,
   cancelBooking,
@@ -73,6 +74,21 @@ export {
   type BookingRecord,
   type BookingEventRecord,
 } from './bookings';
+export {
+  AGREEMENT_TEMPLATE_VERSION,
+  DEFAULT_SIGN_WINDOW_HOURS,
+  AGREEMENT_STATUSES,
+  getActiveAgreementForBooking,
+  getAgreementById,
+  beginAgreementGeneration,
+  finalizeAgreementPdf,
+  createReplacementAgreement,
+  setAgreementEnvelopeId,
+  recordVerifiedAgreementSignature,
+  expireAgreement,
+  type AgreementStatus,
+  type AgreementRecord,
+} from './agreements';
 export {
   LEDGER_ACCOUNT_CODES,
   postLedgerEntry,

@@ -3,6 +3,7 @@
 import React, { useCallback, useEffect, useState } from 'react';
 import Link from 'next/link';
 import { BrandPageContainer, BrandEmptyState } from '@/components/brand/shell/brand-page-container';
+import { BookingAgreementPanel } from '@/components/bookings/booking-agreement-panel';
 
 interface BookingItem {
   bookingId: string;
@@ -99,6 +100,23 @@ export default function BrandOffersPage() {
     }
   };
 
+  const handleAcceptCounter = async (bookingId: string) => {
+    setErrorMsg(null);
+    try {
+      const res = await fetch(`/api/bookings/${encodeURIComponent(bookingId)}/accept`, {
+        method: 'POST',
+      });
+      const data = await res.json();
+      if (!res.ok) {
+        setErrorMsg(data.detail || data.error || 'Failed to accept counter offer');
+        return;
+      }
+      setBookings((prev) => prev.map((b) => (b.bookingId === bookingId ? data.booking : b)));
+    } catch {
+      setErrorMsg('Network error accepting counter offer');
+    }
+  };
+
   return (
     <BrandPageContainer
       title="Offers & Bookings"
@@ -157,11 +175,12 @@ export default function BrandOffersPage() {
                   {b.brief}
                 </p>
 
-                {b.status === 'ACCEPTED' && (
-                  <div className="p-3 rounded-xl border border-emerald-500/30 bg-emerald-500/10 text-xs text-emerald-700 dark:text-emerald-300 font-medium">
-                    Accepted. Agreement step is not enabled yet.
-                  </div>
-                )}
+                <BookingAgreementPanel
+                  bookingId={b.bookingId}
+                  bookingStatus={b.status}
+                  viewerRole="BRAND"
+                  onStatusUpdated={() => void loadBookings()}
+                />
 
                 {b.status === 'REJECTED' && b.rejectionReason && (
                   <div className="p-3 rounded-xl border border-rose-500/30 bg-rose-500/10 text-xs text-rose-700 dark:text-rose-300">
@@ -190,13 +209,24 @@ export default function BrandOffersPage() {
                   </div>
 
                   {(b.status === 'REQUESTED' || b.status === 'COUNTERED') && (
-                    <button
-                      type="button"
-                      onClick={() => void handleCancel(b.bookingId)}
-                      className="px-3 py-1.5 rounded-lg border border-border text-xs text-rose-600 dark:text-rose-400 hover:bg-muted"
-                    >
-                      Withdraw Request
-                    </button>
+                    <div className="flex items-center gap-2">
+                      {b.status === 'COUNTERED' && (
+                        <button
+                          type="button"
+                          onClick={() => void handleAcceptCounter(b.bookingId)}
+                          className="px-3 py-1.5 rounded-lg bg-emerald-600 hover:bg-emerald-700 !text-white text-xs font-bold"
+                        >
+                          Accept Counter
+                        </button>
+                      )}
+                      <button
+                        type="button"
+                        onClick={() => void handleCancel(b.bookingId)}
+                        className="px-3 py-1.5 rounded-lg border border-border text-xs text-rose-600 dark:text-rose-400 hover:bg-muted"
+                      >
+                        Withdraw Request
+                      </button>
+                    </div>
                   )}
                 </div>
 

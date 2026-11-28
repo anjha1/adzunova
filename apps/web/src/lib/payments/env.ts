@@ -4,6 +4,9 @@ import { AppProblemError } from '@adzunova/problem-details';
 export const RazorpayModeSchema = z.enum(['off', 'test', 'live_probe', 'live']);
 export type RazorpayMode = z.infer<typeof RazorpayModeSchema>;
 
+export const ESignProviderSchema = z.enum(['off', 'leegality', 'digio', 'docusign']);
+export type ESignProvider = z.infer<typeof ESignProviderSchema>;
+
 const PaymentsEnvSchema = z.object({
   MONGODB_URI: z.string().min(1).optional(),
   PAYMENTS_MONGODB_DB_NAME: z.string().min(1).default('adzunova_payments'),
@@ -16,6 +19,10 @@ const PaymentsEnvSchema = z.object({
   RAZORPAY_KEY_ID: z.string().min(1).optional(),
   RAZORPAY_KEY_SECRET: z.string().min(1).optional(),
   RAZORPAY_WEBHOOK_SECRET: z.string().min(1).optional(),
+  ESIGN_PROVIDER: ESignProviderSchema.default('off'),
+  ESIGN_API_KEY: z.string().min(1).optional(),
+  ESIGN_WEBHOOK_SECRET: z.string().min(1).optional(),
+  AGREEMENT_SIGN_WINDOW_HOURS: z.coerce.number().int().min(1).max(720).default(120),
 });
 
 export interface ValidatedPaymentsEnv {
@@ -29,6 +36,9 @@ export interface ValidatedPaymentsEnv {
   liveProbeDailyCap: number;
   razorpayConfigured: boolean;
   isLiveKey: boolean;
+  esignProvider: ESignProvider;
+  esignConfigured: boolean;
+  agreementSignWindowHours: number;
   // Never expose raw key/secret in public status objects
   getRazorpayCredentials(): { keyId: string; keySecret: string; webhookSecret?: string } | null;
 }
@@ -49,6 +59,10 @@ export function loadPaymentsEnv(
     RAZORPAY_KEY_ID: rawEnv.RAZORPAY_KEY_ID || undefined,
     RAZORPAY_KEY_SECRET: rawEnv.RAZORPAY_KEY_SECRET || undefined,
     RAZORPAY_WEBHOOK_SECRET: rawEnv.RAZORPAY_WEBHOOK_SECRET || undefined,
+    ESIGN_PROVIDER: rawEnv.ESIGN_PROVIDER || undefined,
+    ESIGN_API_KEY: rawEnv.ESIGN_API_KEY || undefined,
+    ESIGN_WEBHOOK_SECRET: rawEnv.ESIGN_WEBHOOK_SECRET || undefined,
+    AGREEMENT_SIGN_WINDOW_HOURS: rawEnv.AGREEMENT_SIGN_WINDOW_HOURS || undefined,
   });
 
   if (!parsed.success) {
@@ -104,6 +118,9 @@ export function loadPaymentsEnv(
   }
 
   const razorpayConfigured = Boolean(data.RAZORPAY_KEY_ID && data.RAZORPAY_KEY_SECRET);
+  const esignConfigured =
+    data.ESIGN_PROVIDER !== 'off' &&
+    Boolean(data.ESIGN_API_KEY && data.ESIGN_WEBHOOK_SECRET);
 
   return {
     dbConfigured: Boolean(data.MONGODB_URI),
@@ -116,6 +133,9 @@ export function loadPaymentsEnv(
     liveProbeDailyCap: data.RAZORPAY_LIVE_PROBE_DAILY_CAP,
     razorpayConfigured,
     isLiveKey,
+    esignProvider: data.ESIGN_PROVIDER,
+    esignConfigured,
+    agreementSignWindowHours: data.AGREEMENT_SIGN_WINDOW_HOURS,
     getRazorpayCredentials() {
       if (!data.RAZORPAY_KEY_ID || !data.RAZORPAY_KEY_SECRET) return null;
       return {

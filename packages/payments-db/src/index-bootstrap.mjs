@@ -179,6 +179,36 @@ export const PAY_RAW_INDEX_SPECS = [
     name: 'idx_pay_notifications_user_read',
     key: { userId: 1, readAt: 1, createdAt: -1 },
   },
+  {
+    collection: 'pay_agreements',
+    name: 'uniq_pay_agreement_id',
+    key: { agreementId: 1 },
+    unique: true,
+  },
+  {
+    collection: 'pay_agreements',
+    name: 'uniq_pay_agreement_idempotencyKey',
+    key: { idempotencyKey: 1 },
+    unique: true,
+  },
+  {
+    collection: 'pay_agreements',
+    name: 'uniq_pay_agreement_active_booking',
+    key: { bookingId: 1 },
+    unique: true,
+    partialFilterExpression: { isActive: true },
+  },
+  {
+    collection: 'pay_agreements',
+    name: 'idx_pay_agreements_status_expires',
+    key: { status: 1, expiresAt: 1 },
+  },
+  {
+    collection: 'pay_agreement_callbacks',
+    name: 'uniq_pay_agreement_callback_id',
+    key: { callbackId: 1 },
+    unique: true,
+  },
 ];
 
 export async function runPaymentsIndexBootstrap(

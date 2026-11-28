@@ -4,6 +4,13 @@ import { MongoClient } from 'mongodb';
 import crypto from 'node:crypto';
 import fs from 'node:fs';
 import path from 'node:path';
+import {
+  beginAgreementGeneration,
+  closePaymentsDb,
+  finalizeAgreementPdf,
+  recordVerifiedAgreementSignature,
+} from '../../packages/payments-db/src/index';
+import { TestESignAdapter } from '../helpers/test-esign-adapter';
 
 const MONGO_URI =
   process.env.MONGODB_URI || 'mongodb://127.0.0.1:27018/?directConnection=true&replicaSet=rs0';
@@ -165,12 +172,20 @@ test.describe('M3 Booking Lifecycle E2E (Request -> Counter -> Accept)', () => {
       await appDb.collection('rate_card_items').deleteMany({ creatorId });
 
       const payDb = mongoClient.db(PAYMENTS_DB);
+      const bookingDocs = await payDb
+        .collection('pay_bookings')
+        .find({ $or: [{ brandId }, { creatorId }] })
+        .toArray();
+      const bIds = bookingDocs.map((b) => String(b.bookingId));
+      await payDb.collection('pay_agreements').deleteMany({ bookingId: { $in: bIds } });
+      await payDb.collection('pay_agreement_callbacks').deleteMany({});
       await payDb.collection('pay_bookings').deleteMany({
         $or: [{ brandId }, { creatorId }],
       });
       await payDb.collection('pay_notifications').deleteMany({
         $or: [{ userId: brandId }, { userId: creatorId }],
       });
+      await closePaymentsDb();
 
       if (prevFeatureBookingsDoc) {
         await payDb
@@ -273,12 +288,94 @@ test.describe('M3 Booking Lifecycle E2E (Request -> Counter -> Accept)', () => {
     await creatorPage.reload();
     await expect(creatorPage.getByText('COUNTERED').first()).toBeVisible();
 
-    // Accept
+    // Accept -> Agreement Ready panel appears
     await creatorPage.getByRole('button', { name: 'Accept' }).click();
     await expect(creatorPage.getByText('ACCEPTED').first()).toBeVisible();
-    await expect(creatorPage.getByText('Accepted. Agreement step is not enabled yet.')).toBeVisible();
+    await expect(creatorPage.getByText('Agreement Ready').first()).toBeVisible();
+    await expect(creatorPage.getByRole('button', { name: 'Generate Agreement' })).toBeVisible();
 
-    // Axe check on creator inbox
+    // Brand reloads /brand/offers and sees ACCEPTED + Agreement Ready
+    await brandPage.reload();
+    await expect(brandPage.getByText('ACCEPTED').first()).toBeVisible();
+    await expect(brandPage.getByText('Agreement Ready').first()).toBeVisible();
+
+    // Test-tooling agreement PDF finalization + simulated E-Sign callbacks
+    // (because R2 & E-sign provider credentials are not configured in local E2E)
+    const payDb = mongoClient.db(PAYMENTS_DB);
+    const bookingDoc = await payDb.collection('pay_bookings').findOne({ brandId, creatorId });
+    expect(bookingDoc).toBeTruthy();
+    const bookingId = String(bookingDoc!.bookingId);
+
+    const begun = await beginAgreementGeneration({
+      bookingId,
+      actorId: brandId,
+      actorRole: 'BRAND',
+      termsSnapshot: { bookingId, itemTitle: 'E2E Dedicated Instagram Reel' },
+    });
+    const fakePdfSha = crypto.createHash('sha256').update(`e2e-pdf-${bookingId}`).digest('hex');
+    await finalizeAgreementPdf({
+      agreementId: begun.agreement.agreementId,
+      bookingId,
+      pdfBucket: 'adzunova-dev-private',
+      pdfObjectKey: `private/e2e/${begun.agreement.agreementId}_v1.pdf`,
+      pdfSha256: fakePdfSha,
+      pdfSizeBytes: 1024,
+      provider: 'UNCONFIGURED',
+      actorId: brandId,
+      actorRole: 'BRAND',
+    });
+
+    // Both parties reload and see AGREEMENT_PENDING + Awaiting Your Signature + E-sign not configured
+    await brandPage.reload();
+    await expect(brandPage.getByText('AGREEMENT_PENDING').first()).toBeVisible();
+    await expect(brandPage.getByText('Awaiting Your Signature').first()).toBeVisible();
+    await expect(brandPage.getByText('E-sign not configured').first()).toBeVisible();
+    await expect(brandPage.getByRole('button', { name: 'View Agreement PDF' })).toBeVisible();
+
+    await creatorPage.reload();
+    await expect(creatorPage.getByText('AGREEMENT_PENDING').first()).toBeVisible();
+    await expect(creatorPage.getByText('Awaiting Your Signature').first()).toBeVisible();
+
+    // Brand signs via test-only ESignAdapter -> Brand sees Awaiting Other Party, Creator still Awaiting Your Signature
+    const testEsign = new TestESignAdapter();
+    const cbBrand = testEsign.buildSignedCallback({
+      callbackId: `e2e_cb_brand_${Date.now()}`,
+      agreementId: begun.agreement.agreementId,
+      bookingId,
+      version: 1,
+      pdfSha256: fakePdfSha,
+      signerRole: 'BRAND',
+      signerId: brandId,
+    });
+    await recordVerifiedAgreementSignature(await testEsign.verifyCallback(cbBrand));
+
+    await brandPage.reload();
+    await expect(brandPage.getByText('Awaiting Other Party').first()).toBeVisible();
+    await creatorPage.reload();
+    await expect(creatorPage.getByText('Awaiting Your Signature').first()).toBeVisible();
+
+    // Creator signs via test-only ESignAdapter -> both see SIGNED + payment not enabled yet
+    const cbCreator = testEsign.buildSignedCallback({
+      callbackId: `e2e_cb_creator_${Date.now()}`,
+      agreementId: begun.agreement.agreementId,
+      bookingId,
+      version: 1,
+      pdfSha256: fakePdfSha,
+      signerRole: 'CREATOR',
+      signerId: creatorId,
+    });
+    await recordVerifiedAgreementSignature(await testEsign.verifyCallback(cbCreator));
+
+    await creatorPage.reload();
+    await expect(creatorPage.getByText('SIGNED').first()).toBeVisible();
+    await expect(creatorPage.getByText('Agreement signed. Payment is not enabled yet.').first()).toBeVisible();
+
+    await brandPage.reload();
+    await expect(brandPage.getByText('SIGNED').first()).toBeVisible();
+    await expect(brandPage.getByText('Agreement signed. Payment is not enabled yet.').first()).toBeVisible();
+    await expect(brandPage.getByRole('button', { name: /Pay Now|Checkout/i })).toHaveCount(0);
+
+    // Axe check on creator inbox & brand offers
     const axeCreator = await new AxeBuilder({ page: creatorPage })
       .withTags(['wcag2a', 'wcag2aa'])
       .analyze();
@@ -290,11 +387,6 @@ test.describe('M3 Booking Lifecycle E2E (Request -> Counter -> Accept)', () => {
       path: path.join(SCREENSHOT_DIR, 'creator-inbox-1280-light.png'),
       fullPage: true,
     });
-
-    // 4. Brand reloads /brand/offers and sees ACCEPTED + honest message
-    await brandPage.reload();
-    await expect(brandPage.getByText('ACCEPTED').first()).toBeVisible();
-    await expect(brandPage.getByText('Accepted. Agreement step is not enabled yet.')).toBeVisible();
 
     const axeBrand = await new AxeBuilder({ page: brandPage })
       .withTags(['wcag2a', 'wcag2aa'])
