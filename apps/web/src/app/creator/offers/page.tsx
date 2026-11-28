@@ -5,6 +5,7 @@ import { PageHeader, EmptyState, StatCard } from '@/components/creator/ui';
 import { ShellIcon } from '@/components/creator/shell/shell-icons';
 import { BookingAgreementPanel } from '@/components/bookings/booking-agreement-panel';
 import { BookingAttachmentsPanel } from '@/components/bookings/booking-attachments-panel';
+import { BookingPaymentPanel } from '@/components/bookings/booking-payment-panel';
 
 const REJECTION_REASONS = [
   'Budget too low',
@@ -249,6 +250,13 @@ export default function OffersPage() {
                 />
 
                 <BookingAgreementPanel
+                  bookingId={offer.bookingId}
+                  bookingStatus={offer.status}
+                  viewerRole="CREATOR"
+                  onStatusUpdated={() => void loadInbox()}
+                />
+
+                <BookingPaymentPanel
                   bookingId={offer.bookingId}
                   bookingStatus={offer.status}
                   viewerRole="CREATOR"

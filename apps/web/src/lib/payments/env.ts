@@ -18,6 +18,9 @@ const PaymentsEnvSchema = z.object({
   RAZORPAY_LIVE_PROBE_DAILY_CAP: z.coerce.number().int().min(1).max(100).default(20),
   RAZORPAY_KEY_ID: z.string().min(1).optional(),
   RAZORPAY_KEY_SECRET: z.string().min(1).optional(),
+  RAZORPAY_API_KEY: z.string().min(1).optional(),
+  RAZORPAY_API_SECRET: z.string().min(1).optional(),
+  NEXT_PUBLIC_RAZORPAY_KEY_ID: z.string().min(1).optional(),
   RAZORPAY_WEBHOOK_SECRET: z.string().min(1).optional(),
   ESIGN_PROVIDER: ESignProviderSchema.default('off'),
   ESIGN_API_KEY: z.string().min(1).optional(),
@@ -35,6 +38,8 @@ export interface ValidatedPaymentsEnv {
   liveProbeApproved: boolean;
   liveProbeDailyCap: number;
   razorpayConfigured: boolean;
+  razorpayWebhookConfigured: boolean;
+  razorpayPublicKeyId: string | null;
   isLiveKey: boolean;
   esignProvider: ESignProvider;
   esignConfigured: boolean;
@@ -58,6 +63,9 @@ export function loadPaymentsEnv(
     RAZORPAY_LIVE_PROBE_DAILY_CAP: rawEnv.RAZORPAY_LIVE_PROBE_DAILY_CAP || undefined,
     RAZORPAY_KEY_ID: rawEnv.RAZORPAY_KEY_ID || undefined,
     RAZORPAY_KEY_SECRET: rawEnv.RAZORPAY_KEY_SECRET || undefined,
+    RAZORPAY_API_KEY: rawEnv.RAZORPAY_API_KEY || undefined,
+    RAZORPAY_API_SECRET: rawEnv.RAZORPAY_API_SECRET || undefined,
+    NEXT_PUBLIC_RAZORPAY_KEY_ID: rawEnv.NEXT_PUBLIC_RAZORPAY_KEY_ID || undefined,
     RAZORPAY_WEBHOOK_SECRET: rawEnv.RAZORPAY_WEBHOOK_SECRET || undefined,
     ESIGN_PROVIDER: rawEnv.ESIGN_PROVIDER || undefined,
     ESIGN_API_KEY: rawEnv.ESIGN_API_KEY || undefined,
@@ -75,7 +83,8 @@ export function loadPaymentsEnv(
   }
 
   const data = parsed.data;
-  const keyId = data.RAZORPAY_KEY_ID;
+  const keyId = data.RAZORPAY_KEY_ID || data.RAZORPAY_API_KEY;
+  const keySecret = data.RAZORPAY_KEY_SECRET || data.RAZORPAY_API_SECRET;
   const isLiveKey = Boolean(keyId && keyId.startsWith('rzp_live_'));
   const featurePayments = data.FEATURE_PAYMENTS === 'true';
   const liveProbeApproved = data.RAZORPAY_LIVE_PROBE_APPROVED === 'true';
@@ -117,7 +126,10 @@ export function loadPaymentsEnv(
     }
   }
 
-  const razorpayConfigured = Boolean(data.RAZORPAY_KEY_ID && data.RAZORPAY_KEY_SECRET);
+  const razorpayConfigured = Boolean(keyId && keySecret);
+  const razorpayWebhookConfigured = Boolean(data.RAZORPAY_WEBHOOK_SECRET);
+  const razorpayPublicKeyId =
+    data.NEXT_PUBLIC_RAZORPAY_KEY_ID || (keyId && keyId.startsWith('rzp_test_') ? keyId : null);
   const esignConfigured =
     data.ESIGN_PROVIDER !== 'off' &&
     Boolean(data.ESIGN_API_KEY && data.ESIGN_WEBHOOK_SECRET);
@@ -132,15 +144,17 @@ export function loadPaymentsEnv(
     liveProbeApproved,
     liveProbeDailyCap: data.RAZORPAY_LIVE_PROBE_DAILY_CAP,
     razorpayConfigured,
+    razorpayWebhookConfigured,
+    razorpayPublicKeyId,
     isLiveKey,
     esignProvider: data.ESIGN_PROVIDER,
     esignConfigured,
     agreementSignWindowHours: data.AGREEMENT_SIGN_WINDOW_HOURS,
     getRazorpayCredentials() {
-      if (!data.RAZORPAY_KEY_ID || !data.RAZORPAY_KEY_SECRET) return null;
+      if (!keyId || !keySecret) return null;
       return {
-        keyId: data.RAZORPAY_KEY_ID,
-        keySecret: data.RAZORPAY_KEY_SECRET,
+        keyId,
+        keySecret,
         webhookSecret: data.RAZORPAY_WEBHOOK_SECRET,
       };
     },

@@ -5,9 +5,12 @@ import crypto from 'node:crypto';
 import fs from 'node:fs';
 import path from 'node:path';
 import {
+  attachProviderOrderToAttempt,
   beginAgreementGeneration,
+  beginOrReusePaymentAttempt,
   closePaymentsDb,
   finalizeAgreementPdf,
+  processVerifiedPaymentWebhook,
   recordVerifiedAgreementSignature,
 } from '../../packages/payments-db/src/index';
 import { TestESignAdapter } from '../helpers/test-esign-adapter';
@@ -31,6 +34,7 @@ let creatorId = '';
 let brandId = '';
 let rateCardItemId = '';
 let prevFeatureBookingsDoc: Record<string, unknown> | null = null;
+let prevFeaturePaymentsDoc: Record<string, unknown> | null = null;
 
 async function registerUser(
   endpoint: string,
@@ -62,6 +66,9 @@ test.describe('M3 Booking Lifecycle E2E (Request -> Counter -> Accept)', () => {
     prevFeatureBookingsDoc = (await payDb
       .collection('pay_feature_flags')
       .findOne({ key: 'FEATURE_BOOKINGS' })) as Record<string, unknown> | null;
+    prevFeaturePaymentsDoc = (await payDb
+      .collection('pay_feature_flags')
+      .findOne({ key: 'FEATURE_PAYMENTS' })) as Record<string, unknown> | null;
     await payDb.collection('pay_feature_flags').updateOne(
       { key: 'FEATURE_BOOKINGS' },
       { $set: { key: 'FEATURE_BOOKINGS', enabled: true, updatedAt: new Date() } },
@@ -180,12 +187,22 @@ test.describe('M3 Booking Lifecycle E2E (Request -> Counter -> Accept)', () => {
       const bIds = bookingDocs.map((b) => String(b.bookingId));
       await payDb.collection('pay_agreements').deleteMany({ bookingId: { $in: bIds } });
       await payDb.collection('pay_agreement_callbacks').deleteMany({});
+      await payDb.collection('pay_payment_attempts').deleteMany({ bookingId: { $in: bIds } });
+      await payDb.collection('pay_webhook_events').deleteMany({});
+      await payDb.collection('pay_reconciliation_items').deleteMany({ bookingId: { $in: bIds } });
       await payDb.collection('pay_bookings').deleteMany({
         $or: [{ brandId }, { creatorId }],
       });
       await payDb.collection('pay_notifications').deleteMany({
         $or: [{ userId: brandId }, { userId: creatorId }],
       });
+      if (prevFeaturePaymentsDoc) {
+        await payDb
+          .collection('pay_feature_flags')
+          .replaceOne({ key: 'FEATURE_PAYMENTS' }, prevFeaturePaymentsDoc);
+      } else {
+        await payDb.collection('pay_feature_flags').deleteOne({ key: 'FEATURE_PAYMENTS' });
+      }
       await closePaymentsDb();
 
       if (prevFeatureBookingsDoc) {
@@ -490,6 +507,48 @@ test.describe('M3 Booking Lifecycle E2E (Request -> Counter -> Accept)', () => {
     await storageDb.collection('storage_media_assets').deleteMany({ _id: attAssetOid });
     await storageDb.collection('storage_asset_versions').deleteMany({ _id: attVersionOid });
     await storageDb.collection('storage_asset_blobs').deleteMany({ _id: attBlobOid });
+
+    // M6 Checkout -> Verified Webhook -> FUNDS_SECURED E2E check
+    await payDb.collection('pay_feature_flags').updateOne(
+      { key: 'FEATURE_PAYMENTS' },
+      { $set: { key: 'FEATURE_PAYMENTS', enabled: true, updatedAt: new Date() } },
+      { upsert: true }
+    );
+    await brandPage.reload();
+    await expect(brandPage.getByRole('button', { name: 'Pay Now' })).toBeVisible();
+
+    // Test-tooling order + verified webhook (since RAZORPAY_WEBHOOK_SECRET is not configured in local env)
+    const attRes = await beginOrReusePaymentAttempt({ bookingId, brandId });
+    const e2eOrderId = `order_e2e_${Date.now()}`;
+    const e2ePaymentId = `pay_e2e_${Date.now()}`;
+    await attachProviderOrderToAttempt({
+      attemptId: attRes.attempt.attemptId,
+      bookingId,
+      providerOrderId: e2eOrderId,
+      actorId: brandId,
+    });
+    const whRes = await processVerifiedPaymentWebhook({
+      eventId: `evt_e2e_${Date.now()}`,
+      eventType: 'payment.captured',
+      orderId: e2eOrderId,
+      paymentId: e2ePaymentId,
+      amountPaise: BigInt(attRes.attempt.amountPaise),
+      currency: 'INR',
+      providerStatus: 'captured',
+      payloadHash: crypto.createHash('sha256').update(e2eOrderId).digest('hex'),
+    });
+    expect(whRes.outcome).toBe('CAPTURED_HOLD_PENDING');
+
+    await brandPage.reload();
+    await expect(brandPage.getByText('CAPTURED_NO_ROUTE').first()).toBeVisible();
+    await expect(brandPage.getByText('Payment received. Funds protection is pending.').first()).toBeVisible();
+    await expect(brandPage.getByText(/Payment Receipt: RCPT-/).first()).toBeVisible();
+    await expect(brandPage.getByText('FUNDS_SECURED')).toHaveCount(0);
+
+    await creatorPage.reload();
+    await expect(creatorPage.getByText('CAPTURED_NO_ROUTE').first()).toBeVisible();
+    await expect(creatorPage.getByText('Payment received. Funds protection is pending.').first()).toBeVisible();
+    await expect(creatorPage.getByText('FUNDS_SECURED')).toHaveCount(0);
 
     // Axe check on creator inbox & brand offers
     const axeCreator = await new AxeBuilder({ page: creatorPage })

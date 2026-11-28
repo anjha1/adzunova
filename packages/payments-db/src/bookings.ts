@@ -13,6 +13,8 @@ export const BOOKING_STATUSES = [
   'CANCELLED',
   'AGREEMENT_PENDING',
   'SIGNED',
+  'PAYMENT_PENDING',
+  'FUNDS_SECURED',
 ] as const;
 
 export type BookingStatus = (typeof BOOKING_STATUSES)[number];
@@ -25,7 +27,9 @@ export const BOOKING_TRANSITIONS: Record<BookingStatus, readonly BookingStatus[]
   EXPIRED: [],
   CANCELLED: [],
   AGREEMENT_PENDING: ['SIGNED', 'EXPIRED'],
-  SIGNED: [],
+  SIGNED: ['PAYMENT_PENDING', 'FUNDS_SECURED'],
+  PAYMENT_PENDING: ['FUNDS_SECURED', 'EXPIRED'],
+  FUNDS_SECURED: [],
 };
 
 export const OPEN_BOOKING_STATUSES: readonly BookingStatus[] = ['REQUESTED', 'COUNTERED'];

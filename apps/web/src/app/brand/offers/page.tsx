@@ -5,6 +5,7 @@ import Link from 'next/link';
 import { BrandPageContainer, BrandEmptyState } from '@/components/brand/shell/brand-page-container';
 import { BookingAgreementPanel } from '@/components/bookings/booking-agreement-panel';
 import { BookingAttachmentsPanel } from '@/components/bookings/booking-attachments-panel';
+import { BookingPaymentPanel } from '@/components/bookings/booking-payment-panel';
 
 interface BookingItem {
   bookingId: string;
@@ -183,6 +184,13 @@ export default function BrandOffersPage() {
                 />
 
                 <BookingAgreementPanel
+                  bookingId={b.bookingId}
+                  bookingStatus={b.status}
+                  viewerRole="BRAND"
+                  onStatusUpdated={() => void loadBookings()}
+                />
+
+                <BookingPaymentPanel
                   bookingId={b.bookingId}
                   bookingStatus={b.status}
                   viewerRole="BRAND"

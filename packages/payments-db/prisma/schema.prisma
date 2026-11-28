@@ -367,3 +367,73 @@ model PayAgreementCallback {
   @@index([agreementId, processedAt(sort: Desc)])
   @@map("pay_agreement_callbacks")
 }
+
+model PayPaymentAttempt {
+  id                     String    @id @default(auto()) @map("_id") @db.ObjectId
+  attemptId              String    @unique
+  bookingId              String
+  agreementId            String
+  agreementVersion       Int
+  brandId                String
+  creatorId              String
+  idempotencyKey         String    @unique
+  provider               String    @default("RAZORPAY")
+  providerOrderId        String?
+  providerPaymentId      String?
+  amountPaise            BigInt
+  currency               String    @default("INR")
+  status                 String    // CREATING_ORDER | ORDER_CREATED | VERIFICATION_PENDING | CAPTURED | FAILED | CANCELLED | EXPIRED | RECONCILE_REQUIRED
+  isActive               Boolean   @default(true)
+  holdOrSettlementStatus String    @default("NONE") // NONE | CAPTURED_NO_ROUTE | ROUTE_HELD | SETTLED
+  receiptNumber          String?
+  lastError              String?
+  capturedAt             DateTime?
+  expiresAt              DateTime
+  version                Int       @default(1)
+  createdAt              DateTime  @default(now())
+  updatedAt              DateTime  @updatedAt
+
+  @@index([bookingId, createdAt(sort: Desc)])
+  @@index([providerOrderId])
+  @@map("pay_payment_attempts")
+}
+
+model PayWebhookEvent {
+  id            String    @id @default(auto()) @map("_id") @db.ObjectId
+  eventId       String    @unique
+  provider      String    @default("RAZORPAY")
+  eventType     String
+  orderId       String?
+  paymentId     String?
+  amountPaise   BigInt?
+  currency      String?
+  payloadHash   String
+  status        String    // RECEIVED | PROCESSED | RECONCILIATION_REQUIRED | IGNORED
+  businessOpId  String?
+  errorDetail   String?
+  processedAt   DateTime?
+  createdAt     DateTime  @default(now())
+
+  @@index([orderId, paymentId])
+  @@map("pay_webhook_events")
+}
+
+model PayReconciliationItem {
+  id                  String    @id @default(auto()) @map("_id") @db.ObjectId
+  reconId             String    @unique
+  bookingId           String?
+  attemptId           String?
+  orderId             String?
+  paymentId           String?
+  kind                String    // MISSING_LEDGER | AMOUNT_MISMATCH | CURRENCY_MISMATCH | LATE_PAYMENT | STALE_ATTEMPT | ROUTE_HOLD_UNAVAILABLE
+  severity            String    @default("WARN") // WARN | CRITICAL
+  status              String    @default("OPEN") // OPEN | RESOLVED
+  expectedAmountPaise BigInt?
+  actualAmountPaise   BigInt?
+  detail              String
+  createdAt           DateTime  @default(now())
+  resolvedAt          DateTime?
+
+  @@index([status, createdAt(sort: Desc)])
+  @@map("pay_reconciliation_items")
+}

@@ -209,6 +209,42 @@ export const PAY_RAW_INDEX_SPECS = [
     key: { callbackId: 1 },
     unique: true,
   },
+  {
+    collection: 'pay_payment_attempts',
+    name: 'uniq_pay_attempt_id',
+    key: { attemptId: 1 },
+    unique: true,
+  },
+  {
+    collection: 'pay_payment_attempts',
+    name: 'uniq_pay_attempt_idempotencyKey',
+    key: { idempotencyKey: 1 },
+    unique: true,
+  },
+  {
+    collection: 'pay_payment_attempts',
+    name: 'uniq_pay_attempt_active_booking',
+    key: { bookingId: 1 },
+    unique: true,
+    partialFilterExpression: { isActive: true },
+  },
+  {
+    collection: 'pay_payment_attempts',
+    name: 'idx_pay_attempt_provider_order',
+    key: { providerOrderId: 1 },
+  },
+  {
+    collection: 'pay_webhook_events',
+    name: 'uniq_pay_webhook_event_id',
+    key: { eventId: 1 },
+    unique: true,
+  },
+  {
+    collection: 'pay_reconciliation_items',
+    name: 'uniq_pay_recon_id',
+    key: { reconId: 1 },
+    unique: true,
+  },
 ];
 
 export async function runPaymentsIndexBootstrap(
