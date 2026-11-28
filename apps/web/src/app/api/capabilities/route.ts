@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
 import { connection } from 'next/server';
 import { getYouTubeConfigStatus } from '@/lib/config';
+import { getStorageConfigStatus } from '@/lib/storage/env';
 
 export interface ProviderCapability {
   configured: boolean;
@@ -22,12 +23,16 @@ export interface PlatformCapabilities {
   };
   kyc: ProviderCapability;
   llm: ProviderCapability;
-  storage: ProviderCapability;
+  storage: ProviderCapability & {
+    metadataDbConfigured?: boolean;
+    roles?: Record<string, { configured: boolean; status: string; reason?: string }>;
+  };
 }
 
 export async function GET() {
   await connection();
   const youtubeStatus = getYouTubeConfigStatus();
+  const storageStatus = getStorageConfigStatus();
   const capabilities: PlatformCapabilities = {
     social: {
       googleYouTube: {
@@ -79,8 +84,11 @@ export async function GET() {
       reason: 'LLM provider API key not supplied',
     },
     storage: {
-      configured: true,
-      status: 'ACTIVE',
+      configured: storageStatus.configured,
+      status: storageStatus.status,
+      reason: storageStatus.configured ? undefined : storageStatus.message,
+      metadataDbConfigured: storageStatus.metadataDbConfigured,
+      roles: storageStatus.roles,
     },
   };
 

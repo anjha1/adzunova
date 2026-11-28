@@ -1,0 +1,1019 @@
+{
+  "timestamp": "2026-11-21T17:11:59.532Z",
+  "database": "adzunova",
+  "syntheticProfiles": [
+    {
+      "_id": "6b015fe5b2f9fea3c087343f",
+      "creatorId": "creator_anjha1",
+      "allowIndexing": true,
+      "avatarUrl": "https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=400&auto=format&fit=crop&q=80",
+      "bio": "Tech creator & AI software architect. Building high-impact visual narratives, developer deep dives, and organic product integrations with verified metrics.",
+      "consentRecordedAt": "2026-11-21T09:09:58.112Z",
+      "coverUrl": "https://images.unsplash.com/photo-1618005182384-a83a8bd57fbe?w=1400&auto=format&fit=crop&q=80",
+      "displayName": "Achhuta Nand Jha",
+      "hiddenPlatformIds": [],
+      "hidePricesPerItem": {},
+      "id": "13b6db7d-8992-4c8a-ad93-393fbfaf6827",
+      "isPublished": true,
+      "languages": [
+        "English",
+        "Hindi"
+      ],
+      "location": "Bengaluru, India",
+      "pinnedContentIds": [],
+      "previousSlugs": [],
+      "publishedAt": "2026-11-21T09:09:57.161Z",
+      "sectionVisibility": {
+        "platforms": true,
+        "stats": true,
+        "audience": true,
+        "topContent": true,
+        "rateCard": true,
+        "packages": true
+      },
+      "slug": "a_n_jha1",
+      "tags": [
+        "Tech & Gadgets",
+        "AI & Software",
+        "Developer Lifestyle",
+        "Creator Economy"
+      ],
+      "updatedAt": "2026-11-21T09:09:58.112Z",
+      "version": 2
+    }
+  ],
+  "syntheticRateItems": [
+    {
+      "_id": "6b015fea282b8db93dfdc1c6",
+      "id": "b4bdb62c-254f-42c1-a335-47e43a17f6bf",
+      "creatorId": "creator_anjha1",
+      "version": 1,
+      "createdAt": "2026-11-21T09:10:02.483Z",
+      "updatedAt": "2026-11-21T09:10:02.483Z",
+      "deletedAt": null,
+      "platform": "INSTAGRAM",
+      "contentFormat": "REEL",
+      "deliverableType": "DEDICATED_VIDEO",
+      "durationSeconds": 60,
+      "price": 25000,
+      "currency": "INR",
+      "priceType": "FIXED",
+      "minimumBookingAmount": null,
+      "title": "1 Min Dedicated Instagram Reel",
+      "description": "High-energy vertical reel featuring organic product integration, customized CTA, and creator brand voice.",
+      "deliveryDays": 5,
+      "freeRevisions": 1,
+      "publishOnMyChannel": true,
+      "scriptApprovalRequired": true,
+      "status": "ACTIVE",
+      "visibleToBrands": true,
+      "sortOrder": 0,
+      "addons": [
+        {
+          "id": "09402392-b4aa-434e-861d-0f8bcaf34158",
+          "type": "USAGE_RIGHTS",
+          "enabled": true,
+          "pricingMode": "PERCENT_OF_BASE",
+          "value": 20,
+          "durationDays": 30
+        },
+        {
+          "id": "bed322d8-57a2-41a2-a37a-218f31db9c50",
+          "type": "EXCLUSIVITY",
+          "enabled": true,
+          "pricingMode": "PERCENT_OF_BASE",
+          "value": 30,
+          "durationDays": 90
+        },
+        {
+          "id": "d1d6a382-b745-44bf-bd81-f1ea25023817",
+          "type": "RUSH_DELIVERY",
+          "enabled": true,
+          "pricingMode": "PERCENT_OF_BASE",
+          "value": 25,
+          "rushWithinHours": 48
+        }
+      ]
+    },
+    {
+      "_id": "6b015fea282b8db93dfdc1c7",
+      "id": "6e175484-5448-4a43-862c-0f66100d2eb2",
+      "creatorId": "creator_anjha1",
+      "version": 1,
+      "createdAt": "2026-11-21T09:10:02.483Z",
+      "updatedAt": "2026-11-21T09:10:02.483Z",
+      "deletedAt": null,
+      "platform": "YOUTUBE",
+      "contentFormat": "LONG_VIDEO",
+      "deliverableType": "DEDICATED_VIDEO",
+      "durationSeconds": 600,
+      "price": 40000,
+      "currency": "INR",
+      "priceType": "FIXED",
+      "minimumBookingAmount": null,
+      "title": "YouTube Dedicated Video",
+      "description": "Full 8-12 minute high-production YouTube video dedicated entirely to brand narrative, testing, and call-to-action.",
+      "deliveryDays": 7,
+      "freeRevisions": 2,
+      "publishOnMyChannel": true,
+      "scriptApprovalRequired": true,
+      "status": "ACTIVE",
+      "visibleToBrands": true,
+      "sortOrder": 1,
+      "addons": [
+        {
+          "id": "9cd34cd5-c025-4885-aced-dfea01df45d3",
+          "type": "USAGE_RIGHTS",
+          "enabled": true,
+          "pricingMode": "PERCENT_OF_BASE",
+          "value": 20,
+          "durationDays": 30
+        },
+        {
+          "id": "a68728ac-b2b3-4c94-b57b-2f4380612971",
+          "type": "EXTRA_REVISION",
+          "enabled": true,
+          "pricingMode": "FIXED_AMOUNT",
+          "value": 3000
+        },
+        {
+          "id": "acdd7bc2-6075-4472-a625-674f3f1f4d40",
+          "type": "RAW_FOOTAGE",
+          "enabled": true,
+          "pricingMode": "PERCENT_OF_BASE",
+          "value": 35
+        }
+      ]
+    },
+    {
+      "_id": "6b015fea282b8db93dfdc1c8",
+      "id": "1571e1df-9ec4-420b-8b2a-589ac3700109",
+      "creatorId": "creator_anjha1",
+      "version": 1,
+      "createdAt": "2026-11-21T09:10:02.484Z",
+      "updatedAt": "2026-11-21T09:10:02.484Z",
+      "deletedAt": null,
+      "platform": "INSTAGRAM",
+      "contentFormat": "REEL",
+      "deliverableType": "DEDICATED_VIDEO",
+      "durationSeconds": 60,
+      "price": 25000,
+      "currency": "INR",
+      "priceType": "FIXED",
+      "minimumBookingAmount": null,
+      "title": "1 Min Dedicated Instagram Reel",
+      "description": "High-energy vertical reel featuring organic product integration, customized CTA, and creator brand voice.",
+      "deliveryDays": 5,
+      "freeRevisions": 1,
+      "publishOnMyChannel": true,
+      "scriptApprovalRequired": true,
+      "status": "ACTIVE",
+      "visibleToBrands": true,
+      "sortOrder": 0,
+      "addons": [
+        {
+          "id": "ba802151-330a-4bf7-a5be-ea62f28511a4",
+          "type": "USAGE_RIGHTS",
+          "enabled": true,
+          "pricingMode": "PERCENT_OF_BASE",
+          "value": 20,
+          "durationDays": 30
+        },
+        {
+          "id": "bb07c29f-ce5f-4153-989c-1bd332635bb5",
+          "type": "EXCLUSIVITY",
+          "enabled": true,
+          "pricingMode": "PERCENT_OF_BASE",
+          "value": 30,
+          "durationDays": 90
+        },
+        {
+          "id": "342416c0-b740-4b05-bd44-6208e9d70acb",
+          "type": "RUSH_DELIVERY",
+          "enabled": true,
+          "pricingMode": "PERCENT_OF_BASE",
+          "value": 25,
+          "rushWithinHours": 48
+        }
+      ]
+    },
+    {
+      "_id": "6b015fea282b8db93dfdc1c9",
+      "id": "312e4552-6eb6-4408-b085-0e180298efd2",
+      "creatorId": "creator_anjha1",
+      "version": 1,
+      "createdAt": "2026-11-21T09:10:02.484Z",
+      "updatedAt": "2026-11-21T09:10:02.484Z",
+      "deletedAt": null,
+      "platform": "YOUTUBE",
+      "contentFormat": "LONG_VIDEO",
+      "deliverableType": "DEDICATED_VIDEO",
+      "durationSeconds": 600,
+      "price": 40000,
+      "currency": "INR",
+      "priceType": "FIXED",
+      "minimumBookingAmount": null,
+      "title": "YouTube Dedicated Video",
+      "description": "Full 8-12 minute high-production YouTube video dedicated entirely to brand narrative, testing, and call-to-action.",
+      "deliveryDays": 7,
+      "freeRevisions": 2,
+      "publishOnMyChannel": true,
+      "scriptApprovalRequired": true,
+      "status": "ACTIVE",
+      "visibleToBrands": true,
+      "sortOrder": 1,
+      "addons": [
+        {
+          "id": "41921328-7c0e-4de7-bd56-e8c3bc2f72d2",
+          "type": "USAGE_RIGHTS",
+          "enabled": true,
+          "pricingMode": "PERCENT_OF_BASE",
+          "value": 20,
+          "durationDays": 30
+        },
+        {
+          "id": "11468939-8fd5-4a70-a3b8-10a8c2a42a5b",
+          "type": "EXTRA_REVISION",
+          "enabled": true,
+          "pricingMode": "FIXED_AMOUNT",
+          "value": 3000
+        },
+        {
+          "id": "164f0a29-03cc-4c6f-8547-c7874458b24a",
+          "type": "RAW_FOOTAGE",
+          "enabled": true,
+          "pricingMode": "PERCENT_OF_BASE",
+          "value": 35
+        }
+      ]
+    },
+    {
+      "_id": "6b015fea282b8db93dfdc1ca",
+      "id": "76203e21-f5b4-41bf-9730-35993bf98a2a",
+      "creatorId": "creator_anjha1",
+      "version": 1,
+      "createdAt": "2026-11-21T09:10:02.713Z",
+      "updatedAt": "2026-11-21T09:10:02.713Z",
+      "deletedAt": null,
+      "platform": "INSTAGRAM",
+      "contentFormat": "REEL",
+      "deliverableType": "DEDICATED_VIDEO",
+      "durationSeconds": 60,
+      "price": 25000,
+      "currency": "INR",
+      "priceType": "FIXED",
+      "minimumBookingAmount": null,
+      "title": "1 Min Dedicated Instagram Reel",
+      "description": "High-energy vertical reel featuring organic product integration, customized CTA, and creator brand voice.",
+      "deliveryDays": 5,
+      "freeRevisions": 1,
+      "publishOnMyChannel": true,
+      "scriptApprovalRequired": true,
+      "status": "ACTIVE",
+      "visibleToBrands": true,
+      "sortOrder": 0,
+      "addons": [
+        {
+          "id": "4ed426b3-84d7-453c-b1f3-cb1d6cccac93",
+          "type": "USAGE_RIGHTS",
+          "enabled": true,
+          "pricingMode": "PERCENT_OF_BASE",
+          "value": 20,
+          "durationDays": 30
+        },
+        {
+          "id": "bb0220ba-09dc-42fe-b045-dfb1eca9cb00",
+          "type": "EXCLUSIVITY",
+          "enabled": true,
+          "pricingMode": "PERCENT_OF_BASE",
+          "value": 30,
+          "durationDays": 90
+        },
+        {
+          "id": "6ac2702d-87d0-4c07-bd0f-677121a6f031",
+          "type": "RUSH_DELIVERY",
+          "enabled": true,
+          "pricingMode": "PERCENT_OF_BASE",
+          "value": 25,
+          "rushWithinHours": 48
+        }
+      ]
+    },
+    {
+      "_id": "6b015fea282b8db93dfdc1cb",
+      "id": "c5d8e25a-fdc4-4d60-ad9f-4fb73ef38897",
+      "creatorId": "creator_anjha1",
+      "version": 1,
+      "createdAt": "2026-11-21T09:10:02.713Z",
+      "updatedAt": "2026-11-21T09:10:02.713Z",
+      "deletedAt": null,
+      "platform": "YOUTUBE",
+      "contentFormat": "LONG_VIDEO",
+      "deliverableType": "DEDICATED_VIDEO",
+      "durationSeconds": 600,
+      "price": 40000,
+      "currency": "INR",
+      "priceType": "FIXED",
+      "minimumBookingAmount": null,
+      "title": "YouTube Dedicated Video",
+      "description": "Full 8-12 minute high-production YouTube video dedicated entirely to brand narrative, testing, and call-to-action.",
+      "deliveryDays": 7,
+      "freeRevisions": 2,
+      "publishOnMyChannel": true,
+      "scriptApprovalRequired": true,
+      "status": "ACTIVE",
+      "visibleToBrands": true,
+      "sortOrder": 1,
+      "addons": [
+        {
+          "id": "13d757e5-44e6-4be8-9b32-e529e608cf49",
+          "type": "USAGE_RIGHTS",
+          "enabled": true,
+          "pricingMode": "PERCENT_OF_BASE",
+          "value": 20,
+          "durationDays": 30
+        },
+        {
+          "id": "5ca0fdfb-46a7-4b19-be0b-be76d396247f",
+          "type": "EXTRA_REVISION",
+          "enabled": true,
+          "pricingMode": "FIXED_AMOUNT",
+          "value": 3000
+        },
+        {
+          "id": "198a2868-bcf1-4a45-820f-6b9fc5431971",
+          "type": "RAW_FOOTAGE",
+          "enabled": true,
+          "pricingMode": "PERCENT_OF_BASE",
+          "value": 35
+        }
+      ]
+    },
+    {
+      "_id": "6b015fea282b8db93dfdc1cc",
+      "id": "b6178d43-68ee-4355-aeee-7e2ed983dd82",
+      "creatorId": "creator_anjha1",
+      "version": 1,
+      "createdAt": "2026-11-21T09:10:02.716Z",
+      "updatedAt": "2026-11-21T09:10:02.716Z",
+      "deletedAt": null,
+      "platform": "INSTAGRAM",
+      "contentFormat": "REEL",
+      "deliverableType": "DEDICATED_VIDEO",
+      "durationSeconds": 60,
+      "price": 25000,
+      "currency": "INR",
+      "priceType": "FIXED",
+      "minimumBookingAmount": null,
+      "title": "1 Min Dedicated Instagram Reel",
+      "description": "High-energy vertical reel featuring organic product integration, customized CTA, and creator brand voice.",
+      "deliveryDays": 5,
+      "freeRevisions": 1,
+      "publishOnMyChannel": true,
+      "scriptApprovalRequired": true,
+      "status": "ACTIVE",
+      "visibleToBrands": true,
+      "sortOrder": 0,
+      "addons": [
+        {
+          "id": "762fe2e8-bfa9-4623-8321-c6eb1f1fcff7",
+          "type": "USAGE_RIGHTS",
+          "enabled": true,
+          "pricingMode": "PERCENT_OF_BASE",
+          "value": 20,
+          "durationDays": 30
+        },
+        {
+          "id": "c04dfdf9-6d39-4a90-9827-8281f9b9c2f7",
+          "type": "EXCLUSIVITY",
+          "enabled": true,
+          "pricingMode": "PERCENT_OF_BASE",
+          "value": 30,
+          "durationDays": 90
+        },
+        {
+          "id": "8aac9a07-8ebd-422d-9cbc-df925918b885",
+          "type": "RUSH_DELIVERY",
+          "enabled": true,
+          "pricingMode": "PERCENT_OF_BASE",
+          "value": 25,
+          "rushWithinHours": 48
+        }
+      ]
+    },
+    {
+      "_id": "6b015fea282b8db93dfdc1cd",
+      "id": "fce9cd10-880e-4da8-b3af-7fd0715a4e8d",
+      "creatorId": "creator_anjha1",
+      "version": 1,
+      "createdAt": "2026-11-21T09:10:02.716Z",
+      "updatedAt": "2026-11-21T09:10:02.716Z",
+      "deletedAt": null,
+      "platform": "YOUTUBE",
+      "contentFormat": "LONG_VIDEO",
+      "deliverableType": "DEDICATED_VIDEO",
+      "durationSeconds": 600,
+      "price": 40000,
+      "currency": "INR",
+      "priceType": "FIXED",
+      "minimumBookingAmount": null,
+      "title": "YouTube Dedicated Video",
+      "description": "Full 8-12 minute high-production YouTube video dedicated entirely to brand narrative, testing, and call-to-action.",
+      "deliveryDays": 7,
+      "freeRevisions": 2,
+      "publishOnMyChannel": true,
+      "scriptApprovalRequired": true,
+      "status": "ACTIVE",
+      "visibleToBrands": true,
+      "sortOrder": 1,
+      "addons": [
+        {
+          "id": "6c1cae67-7157-491d-b104-082692dc8422",
+          "type": "USAGE_RIGHTS",
+          "enabled": true,
+          "pricingMode": "PERCENT_OF_BASE",
+          "value": 20,
+          "durationDays": 30
+        },
+        {
+          "id": "ab3e72d4-79a0-4b70-8df1-ca0d6d099c04",
+          "type": "EXTRA_REVISION",
+          "enabled": true,
+          "pricingMode": "FIXED_AMOUNT",
+          "value": 3000
+        },
+        {
+          "id": "fa7c643e-dfa1-47c3-baad-936ed4045948",
+          "type": "RAW_FOOTAGE",
+          "enabled": true,
+          "pricingMode": "PERCENT_OF_BASE",
+          "value": 35
+        }
+      ]
+    },
+    {
+      "_id": "6b015fea282b8db93dfdc1ce",
+      "id": "d997be86-3e99-48fd-ab6d-d8351ebee96d",
+      "creatorId": "creator_anjha1",
+      "version": 1,
+      "createdAt": "2026-11-21T09:10:02.717Z",
+      "updatedAt": "2026-11-21T09:10:02.717Z",
+      "deletedAt": null,
+      "platform": "INSTAGRAM",
+      "contentFormat": "REEL",
+      "deliverableType": "DEDICATED_VIDEO",
+      "durationSeconds": 60,
+      "price": 25000,
+      "currency": "INR",
+      "priceType": "FIXED",
+      "minimumBookingAmount": null,
+      "title": "1 Min Dedicated Instagram Reel",
+      "description": "High-energy vertical reel featuring organic product integration, customized CTA, and creator brand voice.",
+      "deliveryDays": 5,
+      "freeRevisions": 1,
+      "publishOnMyChannel": true,
+      "scriptApprovalRequired": true,
+      "status": "ACTIVE",
+      "visibleToBrands": true,
+      "sortOrder": 0,
+      "addons": [
+        {
+          "id": "b78cd3ad-b8f5-4af1-bc99-389b11d42a6c",
+          "type": "USAGE_RIGHTS",
+          "enabled": true,
+          "pricingMode": "PERCENT_OF_BASE",
+          "value": 20,
+          "durationDays": 30
+        },
+        {
+          "id": "2b71672a-b8ae-4f9c-b279-f070260b1ebb",
+          "type": "EXCLUSIVITY",
+          "enabled": true,
+          "pricingMode": "PERCENT_OF_BASE",
+          "value": 30,
+          "durationDays": 90
+        },
+        {
+          "id": "8f24e3d0-04a8-475d-90d4-144d06677f6e",
+          "type": "RUSH_DELIVERY",
+          "enabled": true,
+          "pricingMode": "PERCENT_OF_BASE",
+          "value": 25,
+          "rushWithinHours": 48
+        }
+      ]
+    },
+    {
+      "_id": "6b015fea282b8db93dfdc1cf",
+      "id": "e2a5dffe-704b-41bf-b9bf-6c4f32f4f7ed",
+      "creatorId": "creator_anjha1",
+      "version": 1,
+      "createdAt": "2026-11-21T09:10:02.717Z",
+      "updatedAt": "2026-11-21T09:10:02.717Z",
+      "deletedAt": null,
+      "platform": "YOUTUBE",
+      "contentFormat": "LONG_VIDEO",
+      "deliverableType": "DEDICATED_VIDEO",
+      "durationSeconds": 600,
+      "price": 40000,
+      "currency": "INR",
+      "priceType": "FIXED",
+      "minimumBookingAmount": null,
+      "title": "YouTube Dedicated Video",
+      "description": "Full 8-12 minute high-production YouTube video dedicated entirely to brand narrative, testing, and call-to-action.",
+      "deliveryDays": 7,
+      "freeRevisions": 2,
+      "publishOnMyChannel": true,
+      "scriptApprovalRequired": true,
+      "status": "ACTIVE",
+      "visibleToBrands": true,
+      "sortOrder": 1,
+      "addons": [
+        {
+          "id": "22772329-c2df-41d9-9363-18d56e8280cc",
+          "type": "USAGE_RIGHTS",
+          "enabled": true,
+          "pricingMode": "PERCENT_OF_BASE",
+          "value": 20,
+          "durationDays": 30
+        },
+        {
+          "id": "03dbcfa8-9b29-4d8c-9f4a-3848d2de2938",
+          "type": "EXTRA_REVISION",
+          "enabled": true,
+          "pricingMode": "FIXED_AMOUNT",
+          "value": 3000
+        },
+        {
+          "id": "46f29d95-e8b0-4ba4-ad0f-07ecbf9fb554",
+          "type": "RAW_FOOTAGE",
+          "enabled": true,
+          "pricingMode": "PERCENT_OF_BASE",
+          "value": 35
+        }
+      ]
+    },
+    {
+      "_id": "6b015fea282b8db93dfdc1d0",
+      "id": "cac5d1a7-6f61-4f25-b030-10e922022a80",
+      "creatorId": "creator_anjha1",
+      "version": 1,
+      "createdAt": "2026-11-21T09:10:02.946Z",
+      "updatedAt": "2026-11-21T09:10:02.946Z",
+      "deletedAt": null,
+      "platform": "INSTAGRAM",
+      "contentFormat": "REEL",
+      "deliverableType": "DEDICATED_VIDEO",
+      "durationSeconds": 60,
+      "price": 25000,
+      "currency": "INR",
+      "priceType": "FIXED",
+      "minimumBookingAmount": null,
+      "title": "1 Min Dedicated Instagram Reel",
+      "description": "High-energy vertical reel featuring organic product integration, customized CTA, and creator brand voice.",
+      "deliveryDays": 5,
+      "freeRevisions": 1,
+      "publishOnMyChannel": true,
+      "scriptApprovalRequired": true,
+      "status": "ACTIVE",
+      "visibleToBrands": true,
+      "sortOrder": 0,
+      "addons": [
+        {
+          "id": "fee12a7e-7b14-486d-b0ff-5c684d2aee78",
+          "type": "USAGE_RIGHTS",
+          "enabled": true,
+          "pricingMode": "PERCENT_OF_BASE",
+          "value": 20,
+          "durationDays": 30
+        },
+        {
+          "id": "4b2a2311-a4bc-4d10-bf5f-689934f7c1ed",
+          "type": "EXCLUSIVITY",
+          "enabled": true,
+          "pricingMode": "PERCENT_OF_BASE",
+          "value": 30,
+          "durationDays": 90
+        },
+        {
+          "id": "422bef84-fcaa-480e-90f7-660db607d01a",
+          "type": "RUSH_DELIVERY",
+          "enabled": true,
+          "pricingMode": "PERCENT_OF_BASE",
+          "value": 25,
+          "rushWithinHours": 48
+        }
+      ]
+    },
+    {
+      "_id": "6b015fea282b8db93dfdc1d1",
+      "id": "6b74892b-42b6-43ad-a3c3-c3088a5c0318",
+      "creatorId": "creator_anjha1",
+      "version": 1,
+      "createdAt": "2026-11-21T09:10:02.946Z",
+      "updatedAt": "2026-11-21T09:10:02.946Z",
+      "deletedAt": null,
+      "platform": "YOUTUBE",
+      "contentFormat": "LONG_VIDEO",
+      "deliverableType": "DEDICATED_VIDEO",
+      "durationSeconds": 600,
+      "price": 40000,
+      "currency": "INR",
+      "priceType": "FIXED",
+      "minimumBookingAmount": null,
+      "title": "YouTube Dedicated Video",
+      "description": "Full 8-12 minute high-production YouTube video dedicated entirely to brand narrative, testing, and call-to-action.",
+      "deliveryDays": 7,
+      "freeRevisions": 2,
+      "publishOnMyChannel": true,
+      "scriptApprovalRequired": true,
+      "status": "ACTIVE",
+      "visibleToBrands": true,
+      "sortOrder": 1,
+      "addons": [
+        {
+          "id": "3d5b45d4-352d-4882-84d1-1d901d6a4ff6",
+          "type": "USAGE_RIGHTS",
+          "enabled": true,
+          "pricingMode": "PERCENT_OF_BASE",
+          "value": 20,
+          "durationDays": 30
+        },
+        {
+          "id": "66091711-bf22-4ec6-bc00-5afdfee28420",
+          "type": "EXTRA_REVISION",
+          "enabled": true,
+          "pricingMode": "FIXED_AMOUNT",
+          "value": 3000
+        },
+        {
+          "id": "1265d85c-e612-4400-a514-96457e0e61f9",
+          "type": "RAW_FOOTAGE",
+          "enabled": true,
+          "pricingMode": "PERCENT_OF_BASE",
+          "value": 35
+        }
+      ]
+    },
+    {
+      "_id": "6b015fea282b8db93dfdc1d2",
+      "id": "c33a9fe8-01f8-4e94-848c-e20d720f4607",
+      "creatorId": "creator_anjha1",
+      "version": 1,
+      "createdAt": "2026-11-21T09:10:02.948Z",
+      "updatedAt": "2026-11-21T09:10:02.948Z",
+      "deletedAt": null,
+      "platform": "INSTAGRAM",
+      "contentFormat": "REEL",
+      "deliverableType": "DEDICATED_VIDEO",
+      "durationSeconds": 60,
+      "price": 25000,
+      "currency": "INR",
+      "priceType": "FIXED",
+      "minimumBookingAmount": null,
+      "title": "1 Min Dedicated Instagram Reel",
+      "description": "High-energy vertical reel featuring organic product integration, customized CTA, and creator brand voice.",
+      "deliveryDays": 5,
+      "freeRevisions": 1,
+      "publishOnMyChannel": true,
+      "scriptApprovalRequired": true,
+      "status": "ACTIVE",
+      "visibleToBrands": true,
+      "sortOrder": 0,
+      "addons": [
+        {
+          "id": "5428f192-f08d-47d9-9ea8-d21ccba7cecd",
+          "type": "USAGE_RIGHTS",
+          "enabled": true,
+          "pricingMode": "PERCENT_OF_BASE",
+          "value": 20,
+          "durationDays": 30
+        },
+        {
+          "id": "0970407e-c45b-4431-9d2a-f2fab913b5bf",
+          "type": "EXCLUSIVITY",
+          "enabled": true,
+          "pricingMode": "PERCENT_OF_BASE",
+          "value": 30,
+          "durationDays": 90
+        },
+        {
+          "id": "fbfa91c1-8977-421c-a122-8fdb899c9b45",
+          "type": "RUSH_DELIVERY",
+          "enabled": true,
+          "pricingMode": "PERCENT_OF_BASE",
+          "value": 25,
+          "rushWithinHours": 48
+        }
+      ]
+    },
+    {
+      "_id": "6b015fea282b8db93dfdc1d3",
+      "id": "fe0e356e-d5b1-4311-a67f-c101399941f3",
+      "creatorId": "creator_anjha1",
+      "version": 1,
+      "createdAt": "2026-11-21T09:10:02.948Z",
+      "updatedAt": "2026-11-21T09:10:02.948Z",
+      "deletedAt": null,
+      "platform": "YOUTUBE",
+      "contentFormat": "LONG_VIDEO",
+      "deliverableType": "DEDICATED_VIDEO",
+      "durationSeconds": 600,
+      "price": 40000,
+      "currency": "INR",
+      "priceType": "FIXED",
+      "minimumBookingAmount": null,
+      "title": "YouTube Dedicated Video",
+      "description": "Full 8-12 minute high-production YouTube video dedicated entirely to brand narrative, testing, and call-to-action.",
+      "deliveryDays": 7,
+      "freeRevisions": 2,
+      "publishOnMyChannel": true,
+      "scriptApprovalRequired": true,
+      "status": "ACTIVE",
+      "visibleToBrands": true,
+      "sortOrder": 1,
+      "addons": [
+        {
+          "id": "da1a466b-3cfb-44d3-b414-cd2247686e74",
+          "type": "USAGE_RIGHTS",
+          "enabled": true,
+          "pricingMode": "PERCENT_OF_BASE",
+          "value": 20,
+          "durationDays": 30
+        },
+        {
+          "id": "cb89108c-9fa1-49be-bb6c-c1b458a739c7",
+          "type": "EXTRA_REVISION",
+          "enabled": true,
+          "pricingMode": "FIXED_AMOUNT",
+          "value": 3000
+        },
+        {
+          "id": "a046bee1-b153-4b69-a311-13c9a111827a",
+          "type": "RAW_FOOTAGE",
+          "enabled": true,
+          "pricingMode": "PERCENT_OF_BASE",
+          "value": 35
+        }
+      ]
+    },
+    {
+      "_id": "6b015fea282b8db93dfdc1d4",
+      "id": "c1ac500f-17bd-404f-a6ce-957cce357563",
+      "creatorId": "creator_anjha1",
+      "version": 1,
+      "createdAt": "2026-11-21T09:10:02.950Z",
+      "updatedAt": "2026-11-21T09:10:02.950Z",
+      "deletedAt": null,
+      "platform": "INSTAGRAM",
+      "contentFormat": "REEL",
+      "deliverableType": "DEDICATED_VIDEO",
+      "durationSeconds": 60,
+      "price": 25000,
+      "currency": "INR",
+      "priceType": "FIXED",
+      "minimumBookingAmount": null,
+      "title": "1 Min Dedicated Instagram Reel",
+      "description": "High-energy vertical reel featuring organic product integration, customized CTA, and creator brand voice.",
+      "deliveryDays": 5,
+      "freeRevisions": 1,
+      "publishOnMyChannel": true,
+      "scriptApprovalRequired": true,
+      "status": "ACTIVE",
+      "visibleToBrands": true,
+      "sortOrder": 0,
+      "addons": [
+        {
+          "id": "1a5d7639-c9d7-49c0-975b-878ce32feebf",
+          "type": "USAGE_RIGHTS",
+          "enabled": true,
+          "pricingMode": "PERCENT_OF_BASE",
+          "value": 20,
+          "durationDays": 30
+        },
+        {
+          "id": "b8089ba5-e9aa-49f7-b07b-8fffe5585f88",
+          "type": "EXCLUSIVITY",
+          "enabled": true,
+          "pricingMode": "PERCENT_OF_BASE",
+          "value": 30,
+          "durationDays": 90
+        },
+        {
+          "id": "da292803-0a9c-41e8-b1a3-653856ddfb30",
+          "type": "RUSH_DELIVERY",
+          "enabled": true,
+          "pricingMode": "PERCENT_OF_BASE",
+          "value": 25,
+          "rushWithinHours": 48
+        }
+      ]
+    },
+    {
+      "_id": "6b015fea282b8db93dfdc1d5",
+      "id": "67192eba-f0e8-49e5-88b0-4dbd79b3332b",
+      "creatorId": "creator_anjha1",
+      "version": 1,
+      "createdAt": "2026-11-21T09:10:02.950Z",
+      "updatedAt": "2026-11-21T09:10:02.950Z",
+      "deletedAt": null,
+      "platform": "YOUTUBE",
+      "contentFormat": "LONG_VIDEO",
+      "deliverableType": "DEDICATED_VIDEO",
+      "durationSeconds": 600,
+      "price": 40000,
+      "currency": "INR",
+      "priceType": "FIXED",
+      "minimumBookingAmount": null,
+      "title": "YouTube Dedicated Video",
+      "description": "Full 8-12 minute high-production YouTube video dedicated entirely to brand narrative, testing, and call-to-action.",
+      "deliveryDays": 7,
+      "freeRevisions": 2,
+      "publishOnMyChannel": true,
+      "scriptApprovalRequired": true,
+      "status": "ACTIVE",
+      "visibleToBrands": true,
+      "sortOrder": 1,
+      "addons": [
+        {
+          "id": "83c8b192-4c51-4368-913e-d128e15d196f",
+          "type": "USAGE_RIGHTS",
+          "enabled": true,
+          "pricingMode": "PERCENT_OF_BASE",
+          "value": 20,
+          "durationDays": 30
+        },
+        {
+          "id": "180687cb-c924-48b8-87f6-65efbb9e22d3",
+          "type": "EXTRA_REVISION",
+          "enabled": true,
+          "pricingMode": "FIXED_AMOUNT",
+          "value": 3000
+        },
+        {
+          "id": "ca6a9e0b-3b98-4ee9-8aea-543a34b359d1",
+          "type": "RAW_FOOTAGE",
+          "enabled": true,
+          "pricingMode": "PERCENT_OF_BASE",
+          "value": 35
+        }
+      ]
+    },
+    {
+      "_id": "6b015fea282b8db93dfdc1c4",
+      "id": "3170f379-9156-448c-bc6c-f9735c87b6e8",
+      "creatorId": "creator_anjha1",
+      "version": 1,
+      "createdAt": "2026-11-21T09:10:02.481Z",
+      "updatedAt": "2026-11-21T09:10:02.481Z",
+      "deletedAt": null,
+      "platform": "INSTAGRAM",
+      "contentFormat": "REEL",
+      "deliverableType": "DEDICATED_VIDEO",
+      "durationSeconds": 60,
+      "price": 25000,
+      "currency": "INR",
+      "priceType": "FIXED",
+      "minimumBookingAmount": null,
+      "title": "1 Min Dedicated Instagram Reel",
+      "description": "High-energy vertical reel featuring organic product integration, customized CTA, and creator brand voice.",
+      "deliveryDays": 5,
+      "freeRevisions": 1,
+      "publishOnMyChannel": true,
+      "scriptApprovalRequired": true,
+      "status": "ACTIVE",
+      "visibleToBrands": true,
+      "sortOrder": 0,
+      "addons": [
+        {
+          "id": "3ea3a448-a1db-4d5d-8642-1eee0eaad433",
+          "type": "USAGE_RIGHTS",
+          "enabled": true,
+          "pricingMode": "PERCENT_OF_BASE",
+          "value": 20,
+          "durationDays": 30
+        },
+        {
+          "id": "9a299be2-7ae3-4ade-b9c7-16f2e068b2cc",
+          "type": "EXCLUSIVITY",
+          "enabled": true,
+          "pricingMode": "PERCENT_OF_BASE",
+          "value": 30,
+          "durationDays": 90
+        },
+        {
+          "id": "11b4920a-ef77-4794-b001-f4e6de23dcd8",
+          "type": "RUSH_DELIVERY",
+          "enabled": true,
+          "pricingMode": "PERCENT_OF_BASE",
+          "value": 25,
+          "rushWithinHours": 48
+        }
+      ]
+    },
+    {
+      "_id": "6b015fea282b8db93dfdc1c5",
+      "id": "86a72e32-820e-448c-b0d7-53adf2319f29",
+      "creatorId": "creator_anjha1",
+      "version": 1,
+      "createdAt": "2026-11-21T09:10:02.481Z",
+      "updatedAt": "2026-11-21T09:10:02.481Z",
+      "deletedAt": null,
+      "platform": "YOUTUBE",
+      "contentFormat": "LONG_VIDEO",
+      "deliverableType": "DEDICATED_VIDEO",
+      "durationSeconds": 600,
+      "price": 40000,
+      "currency": "INR",
+      "priceType": "FIXED",
+      "minimumBookingAmount": null,
+      "title": "YouTube Dedicated Video",
+      "description": "Full 8-12 minute high-production YouTube video dedicated entirely to brand narrative, testing, and call-to-action.",
+      "deliveryDays": 7,
+      "freeRevisions": 2,
+      "publishOnMyChannel": true,
+      "scriptApprovalRequired": true,
+      "status": "ACTIVE",
+      "visibleToBrands": true,
+      "sortOrder": 1,
+      "addons": [
+        {
+          "id": "8b600e02-ba32-4072-a0b2-06eb248c41d0",
+          "type": "USAGE_RIGHTS",
+          "enabled": true,
+          "pricingMode": "PERCENT_OF_BASE",
+          "value": 20,
+          "durationDays": 30
+        },
+        {
+          "id": "7bc353d3-1675-4343-b033-536ba44c4811",
+          "type": "EXTRA_REVISION",
+          "enabled": true,
+          "pricingMode": "FIXED_AMOUNT",
+          "value": 3000
+        },
+        {
+          "id": "ee6ec136-250f-43cc-a587-79e856f2d550",
+          "type": "RAW_FOOTAGE",
+          "enabled": true,
+          "pricingMode": "PERCENT_OF_BASE",
+          "value": 35
+        }
+      ]
+    }
+  ],
+  "revokedTestAccounts": [
+    {
+      "_id": "6b0011e5b2f9fea3c086dd58",
+      "provider": "instagram",
+      "provider_user_id": "meta_ig_user_1795166562036",
+      "account_type": "BUSINESS",
+      "capabilities": {
+        "views_insights": true
+      },
+      "connected_at": "2026-11-20T09:22:42.037Z",
+      "creator_email": "creator_1795166562036@adzunova.com",
+      "creator_id": "test_creator_1795166562036",
+      "failure_count": 0,
+      "followers_count": 5432,
+      "id": "8a7dad84-bd7e-4dd4-a01f-f9e0526954ec",
+      "last_synced_at": "2026-11-20T09:22:42.037Z",
+      "media_count": 88,
+      "next_sync_at": "2026-11-20T15:22:42.037Z",
+      "profile_picture_url": "https://example.com/avatar.jpg",
+      "scopes": [
+        "instagram_basic",
+        "instagram_manage_insights"
+      ],
+      "status": "REVOKED",
+      "sync_tier": "HOT",
+      "username": "test_handle_1795166562037"
+    },
+    {
+      "_id": "6b00151db2f9fea3c086dda8",
+      "provider": "instagram",
+      "provider_user_id": "meta_ig_user_1795167386745",
+      "account_type": "BUSINESS",
+      "capabilities": {
+        "views_insights": true
+      },
+      "connected_at": "2026-11-20T09:36:26.745Z",
+      "creator_email": "creator_1795167386745@adzunova.com",
+      "creator_id": "test_creator_1795167386745",
+      "failure_count": 0,
+      "followers_count": 5432,
+      "id": "744ddadf-43e7-44d2-b6e1-bf1725531618",
+      "last_synced_at": "2026-11-20T09:36:26.745Z",
+      "media_count": 88,
+      "next_sync_at": "2026-11-20T15:36:26.745Z",
+      "profile_picture_url": "https://example.com/avatar.jpg",
+      "scopes": [
+        "instagram_basic",
+        "instagram_manage_insights"
+      ],
+      "status": "REVOKED",
+      "sync_tier": "HOT",
+      "username": "test_handle_1795167386745"
+    }
+  ]
+}

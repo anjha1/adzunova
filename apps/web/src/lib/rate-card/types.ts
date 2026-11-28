@@ -97,12 +97,15 @@ export interface CalculatedQuoteBreakdown {
     value: number;
   }>;
   addonsTotal: number;
-  subtotal: number; // Base + Addons
+  subtotal: number; // Deliverable Total = Base + Addons
+  brandFeeAmount?: number;
+  taxableValue?: number;
   commissionPercent: number;
-  commissionAmount: number;
-  creatorNetPayout: number; // Subtotal - commissionAmount
+  commissionAmount: number; // Creator side fee
+  creatorNetPayout: number; // Deliverable Total - creatorFee - tds
   gstRatePercent: number;
-  gstAmount: number; // 18% standard GST on subtotal
-  totalBrandPayable: number; // Subtotal + gstAmount
+  gstAmount: number; // 18% standard GST on taxableValue
+  totalBrandPayable: number; // Taxable Value + gstAmount
+  exactPaise?: Record<string, string>;
   calculatedAt: string;
 }

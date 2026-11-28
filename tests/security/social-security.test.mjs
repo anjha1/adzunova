@@ -146,3 +146,8 @@ describe('Phase F: Security, Isolation & Token Leakage Prevention', async () => 
     );
   });
 });
+
+test.after(async () => {
+  const { closeSocialDb } = await import('../../apps/web/src/lib/social/social-repository.ts');
+  await closeSocialDb();
+});

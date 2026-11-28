@@ -8,6 +8,7 @@ import { SocialPlatformIcon } from '@/components/creator/ui/social-platform-icon
 import { PublicProfile, SectionVisibility } from '@/lib/public-profile/types';
 import { formatIndianRupees } from '@/lib/public-profile/formatters';
 import { QrCode } from '@/components/ui/qr-code';
+import { FileUploader } from '@/components/storage/file-uploader';
 
 export default function ProfilePage() {
   const [activeTab, setActiveTab] = useState<'details' | 'visibility' | 'pricing' | 'analytics'>('details');
@@ -530,6 +531,25 @@ export default function ProfilePage() {
                         </button>
                       )}
                     </div>
+                    <FileUploader
+                      purpose="creator_avatar"
+                      label="Upload Avatar"
+                      accept="image/jpeg,image/png,image/webp"
+                      maxSizeLabel="JPEG, PNG, WebP up to 10 MB"
+                      currentUrl={avatarUrl}
+                      allowCamera
+                      onUploaded={async (res) => {
+                        if (res.publicUrl) {
+                          setAvatarUrl(res.publicUrl);
+                          setIsDirty(false);
+                          await fetch('/api/creator/public-profile', {
+                            method: 'PATCH',
+                            headers: { 'Content-Type': 'application/json' },
+                            body: JSON.stringify({ avatarUrl: res.publicUrl }),
+                          }).catch(() => {});
+                        }
+                      }}
+                    />
                     <input
                       type="url"
                       value={avatarUrl || ''}
@@ -538,12 +558,30 @@ export default function ProfilePage() {
                         setIsDirty(true);
                       }}
                       placeholder={loginAvatar || "https://example.com/avatar.jpg"}
-                      className="w-full rounded-xl border border-border bg-background px-3 py-2 text-foreground font-mono text-[11px]"
+                      className="w-full mt-2 rounded-xl border border-border bg-background px-3 py-2 text-foreground font-mono text-[11px]"
                     />
                   </div>
 
                   <div>
-                    <label className="font-semibold text-foreground block mb-1">Cover Banner URL</label>
+                    <label className="font-semibold text-foreground block mb-1">Cover Banner</label>
+                    <FileUploader
+                      purpose="creator_cover"
+                      label="Upload Cover Banner"
+                      accept="image/jpeg,image/png,image/webp"
+                      maxSizeLabel="JPEG, PNG, WebP up to 10 MB"
+                      currentUrl={coverUrl}
+                      onUploaded={async (res) => {
+                        if (res.publicUrl) {
+                          setCoverUrl(res.publicUrl);
+                          setIsDirty(false);
+                          await fetch('/api/creator/public-profile', {
+                            method: 'PATCH',
+                            headers: { 'Content-Type': 'application/json' },
+                            body: JSON.stringify({ coverUrl: res.publicUrl }),
+                          }).catch(() => {});
+                        }
+                      }}
+                    />
                     <input
                       type="url"
                       value={coverUrl || ''}
@@ -552,7 +590,7 @@ export default function ProfilePage() {
                         setIsDirty(true);
                       }}
                       placeholder="https://example.com/banner.jpg"
-                      className="w-full rounded-xl border border-border bg-background px-3 py-2 text-foreground font-mono text-[11px]"
+                      className="w-full mt-2 rounded-xl border border-border bg-background px-3 py-2 text-foreground font-mono text-[11px]"
                     />
                   </div>
                 </div>

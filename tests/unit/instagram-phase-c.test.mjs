@@ -590,3 +590,12 @@ describe('Phase C: Sync Worker Pipeline Execution & Outbox Events', async () => 
     }
   });
 });
+
+test.after(async () => {
+  const { closeSocialDb } = await import('../../apps/web/src/lib/social/social-repository.ts');
+  const { closeMetricsStoreDb } = await import('../../apps/web/src/lib/social/metrics-store.ts');
+  const { closeOAuthStateDb } = await import('../../apps/web/src/lib/social/oauth-state.ts');
+  await closeSocialDb();
+  await closeMetricsStoreDb();
+  await closeOAuthStateDb();
+});

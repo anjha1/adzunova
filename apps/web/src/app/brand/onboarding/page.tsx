@@ -12,6 +12,7 @@ import {
   INDIAN_GST_STATE_CODES,
 } from '@/lib/statutory/statutory-rules';
 import { computeBrandVerificationBadge } from '@/lib/statutory/business-verification';
+import { FileUploader } from '@/components/storage/file-uploader';
 
 export default function BrandOnboardingPage() {
   const router = useRouter();
@@ -493,10 +494,22 @@ export default function BrandOnboardingPage() {
                 </select>
               </div>
 
-              <div className="space-y-1">
+              <div className="space-y-2">
                 <label className="text-xs font-semibold text-foreground">
-                  Company Logo URL
+                  Company Logo
                 </label>
+                <FileUploader
+                  purpose="brand_logo"
+                  label="Upload Company Logo"
+                  accept="image/jpeg,image/png,image/webp"
+                  maxSizeLabel="JPEG, PNG, WebP up to 10 MB"
+                  currentUrl={formData.logoUrl}
+                  onUploaded={(res) => {
+                    if (res.publicUrl) {
+                      setFormData((prev) => ({ ...prev, logoUrl: res.publicUrl || '' }));
+                    }
+                  }}
+                />
                 <input
                   type="url"
                   name="logoUrl"

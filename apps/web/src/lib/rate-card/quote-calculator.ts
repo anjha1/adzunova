@@ -1,4 +1,10 @@
 import {
+  computeAddonPaise,
+  computeBookingQuote,
+  DEFAULT_FEE_CONFIG,
+  serializeBookingQuote,
+} from '@adzunova/money';
+import {
   RateCardItem,
   AddonType,
   PlatformFeeConfig,
@@ -7,76 +13,80 @@ import {
 import { ADDON_TYPE_METADATA } from './compatibility';
 
 export const CURRENT_PLATFORM_FEE_CONFIG: PlatformFeeConfig = {
-  version: 'cfg_2026_q4',
-  commissionPercent: 10,
-  commissionBps: 1000, // 10.00%
+  version: DEFAULT_FEE_CONFIG.version,
+  commissionPercent: (DEFAULT_FEE_CONFIG.brandFeeBps + DEFAULT_FEE_CONFIG.creatorFeeBps) / 100,
+  commissionBps: DEFAULT_FEE_CONFIG.brandFeeBps + DEFAULT_FEE_CONFIG.creatorFeeBps,
   effectiveFrom: '2026-01-01T00:00:00.000Z',
 };
 
-export const STANDARD_GST_RATE_PERCENT = 18;
-export const STANDARD_GST_BPS = 1800; // 18.00%
+export const STANDARD_GST_RATE_PERCENT = DEFAULT_FEE_CONFIG.gstBps / 100;
+export const STANDARD_GST_BPS = DEFAULT_FEE_CONFIG.gstBps;
 
 /**
- * Calculates a reproducible, decimal-safe breakdown of a deliverable quote.
- * All arithmetic is performed in integer paise (minor units) to prevent floating-point drift.
+ * Single source of truth: delegates all quote math to @adzunova/money computeBookingQuote.
  */
 export function calculateRateCardQuote(
   item: RateCardItem,
   selectedAddonTypes: AddonType[] = [],
-  feeConfig: PlatformFeeConfig = CURRENT_PLATFORM_FEE_CONFIG
+  feeConfig: PlatformFeeConfig = CURRENT_PLATFORM_FEE_CONFIG,
+  quantity = 1
 ): CalculatedQuoteBreakdown {
-  const basePaise = Math.round(item.price * 100);
-
+  const basePricePaise = BigInt(Math.round(item.price * 100));
   const selectedBreakdown: CalculatedQuoteBreakdown['selectedAddons'] = [];
-  let addonsTotalPaise = 0;
+  const addonsPaise: bigint[] = [];
 
   for (const addonType of selectedAddonTypes) {
     const configuredAddon = item.addons?.find(
       (a) => a.type === addonType && a.enabled
     );
-
     if (configuredAddon) {
-      let addonPaise = 0;
-      if (configuredAddon.pricingMode === 'PERCENT_OF_BASE') {
-        addonPaise = Math.round((basePaise * configuredAddon.value) / 100);
-      } else {
-        addonPaise = Math.round(configuredAddon.value * 100);
-      }
-
-      addonsTotalPaise += addonPaise;
+      const addonPaise = computeAddonPaise(
+        basePricePaise,
+        configuredAddon.pricingMode,
+        configuredAddon.value
+      );
+      addonsPaise.push(addonPaise);
       const meta = ADDON_TYPE_METADATA[addonType];
-
       selectedBreakdown.push({
         type: addonType,
         label: meta?.label || addonType,
-        amount: addonPaise / 100,
+        amount: Number(addonPaise) / 100,
         pricingMode: configuredAddon.pricingMode,
         value: configuredAddon.value,
       });
     }
   }
 
-  const subtotalPaise = basePaise + addonsTotalPaise;
-  const commissionPaise = Math.round(
-    (subtotalPaise * feeConfig.commissionBps) / 10000
-  );
-  const creatorNetPayoutPaise = Math.max(0, subtotalPaise - commissionPaise);
-  const gstPaise = Math.round((subtotalPaise * STANDARD_GST_BPS) / 10000);
-  const totalBrandPayablePaise = subtotalPaise + gstPaise;
+  // Split total platform commission evenly unless overridden
+  const halfBps = Math.floor(feeConfig.commissionBps / 2);
+  const creatorFeeBps = feeConfig.commissionBps - halfBps;
+
+  const quote = computeBookingQuote({
+    basePricePaise,
+    addonsPaise,
+    quantity,
+    brandFeeBps: halfBps,
+    creatorFeeBps,
+    gstBps: STANDARD_GST_BPS,
+    tdsBps: DEFAULT_FEE_CONFIG.tdsBps,
+  });
 
   return {
     configVersion: feeConfig.version,
     currency: item.currency || 'INR',
-    basePrice: basePaise / 100,
+    basePrice: Number(quote.basePricePaise) / 100,
     selectedAddons: selectedBreakdown,
-    addonsTotal: addonsTotalPaise / 100,
-    subtotal: subtotalPaise / 100,
-    commissionPercent: feeConfig.commissionPercent,
-    commissionAmount: commissionPaise / 100,
-    creatorNetPayout: creatorNetPayoutPaise / 100,
+    addonsTotal: Number(quote.addonsTotalPaise) / 100,
+    subtotal: Number(quote.deliverableTotalPaise) / 100,
+    brandFeeAmount: Number(quote.brandFeePaise) / 100,
+    taxableValue: Number(quote.taxableValuePaise) / 100,
+    commissionPercent: creatorFeeBps / 100,
+    commissionAmount: Number(quote.creatorFeePaise) / 100,
+    creatorNetPayout: Number(quote.creatorNetPayoutPaise) / 100,
     gstRatePercent: STANDARD_GST_RATE_PERCENT,
-    gstAmount: gstPaise / 100,
-    totalBrandPayable: totalBrandPayablePaise / 100,
+    gstAmount: Number(quote.gstPaise) / 100,
+    totalBrandPayable: Number(quote.brandTotalPayablePaise) / 100,
+    exactPaise: serializeBookingQuote(quote),
     calculatedAt: new Date().toISOString(),
   };
 }

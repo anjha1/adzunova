@@ -52,6 +52,9 @@ Thumbs.db
 *.tmp
 *.bak
 .cache/
+.local/
 
 .claude/
 .mcp.json
+/tests/e2e/screenshots/
+/ADZUNOVAPyment.txt

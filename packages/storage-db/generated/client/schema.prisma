@@ -1,0 +1,138 @@
+datasource db {
+  provider = "mongodb"
+  url      = env("MONGODB_URI")
+}
+
+generator client {
+  provider = "prisma-client-js"
+  output   = "../generated/client"
+}
+
+model MediaAsset {
+  id               String    @id @default(auto()) @map("_id") @db.ObjectId
+  assetUuid        String    @unique
+  idempotencyKey   String    @unique
+  ownerType        String // 'CREATOR' | 'BRAND' | 'SYSTEM'
+  ownerId          String
+  tenantId         String
+  visibility       String // 'PUBLIC' | 'INTERNAL' | 'CONFIDENTIAL' | 'RESTRICTED'
+  purpose          String // e.g. 'creator_avatar', 'kyc_document'
+  dataClass        String // 'public' | 'internal' | 'confidential' | 'restricted'
+  currentVersionId String?   @db.ObjectId
+  status           String    @default("ACTIVE") // 'ACTIVE' | 'TOMBSTONED' | 'PURGED'
+  expiresAt        DateTime?
+  deletedAt        DateTime?
+  createdAt        DateTime  @default(now())
+  updatedAt        DateTime  @updatedAt
+
+  // ESR-ordered hot query indexes
+  @@index([tenantId, status, createdAt(sort: Desc)])
+  @@index([ownerType, ownerId, createdAt(sort: Desc)])
+  @@map("storage_media_assets")
+}
+
+model AssetVersion {
+  id            String   @id @default(auto()) @map("_id") @db.ObjectId
+  assetId       String   @db.ObjectId
+  versionNumber Int
+  blobId        String   @db.ObjectId
+  ownerType     String
+  ownerId       String
+  tenantId      String
+  visibility    String
+  createdBy     String
+  createdAt     DateTime @default(now())
+
+  @@unique([assetId, versionNumber])
+  @@index([tenantId, createdAt(sort: Desc)])
+  @@index([blobId])
+  @@map("storage_asset_versions")
+}
+
+model AssetBlob {
+  id           String    @id @default(auto()) @map("_id") @db.ObjectId
+  sha256Hex    String // lowercase 64-char hex
+  sizeBytes    BigInt
+  contentType  String
+  dataClass    String
+  bucket       String
+  objectKey    String
+  storageClass String    @default("STANDARD") // 'STANDARD' | 'STANDARD_IA'
+  state        String    @default("ACTIVE") // 'ACTIVE' | 'TOMBSTONED' | 'PURGED'
+  refCount     Int       @default(0)
+  ownerType    String
+  ownerId      String
+  tenantId     String
+  visibility   String
+  tombstonedAt DateTime?
+  purgeAfter   DateTime?
+  createdAt    DateTime  @default(now())
+  updatedAt    DateTime  @updatedAt
+
+  @@unique([sha256Hex, bucket])
+  @@unique([bucket, objectKey])
+  @@index([state, purgeAfter])
+  @@index([tenantId, createdAt(sort: Desc)])
+  @@map("storage_asset_blobs")
+}
+
+model AssetLink {
+  id         String   @id @default(auto()) @map("_id") @db.ObjectId
+  assetId    String   @db.ObjectId
+  blobId     String   @db.ObjectId
+  entityType String // e.g. 'creator_profile', 'brand_profile', 'contract'
+  entityId   String
+  fieldRole  String // e.g. 'avatar', 'cover', 'logo', 'attachment'
+  ownerType  String
+  ownerId    String
+  tenantId   String
+  visibility String
+  createdAt  DateTime @default(now())
+
+  @@unique([entityType, entityId, fieldRole, assetId])
+  @@index([assetId])
+  @@index([blobId])
+  @@index([tenantId, entityType, entityId])
+  @@map("storage_asset_links")
+}
+
+model AssetEvent {
+  id           String   @id @default(auto()) @map("_id") @db.ObjectId
+  assetId      String   @db.ObjectId
+  eventType    String // 'ASSET_CREATED' | 'VERSION_PROMOTED' | 'LINK_ADDED' | 'TOMBSTONED' | 'PURGED'
+  actorId      String
+  ownerType    String
+  ownerId      String
+  tenantId     String
+  visibility   String
+  payloadJson  String
+  previousHash String?
+  eventHash    String?
+  createdAt    DateTime @default(now())
+
+  @@index([assetId, createdAt(sort: Asc)])
+  @@index([tenantId, createdAt(sort: Desc)])
+  @@map("storage_asset_events")
+}
+
+model UploadSession {
+  id             String   @id @default(auto()) @map("_id") @db.ObjectId
+  sessionUuid    String   @unique
+  idempotencyKey String   @unique
+  ownerType      String
+  ownerId        String
+  tenantId       String
+  visibility     String
+  purpose        String
+  bucket         String
+  objectKey      String
+  expectedBytes  BigInt
+  contentType    String
+  status         String   @default("INITIATED") // 'INITIATED' | 'COMPLETED' | 'ABORTED' | 'EXPIRED'
+  expiresAt      DateTime
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+
+  @@index([tenantId, status, createdAt(sort: Desc)])
+  @@map("storage_upload_sessions")
+}

@@ -6,6 +6,7 @@ import { PageHeader, EmptyState } from '@/components/creator/ui';
 import { ShellIcon } from '@/components/creator/shell/shell-icons';
 import { SocialPlatformIcon } from '@/components/creator/ui/social-platform-icon';
 import { DerivedAudienceMetrics } from '@/lib/social/demographics-engine';
+import { FileUploader, type UploadedAssetResult } from '@/components/storage/file-uploader';
 
 interface MediaKitData {
   hasConnectedAccount: boolean;
@@ -34,6 +35,22 @@ export default function MediaKitPage() {
   const [data, setData] = useState<MediaKitData | null>(null);
   const [loading, setLoading] = useState(true);
   const [copied, setCopied] = useState(false);
+  const [mediaKitPdf, setMediaKitPdf] = useState<UploadedAssetResult | null>(null);
+  const [downloadingPdf, setDownloadingPdf] = useState(false);
+
+  const handleDownloadPrivatePdf = async () => {
+    if (!mediaKitPdf) return;
+    setDownloadingPdf(true);
+    try {
+      const res = await fetch(`/api/storage/assets/${mediaKitPdf.assetId}/download-url`);
+      if (res.ok) {
+        const json = await res.json();
+        if (json.downloadUrl) window.open(json.downloadUrl, '_blank', 'noopener,noreferrer');
+      }
+    } finally {
+      setDownloadingPdf(false);
+    }
+  };
 
   useEffect(() => {
     async function loadMediaKit() {
@@ -90,6 +107,39 @@ export default function MediaKitPage() {
           ) : undefined
         }
       />
+
+      <div className="rounded-3xl bg-card border border-border p-6 space-y-4">
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
+          <div>
+            <h2 className="text-base font-bold text-foreground">Private Media Kit PDF</h2>
+            <p className="text-xs text-muted-foreground">
+              Stored privately in R2. Downloads require authorization via short-lived signed URLs.
+            </p>
+          </div>
+          {mediaKitPdf && (
+            <div className="flex items-center gap-2">
+              <span className="px-2.5 py-1 rounded-full text-[11px] font-medium bg-amber-500/10 text-amber-700 dark:text-amber-300 border border-amber-500/20">
+                Not yet scanned
+              </span>
+              <button
+                type="button"
+                disabled={downloadingPdf}
+                onClick={handleDownloadPrivatePdf}
+                className="px-3 py-1.5 rounded-lg bg-primary text-primary-foreground text-xs font-medium disabled:opacity-50"
+              >
+                {downloadingPdf ? 'Generating link...' : 'Download Private PDF'}
+              </button>
+            </div>
+          )}
+        </div>
+        <FileUploader
+          purpose="creator_media_kit_pdf"
+          label="Upload Media Kit PDF"
+          accept="application/pdf"
+          maxSizeLabel="PDF up to 25 MB"
+          onUploaded={(res) => setMediaKitPdf(res)}
+        />
+      </div>
 
       {!hasConnected ? (
         <EmptyState

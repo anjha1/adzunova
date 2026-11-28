@@ -502,3 +502,8 @@ describe('Phase F: Meta Graph API Contract Tests (Scrubbed Fixtures)', async () 
     });
   });
 });
+
+test.after(async () => {
+  const { closeSocialDb } = await import('../../apps/web/src/lib/social/social-repository.ts');
+  await closeSocialDb();
+});

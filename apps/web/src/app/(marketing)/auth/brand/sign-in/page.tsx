@@ -5,10 +5,20 @@ import Link from 'next/link';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { AuthCard, GoogleAuthButton } from '@/components/auth/auth-card';
 
+function getSafeReturnUrl(raw: string | null): string | null {
+  if (!raw) return null;
+  const trimmed = raw.trim();
+  if (!trimmed.startsWith('/') || trimmed.startsWith('//') || trimmed.includes('\\')) {
+    return null;
+  }
+  return trimmed;
+}
+
 function BrandSignInForm() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const queryError = searchParams.get('error');
+  const safeReturnUrl = getSafeReturnUrl(searchParams.get('returnUrl'));
 
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
@@ -26,7 +36,9 @@ function BrandSignInForm() {
       .then((res) => (res.ok ? res.json() : null))
       .then((data) => {
         if (data?.authenticated && data?.user?.role === 'BRAND') {
-          router.replace(data.profile?.onboardingCompleted ? '/brand/dashboard' : '/brand/onboarding');
+          router.replace(
+            safeReturnUrl || (data.profile?.onboardingCompleted ? '/brand/dashboard' : '/brand/onboarding')
+          );
         }
       })
       .catch(() => {});
@@ -56,7 +68,9 @@ function BrandSignInForm() {
         return;
       }
 
-      router.push(data.profile?.onboardingCompleted ? '/brand/dashboard' : '/brand/onboarding');
+      router.push(
+        safeReturnUrl || (data.profile?.onboardingCompleted ? '/brand/dashboard' : '/brand/onboarding')
+      );
       router.refresh();
     } catch {
       setError('Connection failed. Please check your network.');

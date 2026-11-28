@@ -11,6 +11,7 @@ import {
 import { serializePublicProfile } from '@/lib/public-profile/serializer';
 import { getSocialAccountLatest } from '@/lib/social/latest-state';
 import { getRateCardItems } from '@/lib/rate-card/rate-card-repository';
+import { listCreatorPackages } from '@/lib/creator/packages-repository';
 import { getSession } from '@/lib/auth';
 import { PublicProfileClient } from '@/components/creator/public-profile/public-profile-client';
 
@@ -58,9 +59,10 @@ export async function generateMetadata({ params }: PageProps): Promise<Metadata>
     };
   }
 
-  const [latestSocial, rateCardItems] = await Promise.all([
+  const [latestSocial, rateCardItems, persistedPackages] = await Promise.all([
     getSocialAccountLatest(profile.creatorId).catch(() => null),
     getRateCardItems(profile.creatorId).catch(() => []),
+    listCreatorPackages(profile.creatorId, { activeOnly: true }).catch(() => []),
   ]);
 
   const dto = serializePublicProfile({
@@ -134,9 +136,10 @@ export default async function PublicCreatorProfilePage({ params }: PageProps) {
     }
   }
 
-  const [latestSocial, rateCardItems] = await Promise.all([
+  const [latestSocial, rateCardItems, persistedPackages] = await Promise.all([
     getSocialAccountLatest(profile.creatorId).catch(() => null),
     getRateCardItems(profile.creatorId).catch(() => []),
+    listCreatorPackages(profile.creatorId, { activeOnly: true }).catch(() => []),
   ]);
 
   const packages = getCreatorPackages(profile.creatorId);
@@ -188,7 +191,11 @@ export default async function PublicCreatorProfilePage({ params }: PageProps) {
         </div>
       )}
 
-      <PublicProfileClient profile={dto} />
+      <PublicProfileClient
+        profile={dto}
+        creatorId={profile.creatorId}
+        persistedPackages={persistedPackages}
+      />
     </>
   );
 }

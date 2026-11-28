@@ -12,7 +12,7 @@ describe('Phase D: Privacy, Compliance & Audit Logging', async () => {
   const { encryptToken } = await import('../../apps/web/src/lib/social/security/encryption.ts');
 
   it('records immutable audit log entries for creator actions', async () => {
-    const creatorId = 'creator_audit_test_1';
+    const creatorId = `creator_audit_test_${Date.now()}_${Math.random().toString(36).slice(2, 6)}`;
 
     await logSocialAuditAction(creatorId, 'CONNECT_INITIATED', 'instagram', {
       ip: '127.0.0.1',
@@ -119,4 +119,9 @@ describe('Phase D: Privacy, Compliance & Audit Logging', async () => {
     assert.strictEqual(derived.ageDistribution[0].bucket, '13-17');
     assert.strictEqual(derived.ageDistribution[0].count, 300);
   });
+});
+
+test.after(async () => {
+  const { closeSocialDb } = await import('../../apps/web/src/lib/social/social-repository.ts');
+  await closeSocialDb();
 });

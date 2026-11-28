@@ -1,5 +1,6 @@
 import fs from 'fs';
 import path from 'path';
+import { checkStorageGuardRulesForFile } from './storage-guard-rules.mjs';
 
 let failed = false;
 
@@ -380,6 +381,63 @@ if (ytScopeViolations === 0) {
   console.log(`  PASS: Zero YouTube write or monetary scopes across ${nonTestSrcFiles.length} non-test source files.\n`);
 } else {
   console.error(`  FAIL: Found ${ytScopeViolations} forbidden YouTube scope violations.\n`);
+}
+
+// Guard (l): Storage S0-S12 Security, Truth & Precision Guards
+console.log('--- Guard (l): Storage S0-S12 Rules (r2.dev, client secrets, claims, logging, float bytes) ---');
+let storageGuardViolations = 0;
+for (const file of nonTestSrcFiles) {
+  const content = fs.readFileSync(file, 'utf8');
+  const violations = checkStorageGuardRulesForFile(file, content);
+  for (const v of violations) {
+    console.error(`  FAIL [Storage "${v.rule}"]: ${path.relative(process.cwd(), file)}:${v.line}: ${v.snippet}`);
+    storageGuardViolations++;
+    failed = true;
+  }
+}
+if (storageGuardViolations === 0) {
+  console.log(`  PASS: Zero storage guard violations across ${nonTestSrcFiles.length} non-test source files.\n`);
+} else {
+  console.error(`  FAIL: Found ${storageGuardViolations} storage guard violations.\n`);
+}
+
+// Guard (m): Payments M1-M9 Security, Truth, Live-Probe & Precision Guards
+console.log('--- Guard (m): Payments Rules (no test stubs in prod, no client secrets, no float money, no secret logging) ---');
+let paymentGuardViolations = 0;
+for (const file of nonTestSrcFiles) {
+  const content = fs.readFileSync(file, 'utf8');
+  const normPath = file.replace(/\\/g, '/');
+  const isClient = content.includes("'use client'") || content.includes('"use client"');
+  const lines = content.split('\n');
+  lines.forEach((line, idx) => {
+    const t = line.trim();
+    if (t.startsWith('//') || t.startsWith('*')) return;
+    if (/PaymentProviderStub|InMemoryPayment/i.test(line)) {
+      console.error(`  FAIL [Payment Stub in Prod]: ${path.relative(process.cwd(), file)}:${idx + 1}: ${t}`);
+      paymentGuardViolations++;
+      failed = true;
+    }
+    if (isClient && /(RAZORPAY_KEY_SECRET|RAZORPAY_WEBHOOK_SECRET|rzp_live_)/.test(line)) {
+      console.error(`  FAIL [Payment Secret in Client]: ${path.relative(process.cwd(), file)}:${idx + 1}: ${t}`);
+      paymentGuardViolations++;
+      failed = true;
+    }
+    if (/console\.(log|info|warn|error)\(/.test(line) && /(keySecret|webhookSecret|RAZORPAY_KEY_SECRET|RAZORPAY_WEBHOOK_SECRET)/.test(line)) {
+      console.error(`  FAIL [Payment Secret Logged]: ${path.relative(process.cwd(), file)}:${idx + 1}: ${t}`);
+      paymentGuardViolations++;
+      failed = true;
+    }
+    if (normPath.includes('/payments/') && /Math\.(round|floor|ceil)\(/.test(line)) {
+      console.error(`  FAIL [Float Money Math]: ${path.relative(process.cwd(), file)}:${idx + 1}: ${t}`);
+      paymentGuardViolations++;
+      failed = true;
+    }
+  });
+}
+if (paymentGuardViolations === 0) {
+  console.log(`  PASS: Zero payment guard violations across ${nonTestSrcFiles.length} non-test source files.\n`);
+} else {
+  console.error(`  FAIL: Found ${paymentGuardViolations} payment guard violations.\n`);
 }
 
 if (failed) {

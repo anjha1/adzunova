@@ -1,0 +1,320 @@
+datasource db {
+  provider = "mongodb"
+  url      = env("MONGODB_URI")
+}
+
+generator client {
+  provider = "prisma-client-js"
+  output   = "../generated/client"
+}
+
+model PayConfigVersion {
+  id                     String   @id @default(auto()) @map("_id") @db.ObjectId
+  version                String   @unique // e.g. cfg_2026_q4
+  brandFeeBps            Int      // 500 = 5%
+  creatorFeeBps          Int      // 500 = 5%
+  gstBps                 Int      // 1800 = 18%
+  defaultTdsBps          Int      // 0 unless configured/applicable
+  offerExpiryHours       Int      @default(72)
+  signWindowHours        Int      @default(120)
+  paymentWindowHours     Int      @default(48)
+  reviewSlaHours         Int      @default(120)
+  holdPeriodHours        Int      @default(168) // 7 days
+  disputeWindowHours     Int      @default(168) // 7 days
+  minWithdrawalPaise     BigInt   @default(50000) // ₹500
+  isActive               Boolean  @default(false)
+  createdBy              String
+  createdAt              DateTime @default(now())
+
+  @@index([isActive, createdAt(sort: Desc)])
+  @@map("pay_config_versions")
+}
+
+model PayFeatureFlag {
+  id        String   @id @default(auto()) @map("_id") @db.ObjectId
+  key       String   @unique
+  enabled   Boolean  @default(false)
+  updatedBy String
+  reason    String?
+  updatedAt DateTime @updatedAt
+  createdAt DateTime @default(now())
+
+  @@map("pay_feature_flags")
+}
+
+model PayConfigApproval {
+  id           String   @id @default(auto()) @map("_id") @db.ObjectId
+  approvalType String   // 'RAZORPAY_LIVE_PROBE' | 'RAZORPAY_LIVE_MONEY' | 'MANUAL_MONEY_ACTION'
+  approvedBy   String
+  scope        String
+  reason       String
+  isActive     Boolean  @default(true)
+  approvedAt   DateTime @default(now())
+  revokedAt    DateTime?
+
+  @@index([approvalType, isActive, approvedAt(sort: Desc)])
+  @@map("pay_config_approvals")
+}
+
+model PayIdempotencyRecord {
+  id           String   @id @default(auto()) @map("_id") @db.ObjectId
+  scope        String
+  key          String
+  requestHash  String
+  status       String   // 'IN_PROGRESS' | 'COMPLETED' | 'FAILED'
+  statusCode   Int?
+  responseJson String?
+  expiresAt    DateTime
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  @@unique([scope, key])
+  @@index([expiresAt])
+  @@map("pay_idempotency")
+}
+
+model PayOutboxEvent {
+  id            String   @id @default(auto()) @map("_id") @db.ObjectId
+  eventId       String   @unique
+  eventType     String
+  aggregateType String
+  aggregateId   String
+  payloadJson   String
+  status        String   @default("PENDING") // 'PENDING' | 'PROCESSING' | 'PUBLISHED' | 'DLQ'
+  attempts      Int      @default(0)
+  maxAttempts   Int      @default(5)
+  nextAttemptAt DateTime @default(now())
+  lockedBy      String?
+  lockedUntil   DateTime?
+  lastError     String?
+  publishedAt   DateTime?
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  @@index([status, nextAttemptAt])
+  @@index([aggregateType, aggregateId, createdAt(sort: Desc)])
+  @@map("pay_outbox_events")
+}
+
+model PayConsumedEvent {
+  id           String   @id @default(auto()) @map("_id") @db.ObjectId
+  consumerName String
+  eventId      String
+  processedAt  DateTime @default(now())
+
+  @@unique([consumerName, eventId])
+  @@map("pay_consumed_events")
+}
+
+model PayDlqEvent {
+  id           String   @id @default(auto()) @map("_id") @db.ObjectId
+  sourceType   String   // 'OUTBOX' | 'QUEUE' | 'WEBHOOK'
+  sourceId     String
+  eventType    String
+  payloadJson  String
+  errorMessage String
+  attempts     Int
+  replayedAt   DateTime?
+  replayedBy   String?
+  createdAt    DateTime @default(now())
+
+  @@index([replayedAt, createdAt(sort: Desc)])
+  @@map("pay_dlq_events")
+}
+
+model PayAuditEvent {
+  id           String   @id @default(auto()) @map("_id") @db.ObjectId
+  seq          Int      @unique
+  actorId      String
+  actorRole    String
+  action       String
+  resourceType String
+  resourceId   String
+  reason       String?
+  payloadJson  String
+  prevHash     String
+  hash         String   @unique
+  createdAt    DateTime @default(now())
+
+  @@index([resourceType, resourceId, seq(sort: Desc)])
+  @@index([actorId, createdAt(sort: Desc)])
+  @@map("pay_audit_events")
+}
+
+model PayQueueJob {
+  id          String   @id @default(auto()) @map("_id") @db.ObjectId
+  queueName   String
+  jobType     String
+  dedupKey    String   @unique
+  payloadJson String
+  status      String   @default("PENDING") // 'PENDING' | 'LEASED' | 'COMPLETED' | 'DLQ'
+  attempts    Int      @default(0)
+  maxAttempts Int      @default(5)
+  runAt       DateTime @default(now())
+  lockedBy    String?
+  lockedUntil DateTime?
+  lastError   String?
+  completedAt DateTime?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@index([queueName, status, runAt])
+  @@index([status, lockedUntil])
+  @@map("pay_queue_jobs")
+}
+
+model PayRateLimitBucket {
+  id        String   @id @default(auto()) @map("_id") @db.ObjectId
+  bucketKey String   @unique
+  count     Int      @default(0)
+  expiresAt DateTime
+
+  @@index([expiresAt])
+  @@map("pay_rate_limit_buckets")
+}
+
+model PayDailyProbeCounter {
+  id        String   @id @default(auto()) @map("_id") @db.ObjectId
+  dayKey    String   @unique // YYYY-MM-DD:<provider>
+  count     Int      @default(0)
+  updatedAt DateTime @updatedAt
+  createdAt DateTime @default(now())
+
+  @@map("pay_daily_probe_counters")
+}
+
+model PayMigration {
+  id        String   @id @default(auto()) @map("_id") @db.ObjectId
+  version   String   @unique
+  name      String
+  appliedAt DateTime @default(now())
+
+  @@map("pay_migrations")
+}
+
+model PayLedgerAccount {
+  id               String   @id @default(auto()) @map("_id") @db.ObjectId
+  accountKey       String   @unique // <accountCode>:<ownerType>:<ownerId>:<currency>
+  accountCode      String   // BRAND_PAYMENT_CLEARING | ESCROW_HELD | PLATFORM_REVENUE | GST_PAYABLE | TDS_PAYABLE | CREATOR_PAYABLE | CREATOR_WALLET | REFUND_PAYABLE | DISPUTE_FROZEN
+  ownerType        String   // PLATFORM | CREATOR | BRAND
+  ownerId          String
+  currency         String   @default("INR")
+  normalSide       String   // DEBIT | CREDIT
+  debitTotalPaise  BigInt   @default(0)
+  creditTotalPaise BigInt   @default(0)
+  balancePaise     BigInt   @default(0)
+  version          Int      @default(1)
+  updatedAt        DateTime @updatedAt
+  createdAt        DateTime @default(now())
+
+  @@index([ownerType, ownerId, accountCode])
+  @@map("pay_ledger_accounts")
+}
+
+model PayLedgerEntry {
+  id             String   @id @default(auto()) @map("_id") @db.ObjectId
+  entryId        String   @unique
+  idempotencyKey String   @unique
+  bookingId      String?
+  eventType      String
+  actorId        String
+  actorRole      String
+  reason         String
+  totalPaise     BigInt
+  createdAt      DateTime @default(now())
+
+  @@index([bookingId, createdAt(sort: Desc)])
+  @@map("pay_ledger_entries")
+}
+
+model PayLedgerLine {
+  id          String   @id @default(auto()) @map("_id") @db.ObjectId
+  entryId     String
+  lineIndex   Int
+  accountKey  String
+  accountCode String
+  ownerType   String
+  ownerId     String
+  direction   String   // DEBIT | CREDIT
+  amountPaise BigInt
+  bookingId   String?
+  createdAt   DateTime @default(now())
+
+  @@unique([entryId, lineIndex])
+  @@index([accountKey, createdAt(sort: Desc)])
+  @@index([bookingId, createdAt(sort: Desc)])
+  @@map("pay_ledger_lines")
+}
+
+model PayBooking {
+  id                  String    @id @default(auto()) @map("_id") @db.ObjectId
+  bookingId           String    @unique
+  brandId             String
+  brandName           String
+  creatorId           String
+  creatorName         String
+  creatorSlug         String?
+  status              String    // REQUESTED | COUNTERED | ACCEPTED | REJECTED | EXPIRED | CANCELLED | AGREEMENT_PENDING
+  isOpen              Boolean   @default(true)
+  itemKind            String    // RATE_CARD_ITEM | PACKAGE
+  itemKey             String    // rateCardItemId or packageId
+  rateCardItemId      String?
+  packageId           String?
+  itemTitle           String
+  pricingType         String    // FIXED | NEGOTIABLE
+  selectedAddonsJson  String    // JSON array of addon types
+  quantity            Int       @default(1)
+  deliveryDate        String
+  brief               String
+  referenceLinksJson  String    // JSON array of URLs
+  assetIdsJson        String    // JSON array of storage asset IDs
+  budgetNote          String?
+  quoteSnapshotJson   String    // SerializedBookingQuote + breakdown
+  feeConfigVersion    String
+  rateCardItemVersion Int       @default(1)
+  counterRound        Int       @default(0)
+  contactMaskedCount  Int       @default(0)
+  rejectionReason     String?
+  expiresAt           DateTime
+  version             Int       @default(1)
+  createdAt           DateTime  @default(now())
+  updatedAt           DateTime  @updatedAt
+
+  @@index([brandId, createdAt(sort: Desc)])
+  @@index([creatorId, createdAt(sort: Desc)])
+  @@index([status, expiresAt])
+  @@map("pay_bookings")
+}
+
+model PayBookingEvent {
+  id              String   @id @default(auto()) @map("_id") @db.ObjectId
+  eventId         String   @unique
+  bookingId       String
+  eventType       String   // REQUESTED | COUNTERED | ACCEPTED | REJECTED | EXPIRED | CANCELLED
+  actorId         String
+  actorRole       String   // BRAND | CREATOR | SYSTEM
+  fromStatus      String?
+  toStatus        String
+  reason          String?
+  counterDeltaJson String?
+  createdAt       DateTime @default(now())
+
+  @@index([bookingId, createdAt(sort: Asc)])
+  @@map("pay_booking_events")
+}
+
+model PayNotification {
+  id        String    @id @default(auto()) @map("_id") @db.ObjectId
+  notifId   String    @unique
+  userId    String
+  role      String
+  type      String
+  title     String
+  message   String
+  bookingId String?
+  readAt    DateTime?
+  createdAt DateTime  @default(now())
+
+  @@index([userId, readAt, createdAt(sort: Desc)])
+  @@map("pay_notifications")
+}

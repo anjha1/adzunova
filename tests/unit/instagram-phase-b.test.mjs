@@ -1,4 +1,4 @@
-import test, { describe, it } from 'node:test';
+import test, { describe, it, after } from 'node:test';
 import assert from 'node:assert/strict';
 import crypto from 'crypto';
 
@@ -60,7 +60,7 @@ describe('Phase B3: Log Scrubber & Meta Paging URL Sanitization', async () => {
 describe('Phase B2 & B3: Meta AppSecret Proof & Signed Request Verification', async () => {
   const { createAppSecretProof, verifyMetaSignedRequest } = await import('../../apps/web/src/lib/social/security/meta-signature.ts');
 
-  const testSecret = '76523a088a22bd794bdc9461e9ffec17';
+  const testSecret = 'test_meta_app_secret_000000000000';
   const testToken = 'EAABsbCS1iHgBAO7x9Y5Z3K8m2N1p4Q9wL6sT0vR2eX5yZ8uI1oP4';
 
   it('computes HMAC-SHA256 appsecret_proof correctly', () => {
@@ -326,5 +326,10 @@ describe('Phase B2: Social Repository & Duplicate Account Conflict Detection', a
     assert.ok(retrieved);
     assert.strictEqual(retrieved?.confirmation_code, record.confirmation_code);
     assert.strictEqual(retrieved?.provider_user_id, metaUserId);
+  });
+
+  after(async () => {
+    const { closeSocialDb } = await import('../../apps/web/src/lib/social/social-repository.ts');
+    await closeSocialDb();
   });
 });

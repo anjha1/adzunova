@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState } from 'react';
+import React, { useCallback, useEffect, useState } from 'react';
 import { PageHeader, StatCard } from '@/components/creator/ui';
 import { ShellIcon } from '@/components/creator/shell/shell-icons';
 
@@ -8,38 +8,117 @@ type DayStatus = 'available' | 'limited' | 'busy' | 'shoot' | 'blackout';
 
 interface CalendarDay {
   date: number;
-  month: string;
-  year: number;
   status: DayStatus;
   note?: string;
 }
 
+const TIMEZONE_OPTIONS = [
+  'Asia/Kolkata',
+  'UTC',
+  'Asia/Dubai',
+  'Asia/Singapore',
+  'Europe/London',
+  'America/New_York',
+];
+
 export default function AvailabilityPage() {
   const now = new Date();
-  const currentMonthName = now.toLocaleString('default', { month: 'long' });
-  const currentYear = now.getFullYear();
-  const daysInMonth = new Date(currentYear, now.getMonth() + 1, 0).getDate();
+  const [year, setYear] = useState(now.getFullYear());
+  const [month, setMonth] = useState(now.getMonth() + 1); // 1..12
+  const [timezone, setTimezone] = useState('Asia/Kolkata');
+  const [days, setDays] = useState<CalendarDay[]>([]);
+  const [selectedDay, setSelectedDay] = useState<CalendarDay | null>(null);
+  const [version, setVersion] = useState(0);
+  const [loading, setLoading] = useState(true);
+  const [saving, setSaving] = useState(false);
+  const [saveMessage, setSaveMessage] = useState<string | null>(null);
+  const [errorMsg, setErrorMsg] = useState<string | null>(null);
 
-  // Generate real calendar days for the current month
-  const initialDays: CalendarDay[] = Array.from({ length: daysInMonth }, (_, i) => ({
-    date: i + 1,
-    month: currentMonthName,
-    year: currentYear,
-    status: 'available',
-  }));
+  const monthLabel = new Date(year, month - 1, 1).toLocaleString('default', {
+    month: 'long',
+    year: 'numeric',
+  });
 
-  const [days, setDays] = useState<CalendarDay[]>(initialDays);
-  const [selectedDay, setSelectedDay] = useState<CalendarDay | null>(days[0] || null);
-  const [isSaved, setIsSaved] = useState(false);
+  const loadAvailability = useCallback(async (y: number, m: number) => {
+    setLoading(true);
+    setErrorMsg(null);
+    setSaveMessage(null);
+    try {
+      const res = await fetch(`/api/creator/availability?year=${y}&month=${m}`, {
+        cache: 'no-store',
+      });
+      const data = await res.json();
+      if (!res.ok) {
+        setErrorMsg(data.detail || data.error || 'Failed to load availability');
+        return;
+      }
+      const avail = data.availability;
+      const loadedDays: CalendarDay[] = Array.isArray(avail?.days) ? avail.days : [];
+      setDays(loadedDays);
+      setTimezone(avail?.timezone || 'Asia/Kolkata');
+      setVersion(Number(avail?.version ?? 0));
+      setSelectedDay(loadedDays[0] ?? null);
+    } catch {
+      setErrorMsg('Network error loading availability');
+    } finally {
+      setLoading(false);
+    }
+  }, []);
+
+  useEffect(() => {
+    void loadAvailability(year, month);
+  }, [year, month, loadAvailability]);
+
+  const handleSave = async () => {
+    setSaving(true);
+    setErrorMsg(null);
+    setSaveMessage(null);
+    try {
+      const res = await fetch('/api/creator/availability', {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          year,
+          month,
+          timezone,
+          days,
+        }),
+      });
+      const data = await res.json();
+      if (!res.ok) {
+        setErrorMsg(data.detail || data.error || 'Failed to save schedule');
+        return;
+      }
+      setVersion(Number(data.availability?.version ?? version + 1));
+      setSaveMessage(`Saved v${data.availability?.version ?? version + 1}`);
+    } catch {
+      setErrorMsg('Network error saving schedule');
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const shiftMonth = (delta: number) => {
+    let nextM = month + delta;
+    let nextY = year;
+    if (nextM < 1) {
+      nextM = 12;
+      nextY -= 1;
+    } else if (nextM > 12) {
+      nextM = 1;
+      nextY += 1;
+    }
+    setYear(nextY);
+    setMonth(nextM);
+  };
 
   const bookedCount = days.filter((d) => d.status === 'shoot' || d.status === 'busy').length;
   const blackoutCount = days.filter((d) => d.status === 'blackout').length;
 
   const handleUpdateStatus = (status: DayStatus) => {
     if (!selectedDay) return;
-    setDays((prev) =>
-      prev.map((d) => (d.date === selectedDay.date ? { ...d, status } : d))
-    );
+    setSaveMessage(null);
+    setDays((prev) => prev.map((d) => (d.date === selectedDay.date ? { ...d, status } : d)));
     setSelectedDay({ ...selectedDay, status });
   };
 
@@ -62,20 +141,32 @@ export default function AvailabilityPage() {
     <div className="space-y-6 animate-in fade-in duration-300">
       <PageHeader
         title="Creator Availability & Calendar"
-        description="Manage your shoot dates, production capacity, and blackout windows so brands book realistic timelines."
+        description="Manage your shoot dates, production capacity, timezone, and blackout windows so brands book realistic timelines."
         action={
-          <button
-            onClick={() => {
-              setIsSaved(true);
-              setTimeout(() => setIsSaved(false), 2500);
-            }}
-            className="px-4 py-2 rounded-xl bg-indigo-600 hover:bg-indigo-700 text-white font-medium text-xs shadow-xs transition flex items-center gap-1.5"
-          >
-            <ShellIcon name="Save" size={14} />
-            {isSaved ? 'Schedule Saved!' : 'Save Schedule'}
-          </button>
+          <div className="flex items-center gap-2">
+            {saveMessage && (
+              <span className="text-xs font-medium text-emerald-600 dark:text-emerald-400">
+                {saveMessage}
+              </span>
+            )}
+            <button
+              type="button"
+              disabled={saving || loading}
+              onClick={() => void handleSave()}
+              className="px-4 py-2 rounded-xl bg-indigo-600 hover:bg-indigo-700 disabled:opacity-50 text-primary-foreground font-medium text-xs shadow-xs transition flex items-center gap-1.5"
+            >
+              <ShellIcon name="Save" size={14} />
+              {saving ? 'Saving...' : 'Save Schedule'}
+            </button>
+          </div>
         }
       />
+
+      {errorMsg && (
+        <div className="p-3 rounded-xl border border-rose-500/30 bg-rose-500/10 text-rose-700 dark:text-rose-300 text-xs">
+          {errorMsg}
+        </div>
+      )}
 
       <div className="grid grid-cols-1 desk:grid-cols-4 gap-4">
         <StatCard
@@ -105,60 +196,98 @@ export default function AvailabilityPage() {
       </div>
 
       <div className="grid grid-cols-1 desk:grid-cols-3 gap-6">
-        {/* Main Calendar Grid */}
         <div className="desk:col-span-2 p-5 rounded-2xl bg-card border border-border shadow-xs space-y-4">
-          <div className="flex items-center justify-between pb-3 border-b border-border">
-            <h2 className="text-sm font-bold text-foreground">{currentMonthName} {currentYear} Schedule</h2>
-            <div className="flex items-center gap-2 text-xs text-muted-foreground">
-              <span className="flex items-center gap-1">
-                <span className="w-2 h-2 rounded-full bg-emerald-500"></span> Available
-              </span>
-              <span className="flex items-center gap-1">
-                <span className="w-2 h-2 rounded-full bg-indigo-500"></span> Shoot Day
-              </span>
-              <span className="flex items-center gap-1">
-                <span className="w-2 h-2 rounded-full bg-rose-500"></span> Blackout
-              </span>
+          <div className="flex flex-wrap items-center justify-between gap-3 pb-3 border-b border-border">
+            <div className="flex items-center gap-2">
+              <button
+                type="button"
+                onClick={() => shiftMonth(-1)}
+                className="px-2 py-1 rounded-lg border border-border text-xs hover:bg-muted"
+              >
+                Prev
+              </button>
+              <h2 className="text-sm font-bold text-foreground">{`${monthLabel} Schedule`}</h2>
+              <button
+                type="button"
+                onClick={() => shiftMonth(1)}
+                className="px-2 py-1 rounded-lg border border-border text-xs hover:bg-muted"
+              >
+                Next
+              </button>
+            </div>
+
+            <div className="flex items-center gap-3">
+              <select
+                value={timezone}
+                onChange={(e) => {
+                  setTimezone(e.target.value);
+                  setSaveMessage(null);
+                }}
+                aria-label="Creator Timezone"
+                className="text-xs rounded-lg border border-border bg-background px-2.5 py-1 text-foreground"
+              >
+                {TIMEZONE_OPTIONS.map((tz) => (
+                  <option key={tz} value={tz}>
+                    {tz}
+                  </option>
+                ))}
+              </select>
+              <div className="flex items-center gap-2 text-xs text-muted-foreground">
+                <span className="flex items-center gap-1">
+                  <span className="w-2 h-2 rounded-full bg-emerald-500"></span> Available
+                </span>
+                <span className="flex items-center gap-1">
+                  <span className="w-2 h-2 rounded-full bg-indigo-500"></span> Shoot Day
+                </span>
+                <span className="flex items-center gap-1">
+                  <span className="w-2 h-2 rounded-full bg-rose-500"></span> Blackout
+                </span>
+              </div>
             </div>
           </div>
 
-          <div className="grid grid-cols-7 gap-2">
-            {['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'].map((day) => (
-              <div key={day} className="text-center text-[11px] font-bold text-muted-foreground py-1">
-                {day}
-              </div>
-            ))}
+          {loading ? (
+            <div className="py-12 text-center text-xs text-muted-foreground">
+              Loading calendar...
+            </div>
+          ) : (
+            <div className="grid grid-cols-7 gap-2">
+              {['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'].map((day) => (
+                <div key={day} className="text-center text-[11px] font-bold text-muted-foreground py-1">
+                  {day}
+                </div>
+              ))}
 
-            {days.map((item) => {
-              const isSelected = selectedDay?.date === item.date;
-              return (
-                <button
-                  key={item.date}
-                  type="button"
-                  onClick={() => setSelectedDay(item)}
-                  className={`p-2.5 rounded-xl border text-left transition flex flex-col justify-between h-20 ${
-                    isSelected ? 'ring-2 ring-indigo-600 dark:ring-indigo-400' : ''
-                  } ${getStatusColor(item.status)}`}
-                >
-                  <span className="text-xs font-bold text-foreground">{item.date}</span>
-                  {item.note && (
-                    <span className="text-[10px] leading-tight line-clamp-2 opacity-80 text-foreground">
-                      {item.note}
-                    </span>
-                  )}
-                </button>
-              );
-            })}
-          </div>
+              {days.map((item) => {
+                const isSelected = selectedDay?.date === item.date;
+                return (
+                  <button
+                    key={item.date}
+                    type="button"
+                    onClick={() => setSelectedDay(item)}
+                    className={`p-2.5 rounded-xl border text-left transition flex flex-col justify-between h-20 ${
+                      isSelected ? 'ring-2 ring-indigo-600 dark:ring-indigo-400' : ''
+                    } ${getStatusColor(item.status)}`}
+                  >
+                    <span className="text-xs font-bold text-foreground">{item.date}</span>
+                    {item.note && (
+                      <span className="text-[10px] leading-tight line-clamp-2 opacity-80 text-foreground">
+                        {item.note}
+                      </span>
+                    )}
+                  </button>
+                );
+              })}
+            </div>
+          )}
         </div>
 
-        {/* Right Details Drawer */}
         <div className="p-5 rounded-2xl bg-card border border-border shadow-xs space-y-5">
           <div>
             <h3 className="text-sm font-bold text-foreground">Date Configuration</h3>
             <p className="text-xs text-muted-foreground mt-0.5">
               {selectedDay
-                ? `Editing ${selectedDay.month} ${selectedDay.date}, ${selectedDay.year}`
+                ? `Editing ${monthLabel}, Day ${selectedDay.date}`
                 : 'Select a day to update availability'}
             </p>
           </div>
@@ -223,6 +352,7 @@ export default function AvailabilityPage() {
                   value={selectedDay.note || ''}
                   onChange={(e) => {
                     const note = e.target.value;
+                    setSaveMessage(null);
                     setDays((prev) =>
                       prev.map((d) => (d.date === selectedDay.date ? { ...d, note } : d))
                     );

@@ -210,3 +210,10 @@ export async function validateAndConsumePersistentOAuthState(
 
   return validateAndConsumeOAuthState(state, expectedCreatorId, expectedSessionId);
 }
+
+export async function closeOAuthStateDb(): Promise<void> {
+  if (oauthMongoClient) {
+    await oauthMongoClient.close().catch(() => {});
+    oauthMongoClient = null;
+  }
+}

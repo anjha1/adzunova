@@ -1150,3 +1150,10 @@ export function _resetInMemoryStore(): void {
   inMemoryAuditLogs.length = 0;
   inMemoryOutbox.length = 0;
 }
+
+export async function closeSocialDb(): Promise<void> {
+  if (mongoClient) {
+    await mongoClient.close().catch(() => {});
+    mongoClient = null;
+  }
+}

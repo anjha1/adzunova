@@ -9,16 +9,21 @@ import { ShellIcon } from '@/components/creator/shell/shell-icons';
 import { Logo } from '@/components/brand/Logo';
 import { QrCode } from '@/components/ui/qr-code';
 import { formatIndianRupees, formatCompactCount, formatVerifiedViaLabel } from '@/lib/public-profile/formatters';
+import { RequestCollaborationModal } from '@/components/bookings/request-collaboration-modal';
 
 interface PublicProfileClientProps {
   profile: PublicCreatorProfileDTO;
+  creatorId?: string;
+  persistedPackages?: Array<{ id: string; name: string; discountedPricePaise: string }>;
 }
 
-export function PublicProfileClient({ profile }: PublicProfileClientProps) {
+export function PublicProfileClient({ profile, creatorId, persistedPackages = [] }: PublicProfileClientProps) {
   const router = useRouter();
   const [selectedPlatformTab, setSelectedPlatformTab] = useState<string>('ALL');
   const [isShareModalOpen, setIsShareModalOpen] = useState(false);
   const [isReportModalOpen, setIsReportModalOpen] = useState(false);
+  const [isBookingModalOpen, setIsBookingModalOpen] = useState(false);
+  const [bookingInitialPackageId, setBookingInitialPackageId] = useState<string | null>(null);
   const [isHowBookingWorksOpen, setIsHowBookingWorksOpen] = useState(false);
   const [copied, setCopied] = useState(false);
   const [avatarImgFailed, setAvatarImgFailed] = useState(false);
@@ -33,13 +38,20 @@ export function PublicProfileClient({ profile }: PublicProfileClientProps) {
 
   const shareUrl = typeof window !== 'undefined' ? window.location.href : profile.seo.canonicalUrl;
 
-  // Track privacy-safe view event on mount
+  // Track privacy-safe view event on mount & open booking modal if ?request=1
   useEffect(() => {
     fetch(`/api/public/creators/${profile.slug}/events`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ eventType: 'VIEW' }),
     }).catch(() => null);
+
+    if (typeof window !== 'undefined') {
+      const params = new URLSearchParams(window.location.search);
+      if (params.get('request') === '1') {
+        setIsBookingModalOpen(true);
+      }
+    }
   }, [profile.slug]);
 
   const handleCopyLink = () => {
@@ -166,12 +178,14 @@ export function PublicProfileClient({ profile }: PublicProfileClientProps) {
             </button>
 
             <button
-              disabled
-              title="Direct brand messaging is coming soon"
-              className="px-3.5 py-1.5 rounded-xl bg-muted text-muted-foreground text-xs font-semibold cursor-not-allowed opacity-75 flex items-center gap-1.5"
+              type="button"
+              onClick={() => {
+                setBookingInitialPackageId(null);
+                setIsBookingModalOpen(true);
+              }}
+              className="px-3.5 py-1.5 rounded-xl bg-indigo-600 hover:bg-indigo-700 !text-white text-xs font-bold flex items-center gap-1.5 transition cursor-pointer"
             >
-              <span>Message</span>
-              <span className="text-[9px] px-1 py-0.2 rounded bg-border text-muted-foreground font-mono uppercase">Soon</span>
+              <span>Request Collaboration</span>
             </button>
           </div>
         </div>
@@ -981,8 +995,12 @@ export function PublicProfileClient({ profile }: PublicProfileClientProps) {
                   <div className="pt-3 border-t border-border flex items-center justify-between text-xs">
                     <span className="text-muted-foreground">⏱️ {pkg.turnaroundDays}d SLA &bull; {pkg.revisions} Revisions</span>
                     <button
-                      onClick={handleMessageCreator}
-                      className="px-3 py-1.5 rounded-lg bg-indigo-600 hover:bg-indigo-700 text-white font-bold text-xs transition cursor-pointer"
+                      type="button"
+                      onClick={() => {
+                        setBookingInitialPackageId(pkg.id);
+                        setIsBookingModalOpen(true);
+                      }}
+                      className="px-3 py-1.5 rounded-lg bg-indigo-600 hover:bg-indigo-700 !text-white font-bold text-xs transition cursor-pointer"
                     >
                       Book Package
                     </button>
@@ -1221,6 +1239,30 @@ export function PublicProfileClient({ profile }: PublicProfileClientProps) {
           </div>
         </div>
       )}
+
+      <RequestCollaborationModal
+        isOpen={isBookingModalOpen}
+        onClose={() => setIsBookingModalOpen(false)}
+        creatorId={creatorId || ''}
+        creatorName={profile.displayName}
+        creatorSlug={profile.slug}
+        rateCardItems={rateCardItems.map((item) => ({
+          id: item.id,
+          title: item.title,
+          platform: item.platform,
+          format: item.contentFormat,
+          price: item.price ?? 0,
+          pricingType: item.priceType,
+          addons: (item.addons || []).map((a) => ({
+            type: a.type,
+            pricingMode: a.pricingMode,
+            value: a.value,
+            enabled: true,
+          })),
+        }))}
+        packages={persistedPackages}
+        initialPackageId={bookingInitialPackageId}
+      />
     </div>
   );
 }

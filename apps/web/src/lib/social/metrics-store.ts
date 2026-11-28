@@ -317,3 +317,10 @@ export function _resetInMemoryMetrics(): void {
   inMemoryMetricPoints.length = 0;
   inMemoryDemographicsSnapshots.clear();
 }
+
+export async function closeMetricsStoreDb(): Promise<void> {
+  if (mongoClient) {
+    await mongoClient.close().catch(() => {});
+    mongoClient = null;
+  }
+}

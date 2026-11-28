@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import { PageHeader, StatCard, StatusBadge, Money, EmptyState } from '@/components/creator/ui';
 import { ShellIcon } from '@/components/creator/shell/shell-icons';
 
@@ -9,49 +9,138 @@ interface PackageItem {
   name: string;
   tagline: string;
   deliverables: string[];
-  originalPriceMinor: number;
-  discountedPriceMinor: number;
+  originalPricePaise: string;
+  discountedPricePaise: string;
   turnaroundDays: number;
   revisions: number;
   isActive: boolean;
+  version: number;
 }
 
 export default function PackagesPage() {
   const [packages, setPackages] = useState<PackageItem[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [saving, setSaving] = useState(false);
+  const [errorMsg, setErrorMsg] = useState<string | null>(null);
   const [isCreating, setIsCreating] = useState(false);
   const [newTitle, setNewTitle] = useState('');
   const [newTagline, setNewTagline] = useState('');
   const [newPrice, setNewPrice] = useState(0);
   const [newTurnaround, setNewTurnaround] = useState(7);
+  const [newRevisions, setNewRevisions] = useState(1);
+  const [newDeliverables, setNewDeliverables] = useState('');
 
-  const handleAddPackage = (e: React.FormEvent) => {
+  async function loadPackages() {
+    setLoading(true);
+    setErrorMsg(null);
+    try {
+      const res = await fetch('/api/creator/packages', { cache: 'no-store' });
+      const data = await res.json();
+      if (!res.ok) {
+        setErrorMsg(data.detail || data.error || 'Failed to load packages');
+      } else {
+        setPackages(Array.isArray(data.packages) ? data.packages : []);
+      }
+    } catch {
+      setErrorMsg('Network error loading packages');
+    } finally {
+      setLoading(false);
+    }
+  }
+
+  useEffect(() => {
+    void loadPackages();
+  }, []);
+
+  const handleAddPackage = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!newTitle.trim() || newPrice <= 0) return;
 
-    const newPkg: PackageItem = {
-      id: `pkg-${Date.now()}`,
-      name: newTitle,
-      tagline: newTagline || 'Custom promotional package bundle.',
-      deliverables: ['Custom Package Deliverables'],
-      originalPriceMinor: Math.round(newPrice * 100 * 1.15),
-      discountedPriceMinor: newPrice * 100,
-      turnaroundDays: newTurnaround,
-      revisions: 1,
-      isActive: true,
-    };
+    setSaving(true);
+    setErrorMsg(null);
+    try {
+      const deliverables = newDeliverables
+        .split('\n')
+        .map((s) => s.trim())
+        .filter(Boolean);
+      const discountedPaise = String(Math.round(newPrice * 100));
+      const originalPaise = String(Math.round(newPrice * 100 * 1.15));
 
-    setPackages([newPkg, ...packages]);
-    setIsCreating(false);
-    setNewTitle('');
-    setNewTagline('');
-    setNewPrice(0);
+      const res = await fetch('/api/creator/packages', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          name: newTitle.trim(),
+          tagline: newTagline.trim() || 'Custom promotional package bundle.',
+          deliverables: deliverables.length > 0 ? deliverables : ['Custom Package Deliverables'],
+          originalPricePaise: originalPaise,
+          discountedPricePaise: discountedPaise,
+          turnaroundDays: newTurnaround,
+          revisions: newRevisions,
+          isActive: true,
+        }),
+      });
+      const data = await res.json();
+      if (!res.ok) {
+        setErrorMsg(data.detail || data.error || 'Failed to save package');
+        return;
+      }
+      setPackages((prev) => [data.package, ...prev]);
+      setIsCreating(false);
+      setNewTitle('');
+      setNewTagline('');
+      setNewPrice(0);
+      setNewDeliverables('');
+    } catch {
+      setErrorMsg('Network error saving package');
+    } finally {
+      setSaving(false);
+    }
   };
 
-  const handleToggle = (id: string) => {
-    setPackages((prev) =>
-      prev.map((p) => (p.id === id ? { ...p, isActive: !p.isActive } : p))
-    );
+  const handleToggle = async (pkg: PackageItem) => {
+    setErrorMsg(null);
+    try {
+      const res = await fetch(`/api/creator/packages/${encodeURIComponent(pkg.id)}/status`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ isActive: !pkg.isActive }),
+      });
+      const data = await res.json();
+      if (!res.ok) {
+        setErrorMsg(data.detail || data.error || 'Failed to update package status');
+        return;
+      }
+      setPackages((prev) => prev.map((p) => (p.id === pkg.id ? data.package : p)));
+    } catch {
+      setErrorMsg('Network error updating status');
+    }
   };
+
+  const handleDelete = async (id: string) => {
+    setErrorMsg(null);
+    try {
+      const res = await fetch(`/api/creator/packages/${encodeURIComponent(id)}`, {
+        method: 'DELETE',
+      });
+      if (!res.ok) {
+        const data = await res.json();
+        setErrorMsg(data.detail || data.error || 'Failed to delete package');
+        return;
+      }
+      setPackages((prev) => prev.filter((p) => p.id !== id));
+    } catch {
+      setErrorMsg('Network error deleting package');
+    }
+  };
+
+  const activeCount = packages.filter((p) => p.isActive).length;
+  const avgPaise =
+    packages.length > 0
+      ? Math.round(
+          packages.reduce((acc, p) => acc + Number(p.discountedPricePaise), 0) / packages.length
+        )
+      : 0;
 
   return (
     <div className="space-y-6 animate-in fade-in duration-300">
@@ -60,8 +149,9 @@ export default function PackagesPage() {
         description="Bundle multiple platforms and formats together with a discount to incentivize larger campaign bookings."
         action={
           <button
+            type="button"
             onClick={() => setIsCreating(true)}
-            className="px-4 py-2 rounded-xl bg-indigo-600 hover:bg-indigo-700 text-white font-medium text-xs shadow-xs transition flex items-center gap-1.5"
+            className="px-4 py-2 rounded-xl bg-indigo-600 hover:bg-indigo-700 text-primary-foreground font-medium text-xs shadow-xs transition flex items-center gap-1.5"
           >
             <ShellIcon name="Plus" size={14} />
             Create Bundle Package
@@ -69,33 +159,39 @@ export default function PackagesPage() {
         }
       />
 
+      {errorMsg && (
+        <div className="p-3 rounded-xl border border-rose-500/30 bg-rose-500/10 text-rose-700 dark:text-rose-300 text-xs">
+          {errorMsg}
+        </div>
+      )}
+
       <div className="grid grid-cols-1 desk:grid-cols-3 gap-4">
         <StatCard
           label="Active Packages"
-          value={packages.filter((p) => p.isActive).length}
+          value={activeCount}
           subValue="Available in Brand Catalog"
           icon={<ShellIcon name="Package" size={16} />}
         />
         <StatCard
           label="Average Deal Size"
-          value={packages.length === 0 ? '₹0' : '—'}
+          value={packages.length === 0 ? '₹0' : <Money minorUnits={avgPaise} currency="INR" />}
           subValue="Bundle booking average"
           icon={<ShellIcon name="CreditCard" size={16} />}
         />
         <StatCard
           label="Top Package"
           value={packages.length === 0 ? '—' : packages[0]?.name}
-          subValue="Based on booking volume"
+          subValue="Most recent configured bundle"
           icon={<ShellIcon name="Sparkles" size={16} />}
         />
       </div>
 
-      {/* Create Modal / Form Drawer */}
       {isCreating && (
         <div className="p-5 rounded-2xl bg-card border-2 border-indigo-600/30 shadow-md space-y-4 animate-in fade-in">
           <div className="flex items-center justify-between">
             <h3 className="font-bold text-sm text-foreground">Create New Campaign Package</h3>
             <button
+              type="button"
               onClick={() => setIsCreating(false)}
               className="text-muted-foreground hover:text-foreground text-xs"
             >
@@ -109,7 +205,7 @@ export default function PackagesPage() {
                 <label className="text-xs font-semibold text-foreground block mb-1">Package Title</label>
                 <input
                   type="text"
-                  placeholder="e.g. YouTube Dedicated + 2x Shorts Bundle"
+                  placeholder="e.g. YouTube Dedicated + Shorts Bundle"
                   value={newTitle}
                   onChange={(e) => setNewTitle(e.target.value)}
                   required
@@ -120,10 +216,36 @@ export default function PackagesPage() {
                 <label className="text-xs font-semibold text-foreground block mb-1">Package Price (INR)</label>
                 <input
                   type="number"
+                  min={1}
                   placeholder="50000"
                   value={newPrice || ''}
                   onChange={(e) => setNewPrice(Number(e.target.value))}
                   required
+                  className="w-full text-xs rounded-xl border border-border bg-background px-3 py-2 text-foreground focus:ring-1 focus:ring-indigo-500"
+                />
+              </div>
+            </div>
+
+            <div className="grid grid-cols-1 desk:grid-cols-2 gap-4">
+              <div>
+                <label className="text-xs font-semibold text-foreground block mb-1">Turnaround (Days)</label>
+                <input
+                  type="number"
+                  min={1}
+                  max={365}
+                  value={newTurnaround}
+                  onChange={(e) => setNewTurnaround(Number(e.target.value))}
+                  className="w-full text-xs rounded-xl border border-border bg-background px-3 py-2 text-foreground focus:ring-1 focus:ring-indigo-500"
+                />
+              </div>
+              <div>
+                <label className="text-xs font-semibold text-foreground block mb-1">Included Revisions</label>
+                <input
+                  type="number"
+                  min={0}
+                  max={20}
+                  value={newRevisions}
+                  onChange={(e) => setNewRevisions(Number(e.target.value))}
                   className="w-full text-xs rounded-xl border border-border bg-background px-3 py-2 text-foreground focus:ring-1 focus:ring-indigo-500"
                 />
               </div>
@@ -140,6 +262,17 @@ export default function PackagesPage() {
               />
             </div>
 
+            <div>
+              <label className="text-xs font-semibold text-foreground block mb-1">Deliverables (one per line)</label>
+              <textarea
+                rows={3}
+                placeholder="Dedicated Video Integration&#10;Story Link + Pin"
+                value={newDeliverables}
+                onChange={(e) => setNewDeliverables(e.target.value)}
+                className="w-full text-xs rounded-xl border border-border bg-background px-3 py-2 text-foreground focus:ring-1 focus:ring-indigo-500"
+              />
+            </div>
+
             <div className="flex justify-end gap-2 pt-2">
               <button
                 type="button"
@@ -150,17 +283,21 @@ export default function PackagesPage() {
               </button>
               <button
                 type="submit"
-                className="px-4 py-1.5 rounded-xl bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-bold"
+                disabled={saving}
+                className="px-4 py-1.5 rounded-xl bg-indigo-600 hover:bg-indigo-700 disabled:opacity-50 text-primary-foreground text-xs font-bold"
               >
-                Save Package
+                {saving ? 'Saving...' : 'Save Package'}
               </button>
             </div>
           </form>
         </div>
       )}
 
-      {/* Package Cards List */}
-      {packages.length === 0 ? (
+      {loading ? (
+        <div className="p-8 rounded-2xl bg-card border border-border text-center text-xs text-muted-foreground">
+          Loading packages...
+        </div>
+      ) : packages.length === 0 ? (
         <EmptyState
           icon={<ShellIcon name="Package" size={28} className="text-indigo-600 dark:text-indigo-400" />}
           title="No Packages Configured"
@@ -191,8 +328,9 @@ export default function PackagesPage() {
 
                   <div className="text-right">
                     <span className="text-lg font-black text-indigo-600 dark:text-indigo-400">
-                      <Money minorUnits={pkg.discountedPriceMinor} currency="INR" />
+                      <Money minorUnits={Number(pkg.discountedPricePaise)} currency="INR" />
                     </span>
+                    <div className="text-[10px] text-muted-foreground">v{pkg.version}</div>
                   </div>
                 </div>
 
@@ -211,15 +349,25 @@ export default function PackagesPage() {
 
               <div className="pt-3 border-t border-border flex items-center justify-between text-xs text-muted-foreground">
                 <div className="flex items-center gap-3">
-                  <span>⏱️ {pkg.turnaroundDays} Days Delivery</span>
-                  <span>🔄 {pkg.revisions} Revisions</span>
+                  <span>{`${pkg.turnaroundDays} Days Delivery`}</span>
+                  <span>{`${pkg.revisions} Revisions`}</span>
                 </div>
-                <button
-                  onClick={() => handleToggle(pkg.id)}
-                  className="text-xs font-medium text-indigo-600 dark:text-indigo-400 hover:underline"
-                >
-                  {pkg.isActive ? 'Deactivate' : 'Publish'}
-                </button>
+                <div className="flex items-center gap-3">
+                  <button
+                    type="button"
+                    onClick={() => void handleToggle(pkg)}
+                    className="text-xs font-medium text-indigo-600 dark:text-indigo-400 hover:underline"
+                  >
+                    {pkg.isActive ? 'Deactivate' : 'Publish'}
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => void handleDelete(pkg.id)}
+                    className="text-xs font-medium text-rose-600 dark:text-rose-400 hover:underline"
+                  >
+                    Delete
+                  </button>
+                </div>
               </div>
             </div>
           ))}

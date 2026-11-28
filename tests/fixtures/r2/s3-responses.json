@@ -1,0 +1,35 @@
+{
+  "headObject": {
+    "status": 200,
+    "headers": {
+      "etag": "\"d41d8cd98f00b204e9800998ecf8427e\"",
+      "content-length": "1024",
+      "content-type": "image/webp",
+      "last-modified": "Wed, 25 Nov 2026 10:00:00 GMT"
+    }
+  },
+  "putObject": {
+    "status": 200,
+    "headers": {
+      "etag": "\"098f6bcd4621d373cade4e832627b4f6\""
+    }
+  },
+  "deleteObjects": {
+    "status": 200,
+    "body": "<?xml version=\"1.0\" encoding=\"UTF-8\"?><DeleteResult xmlns=\"http://s3.amazonaws.com/doc/2006-03-01/\"><Deleted><Key>pub/a1b2/tenant_1/public_avatar/asset_1/v1/abc.webp</Key></Deleted><Error><Key>pub/a1b2/tenant_1/public_avatar/asset_2/v1/def.webp</Key><Code>AccessDenied</Code><Message>Access Denied</Message></Error></DeleteResult>"
+  },
+  "error429": {
+    "name": "SlowDown",
+    "$metadata": {
+      "httpStatusCode": 429,
+      "requestId": "req-scrubbed-001"
+    }
+  },
+  "error404": {
+    "name": "NoSuchKey",
+    "$metadata": {
+      "httpStatusCode": 404,
+      "requestId": "req-scrubbed-002"
+    }
+  }
+}
